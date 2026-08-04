@@ -19,19 +19,19 @@
 = Introduction
 #include "chapters/01-introduction.typ"
 
-= Background
+= Background <sec:background>
 #include "chapters/02-background.typ"
 
-= Approach
+= Approach <sec:approach>
 #include "chapters/03-approach.typ"
 
-= Implementation
+= Implementation <sec:implementation>
 #include "chapters/04-implementation.typ"
 
-= Results
+= Results <sec:results>
 #include "chapters/05-results.typ"
 
-= Future Work
+= Future Work <sec:future-work>
 #include "chapters/06-future_work.typ"
 
 #show: appendix

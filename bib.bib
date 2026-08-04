@@ -1,0 +1,61 @@
+@inproceedings{viper,
+author = {M\"{u}ller, Peter and Schwerhoff, Malte and Summers, Alexander J.},
+title = {Viper: A Verification Infrastructure for Permission-Based Reasoning},
+year = {2016},
+isbn = {9783662491218},
+publisher = {Springer-Verlag},
+address = {Berlin, Heidelberg},
+url = {https://doi.org/10.1007/978-3-662-49122-5_2},
+doi = {10.1007/978-3-662-49122-5_2},
+abstract = {The automation of verification techniques based on first-order logic specifications has benefitted greatly from verification infrastructures such as Boogie and Why. These offer an intermediate language that can express diverse language features and verification techniques, as well as back-end tools: in particular, verification condition generators.However, these infrastructures are not well suited to verification techniques based on separation logic and other permission logics, because they do not provide direct support for permissions and because existing tools for these logics often favour symbolic execution over verification condition generation. Consequently, tool support for these logics where available is typically developed independently for each technique, dramatically increasing the burden of developing automatic tools for permission-based verification.In this paper, we present a verification infrastructure whose intermediate language supports an expressive permission model natively. We provide tool support including two back-end verifiers: one based on symbolic execution, and one on verification condition generation; an inference tool based on abstract interpretion is currently under development. A wide range of existing verification techniques can be implemented via this infrastructure, alleviating much of the burden of building permission-based verifiers, and allowing the developers of higher-level reasoning techniques to focus their efforts at an appropriate level of abstraction.},
+booktitle = {Proceedings of the 17th International Conference on Verification, Model Checking, and Abstract Interpretation - Volume 9583},
+pages = {41–62},
+numpages = {22},
+location = {St. Petersburg, FL, USA},
+series = {VMCAI 2016}
+}
+
+@article{egg,
+author = {Willsey, Max and Nandi, Chandrakana and Wang, Yisu Remy and Flatt, Oliver and Tatlock, Zachary and Panchekha, Pavel},
+title = {egg: Fast and extensible equality saturation},
+year = {2021},
+issue_date = {January 2021},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+volume = {5},
+number = {POPL},
+url = {https://doi.org/10.1145/3434304},
+doi = {10.1145/3434304},
+abstract = {An e-graph efficiently represents a congruence relation over many expressions. Although they were originally developed in the late 1970s for use in automated theorem provers, a more recent technique known as equality saturation repurposes e-graphs to implement state-of-the-art, rewrite-driven compiler optimizations and program synthesizers. However, e-graphs remain unspecialized for this newer use case. Equality saturation workloads exhibit distinct characteristics and often require ad-hoc e-graph extensions to incorporate transformations beyond purely syntactic rewrites.  This work contributes two techniques that make e-graphs fast and extensible, specializing them to equality saturation. A new amortized invariant restoration technique called rebuilding takes advantage of equality saturation's distinct workload, providing asymptotic speedups over current techniques in practice. A general mechanism called e-class analyses integrates domain-specific analyses into the e-graph, reducing the need for ad hoc manipulation. We implemented these techniques in a new open-source library called egg. Our case studies on three previously published applications of equality saturation highlight how egg's performance and flexibility enable state-of-the-art results across diverse domains.},
+journal = {Proc. ACM Program. Lang.},
+month = jan,
+articleno = {23},
+numpages = {29},
+keywords = {equality saturation, e-graphs}
+}
+
+@phdthesis{silicon,
+  author = {Schwerhoff, Malte},
+  title = {Advancing Automated, Permission-Based Program Verification Using Symbolic Execution},
+  school = {ETH Zurich},
+  year = {2016},
+  address = {Zurich, Switzerland},
+  type = {PhD thesis}
+}
+
+@inproceedings{prusti,
+author = {Astrauskas, Vytautas and B\'{\i}l\'{y}, Aurel and Fiala, Jon\'{a}\v{s} and Grannan, Zachary and Matheja, Christoph and M\"{u}ller, Peter and Poli, Federico and Summers, Alexander J.},
+title = {The Prusti Project: Formal Verification for&nbsp;Rust},
+year = {2022},
+isbn = {978-3-031-06772-3},
+publisher = {Springer-Verlag},
+address = {Berlin, Heidelberg},
+url = {https://doi.org/10.1007/978-3-031-06773-0_5},
+doi = {10.1007/978-3-031-06773-0_5},
+abstract = {Rust is a modern systems programming language designed to offer both performance and static safety. A key distinguishing feature is a strong type system, which enforces by default that memory is either shared or mutable, but never both. This guarantee is used to prevent common pitfalls such as memory errors and data races. It can also be used to greatly simplify formal verification, as we demonstrated by developing the Prusti verifier, which can verify rich correctness properties of Rust programs with a very modest annotation overhead. In this paper, we provide an overview of the Prusti project. We outline its main design goals, illustrate examples of its use, and discuss important outcomes from the perspectives of a user, a verification expert, and a tool developer.},
+booktitle = {NASA Formal Methods: 14th International Symposium, NFM 2022, Pasadena, CA, USA, May 24–27, 2022, Proceedings},
+pages = {88–108},
+numpages = {21},
+keywords = {Separation logic, Deductive verification, Rust},
+location = {Pasadena, CA, USA}
+}

@@ -1,5 +1,7 @@
 #import "@preview/ethz-cadmo-inspired-thesis:0.1.0": *
 
+#import "macros.typ": *
+
 #show: setup.with(
   "My Thesis Title", // title
   "Jakub Adam Trzykowski", // author
@@ -9,10 +11,16 @@
   bib: bibliography("bib.bib", title: none),
 )
 
+#show: code-setup
+
+// Run-in `#para` headings are `outlined: false`, so they would not be bookmarked
+// by default. Opt every heading in; `#todo` / `#note` opt their bodies back out.
+#set heading(bookmarked: true)
+
 #frontchapter[Abstract]
 #include "chapters/00-abstract.typ"
 
-#outline(depth: 3)
+#outline(depth: 2)
 
 #show: mainmatter
 

@@ -1,0 +1,84 @@
+%YAML 1.2
+---
+name: Viper
+file_extensions: [vpr, sil]
+scope: source.viper
+
+contexts:
+  main:
+    - include: comments
+    - include: literals
+    - include: keywords
+    - include: types
+    - include: operators
+    - include: names
+
+  comments:
+    - match: '//'
+      scope: punctuation.definition.comment.viper
+      push:
+        - meta_scope: comment.line.double-slash.viper
+        - match: '$'
+          pop: true
+    - match: '/\*'
+      scope: punctuation.definition.comment.viper
+      push:
+        - meta_scope: comment.block.viper
+        - match: '\*/'
+          pop: true
+
+  literals:
+    - match: '\b(true|false|null|write|none|wildcard|epsilon)\b'
+      scope: constant.language.viper
+    - match: '\b[0-9]+\.[0-9]+\b'
+      scope: constant.numeric.float.viper
+    - match: '\b[0-9]+\b'
+      scope: constant.numeric.integer.viper
+    - match: '"'
+      scope: punctuation.definition.string.begin.viper
+      push:
+        - meta_scope: string.quoted.double.viper
+        - match: '"'
+          scope: punctuation.definition.string.end.viper
+          pop: true
+
+  keywords:
+    # top-level declarations
+    - match: '\b(domain|axiom|function|predicate|method|field|adt|import|define|interpretation|returns)\b'
+      scope: keyword.declaration.viper
+    # specification clauses
+    - match: '\b(requires|ensures|invariant|decreases)\b'
+      scope: keyword.other.contract.viper
+    # heap / permission statements
+    - match: '\b(inhale|exhale|fold|unfold|package|apply|havoc|quasihavoc|quasihavocall|new|constraining)\b'
+      scope: keyword.control.heap.viper
+    # ordinary statements and control flow
+    - match: '\b(assert|assume|var|while|if|elseif|else|do|goto|label|return|continue|skip)\b'
+      scope: keyword.control.viper
+    # expression-level operators spelled as words
+    - match: '\b(acc|unfolding|folding|applying|perm|forperm|forall|exists|let|in|old|result)\b'
+      scope: keyword.operator.word.viper
+    # annotations, e.g. @rewrite("...")
+    - match: '@[A-Za-z_][A-Za-z0-9_.]*'
+      scope: variable.annotation.viper
+
+  types:
+    - match: '\b(Int|Bool|Perm|Ref|Rational|Seq|Set|Multiset|Map|Type)\b'
+      scope: storage.type.viper
+
+  operators:
+    - match: '--\*'
+      scope: keyword.operator.wand.viper
+    - match: '==>|<==>|:=|==|!=|<=|>=|&&|\|\||\+\+|\bin\b|\\'
+      scope: keyword.operator.viper
+    - match: '[-+*/%<>!?:=]'
+      scope: keyword.operator.viper
+
+  names:
+    # trigger set { f(x) } — nothing special, falls through to calls
+    - match: '\b([A-Za-z_$][A-Za-z0-9_$]*)\s*(?=\()'
+      scope: entity.name.function.viper
+    - match: '\b[A-Z][A-Za-z0-9_$]*\b'
+      scope: entity.name.type.viper
+    - match: '\b[A-Za-z_$][A-Za-z0-9_$]*\b'
+      scope: variable.other.viper

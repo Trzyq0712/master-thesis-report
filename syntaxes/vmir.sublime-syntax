@@ -1,0 +1,92 @@
+%YAML 1.2
+---
+# VMIR, the intermediate representation `silver-oxide` lowers Silver into (see
+# src/vmir/). It is SSA-like: every value is a numbered temporary `eN`, every
+# heap state a numbered `hN`. Grammar derived from src/vmir/display.rs.
+name: VMIR
+file_extensions: [vmir]
+scope: source.vmir
+
+contexts:
+  main:
+    - include: comments
+    - include: ssa
+    - include: literals
+    - include: keywords
+    - include: types
+    - include: operators
+    - include: names
+
+  comments:
+    - match: '//'
+      scope: punctuation.definition.comment.vmir
+      push:
+        - meta_scope: comment.line.double-slash.vmir
+        - match: '$'
+          pop: true
+
+  ssa:
+    # value temporaries e0, e1, ... and heap states h0, h1, ...
+    - match: '\be[0-9]+\b'
+      scope: variable.other.ssa.vmir
+    - match: '\bh[0-9]+\b'
+      scope: variable.other.heap.vmir
+    # basic blocks bb0, bb1, ...
+    - match: '\bbb[0-9]+\b'
+      scope: entity.name.label.vmir
+
+  literals:
+    - match: '\b(true|false|null|fresh|empty)\b'
+      scope: constant.language.vmir
+    # permission amounts are always rationals: 1/1, 3/4, ...
+    - match: '\b[0-9]+/[0-9]+\b'
+      scope: constant.numeric.perm.vmir
+    - match: '\b[0-9]+\b'
+      scope: constant.numeric.integer.vmir
+
+  keywords:
+    - match: '\b(domain|axiom|function|resource|method|adt)\b'
+      scope: keyword.declaration.vmir
+    # heap-transforming instructions
+    - match: '\b(inhale|exhale|fold|unfold|assign|acc|havoc)\b'
+      scope: keyword.control.heap.vmir
+    - match: '\b(assert|assume|goto|branch|return)\b'
+      scope: keyword.control.vmir
+    - match: '\b(forall|result)\b'
+      scope: keyword.operator.word.vmir
+    # section markers inside a block
+    - match: '\b(join|body)\b(?=\s*:)'
+      scope: keyword.other.section.vmir
+    # unbounded permission (predicates)
+    - match: '@\s*\*'
+      scope: constant.language.vmir
+    - match: '@snap\b'
+      scope: storage.modifier.vmir
+
+  types:
+    - match: '\b(Int|Bool|Real|Ref|Perm)\b'
+      scope: storage.type.vmir
+    # address type: &[group] T @ bound
+    - match: '&(?=\[)'
+      scope: storage.type.address.vmir
+    - match: '\[[A-Za-z_$][A-Za-z0-9_$#]*\]'
+      scope: entity.name.tag.group.vmir
+
+  operators:
+    # sort-tagged arithmetic: +i -i *i /i, +r -r *r /r, <i <r
+    - match: '(\+|-|\*|/|<|<=)[ir]\b'
+      scope: keyword.operator.arithmetic.vmir
+    # path-condition guard <e5>
+    - match: '<[^>]*>'
+      scope: markup.italic.pathcond.vmir
+    - match: ':=|->|==|!=|\?|:'
+      scope: keyword.operator.vmir
+    - match: '[-+*/<>@]'
+      scope: keyword.operator.vmir
+
+  names:
+    # member names, including contract resources like `client#requires`
+    - match: '\b([A-Za-z_$][A-Za-z0-9_$]*(#[a-z]+)?)\s*(?=\()'
+      scope: entity.name.function.vmir
+    - match: '\b[A-Za-z_$][A-Za-z0-9_$]*\b'
+      scope: variable.other.vmir

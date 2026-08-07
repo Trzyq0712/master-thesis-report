@@ -1,3 +1,5 @@
+#import "../macros.typ": *
+
 == Motivation
 
 The _Viper_ project @viper provides a modern intermediate verification language

@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>name</key>
+  <string>Thesis Code</string>
+  <key>settings</key>
+  <array>
+
+    <dict>
+      <key>settings</key>
+      <dict>
+        <key>background</key><string>#00000000</string>
+        <key>foreground</key><string>#1c1c1c</string>
+        <key>caret</key><string>#1c1c1c</string>
+      </dict>
+    </dict>
+
+    <dict>
+      <key>name</key><string>Comment</string>
+      <key>scope</key><string>comment</string>
+      <key>settings</key>
+      <dict>
+        <key>foreground</key><string>#7a7a7a</string>
+        <key>fontStyle</key><string>italic</string>
+      </dict>
+    </dict>
+
+    <!-- Declaration heads: domain / function / predicate / method / adt / fn / struct -->
+    <dict>
+      <key>name</key><string>Declaration keyword</string>
+      <key>scope</key><string>keyword.declaration, storage.type.function, storage.type.struct, storage.type.enum, storage.type.class, keyword.other.fn</string>
+      <key>settings</key>
+      <dict>
+        <key>foreground</key><string>#1a3fa0</string>
+        <key>fontStyle</key><string>bold</string>
+      </dict>
+    </dict>
+
+    <!-- Specification clauses: requires / ensures / invariant / decreases -->
+    <dict>
+      <key>name</key><string>Contract clause</string>
+      <key>scope</key><string>keyword.other.contract</string>
+      <key>settings</key>
+      <dict>
+        <key>foreground</key><string>#1b6b3a</string>
+        <key>fontStyle</key><string>bold</string>
+      </dict>
+    </dict>
+
+    <!-- The point of the thesis: everything that moves permission gets its own
+         colour, distinct from ordinary control flow. -->
+    <dict>
+      <key>name</key><string>Heap and permission constructs</string>
+      <key>scope</key><string>keyword.control.heap, keyword.operator.wand, keyword.operator.arithmetic.vmir</string>
+      <key>settings</key>
+      <dict>
+        <key>foreground</key><string>#a3105e</string>
+        <key>fontStyle</key><string>bold</string>
+      </dict>
+    </dict>
+
+    <dict>
+      <key>name</key><string>Control flow</string>
+      <key>scope</key><string>keyword.control, keyword.other.section</string>
+      <key>settings</key>
+      <dict>
+        <key>foreground</key><string>#8a4b00</string>
+      </dict>
+    </dict>
+
+    <dict>
+      <key>name</key><string>Word-like operators</string>
+      <key>scope</key><string>keyword.operator.word, keyword.operator</string>
+      <key>settings</key>
+      <dict>
+        <key>foreground</key><string>#6a3fb5</string>
+      </dict>
+    </dict>
+
+    <dict>
+      <key>name</key><string>Types</string>
+      <key>scope</key><string>storage.type, entity.name.type, support.type, storage.modifier, entity.name.tag.group</string>
+      <key>settings</key>
+      <dict>
+        <key>foreground</key><string>#0f766e</string>
+      </dict>
+    </dict>
+
+    <dict>
+      <key>name</key><string>Constants and literals</string>
+      <key>scope</key><string>constant.language, constant.numeric, constant.other</string>
+      <key>settings</key>
+      <dict>
+        <key>foreground</key><string>#b3541e</string>
+      </dict>
+    </dict>
+
+    <dict>
+      <key>name</key><string>Strings</string>
+      <key>scope</key><string>string</string>
+      <key>settings</key>
+      <dict><key>foreground</key><string>#1b6b3a</string></dict>
+    </dict>
+
+    <dict>
+      <key>name</key><string>Function and member names</string>
+      <key>scope</key><string>entity.name.function, support.function, meta.function-call</string>
+      <key>settings</key>
+      <dict><key>foreground</key><string>#2f4f8f</string></dict>
+    </dict>
+
+    <dict>
+      <key>name</key><string>Labels and basic blocks</string>
+      <key>scope</key><string>entity.name.label, markup.italic.pathcond</string>
+      <key>settings</key>
+      <dict>
+        <key>foreground</key><string>#7a7a7a</string>
+        <key>fontStyle</key><string>italic</string>
+      </dict>
+    </dict>
+
+    <!-- VMIR temporaries: eN is a value, hN is a heap state. Distinguishing
+         them makes the dataflow in a VMIR listing readable at a glance. -->
+    <dict>
+      <key>name</key><string>SSA value temporaries</string>
+      <key>scope</key><string>variable.other.ssa</string>
+      <key>settings</key>
+      <dict><key>foreground</key><string>#2f4f8f</string></dict>
+    </dict>
+
+    <dict>
+      <key>name</key><string>Heap state temporaries</string>
+      <key>scope</key><string>variable.other.heap</string>
+      <key>settings</key>
+      <dict>
+        <key>foreground</key><string>#a3105e</string>
+      </dict>
+    </dict>
+
+    <dict>
+      <key>name</key><string>Annotations</string>
+      <key>scope</key><string>variable.annotation, meta.annotation</string>
+      <key>settings</key>
+      <dict><key>foreground</key><string>#7a7a7a</string></dict>
+    </dict>
+
+    <dict>
+      <key>name</key><string>Plain variables</string>
+      <key>scope</key><string>variable.other, variable.parameter</string>
+      <key>settings</key>
+      <dict><key>foreground</key><string>#1c1c1c</string></dict>
+    </dict>
+
+  </array>
+  <key>uuid</key>
+  <string>7d1f0c1e-4a1b-4f22-9c3a-2f6b0a5e9d10</string>
+</dict>
+</plist>

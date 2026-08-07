@@ -11,10 +11,10 @@
   is deferred to @sec:impl-cfg, which is where a branch first forces two heaps
   to be reconciled and so where conditional chunks are actually motivated.
 
-  Drafted. Permission amounts and proving sufficiency moved to
-  @sec:impl-heap-interaction, since both need predicates first; this section
-  says what a chunk is and what the partitioning of chunks buys, and nothing
-  about operating on one.
+  Drafted. Permission amounts and proving sufficiency live in
+  @sec:impl-heap-interaction, which owns every operation; this section says what
+  a chunk is and what the partitioning of chunks buys, and nothing about
+  operating on one.
 
   Chunks are presented as the bare triple, deliberately. A chunk also carries a
   reachability guard and a recipe provenance; the first belongs to
@@ -33,6 +33,16 @@
   it is unsound. Case-analysing on $p_0 > 0$ is that statement made total: no
   fresh symbol, and strictly more precise. Source it from Silicon's
   implementation rather than the thesis before claiming it.
+
+  Location axioms leaves one obvious question unanswered, and it belongs here
+  rather than under Fields: the non-aliasing axiom is stated over addresses and
+  never mentions a receiver, so how does #vi[`x != y`] ever come out? Via the
+  contrapositive of congruence (`rewrite.rs:636`, sound for any function,
+  injective or not, and firing only once every argument pair but one is already
+  merged). #vi[`assert x != y`] under #vi[`acc(x.f) && acc(y.f)`] is discharged
+  at the location level — the amounts sum past the bound, so the addresses
+  differ — and narrowed to the receivers afterwards. One or two sentences at the
+  end of Location axioms, no more.
 
   #para[Run-in headings] Locations / Chunks / Partitioning / Consolidation /
   Location axioms

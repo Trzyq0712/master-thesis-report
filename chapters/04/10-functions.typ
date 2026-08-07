@@ -1,6 +1,6 @@
 #import "../../macros.typ": *
 
-== Functions
+== Functions <sec:impl-functions>
 
 #todo[
   - Heap-dependent functions: `requires acc(..)` plus a body that unfolds.

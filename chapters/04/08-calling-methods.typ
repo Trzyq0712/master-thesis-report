@@ -1,6 +1,6 @@
 #import "../../macros.typ": *
 
-== Calling Methods
+== Calling Methods <sec:impl-calls>
 
 #todo[
   The other half of methods: a call is a heap transaction, not a control-flow

@@ -46,4 +46,4 @@
 
 #frontchapter[Appendix]
 
-== Appendix A
+#include "chapters/A-lowering-reference.typ"

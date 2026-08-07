@@ -1,6 +1,6 @@
 #import "../../macros.typ": *
 
-== Beyond the Fragment
+== Beyond the Fragment <sec:beyond-fragment>
 
 #todo[
   Renamed from "Missing features" — splitting the list in two is the whole

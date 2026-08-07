@@ -1,6 +1,6 @@
 #import "../../macros.typ": *
 
-== Loops
+== Loops <sec:impl-loops>
 
 #todo[
   - Invariants, and framing across iterations. Builds directly on the block

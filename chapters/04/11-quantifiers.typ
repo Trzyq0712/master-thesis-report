@@ -1,6 +1,6 @@
 #import "../../macros.typ": *
 
-== Quantifiers
+== Quantifiers <sec:impl-quantifiers>
 
 #todo[
   - Only ever triggered `forall` inside domain axioms in this fragment — there

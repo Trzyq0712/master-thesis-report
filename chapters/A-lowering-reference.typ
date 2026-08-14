@@ -77,8 +77,9 @@ The _support_ column is what @sec:beyond-fragment and the fragment claim of
   [full], [#sec(<sec:impl-fields>)],
 
   vi[`predicate P(x: T) { A }`],
-  [#vm[`resource P(..)`] with a body yielding #vm[`(h, b)`], plus the derived
-   #vm[`P@snap`] and location function #vm[`P`]],
+  [#vm[`resource P(..)`] with a body yielding #vm[`(h, b)`], whose footprint adds
+   are marked #vm[`with self`], plus the derived #vm[`P@snap`] and location
+   function #vm[`P`]],
   [full], [#sec(<sec:impl-predicates>)],
 
   vi[`predicate P(x: T)`],
@@ -126,8 +127,8 @@ The _support_ column is what @sec:beyond-fragment and the fragment claim of
   [full], [#sec(<sec:impl-heap-interaction>)],
 
   vi[`x := new(f, g)`],
-  [#vm[`fresh`] receiver, then one heap add at #vm[`1/1`] per named field. One
-   target, and it must be a local rather than a field],
+  [#vm[`fresh`] receiver, then one #vm[`with fresh`] heap add at #vm[`1/1`] per
+   named field. One target, and it must be a local rather than a field],
   [partial], [#sec(<sec:impl-heap-interaction>)],
 
   vi[`x := new(*)`],
@@ -136,7 +137,8 @@ The _support_ column is what @sec:beyond-fragment and the fragment claim of
 
   vi[`x := m(args)`],
   [Exhale of the precondition resource, #vm[`fresh`] values for the results, then
-   inhale of the postcondition resource against the consumed pre-state snapshot],
+   #vm[`with fresh`] inhale of the postcondition resource, which takes the
+   consumed pre-state snapshot as an argument],
   [check], [#sec(<sec:impl-calls>)],
 
   vi[`inhale A`],
@@ -162,11 +164,16 @@ The _support_ column is what @sec:beyond-fragment and the fragment claim of
   [check], [#sec(<sec:beyond-fragment>)],
 
   vi[`fold P(args)`],
-  [#vm[`h' := h fold P(args) p`]],
+  [Two instructions — an exhale of the resource, then an add at its own location
+   bound to the snapshot the exhale yielded: \
+   #vm[`h1, e := h exhale P(args) @ p`] \
+   #vm[`h' := h1 + P@loc(args) @ p with e`]],
   [check], [#sec(<sec:impl-predicates>)],
 
   vi[`unfold P(args)`],
-  [#vm[`h' := h unfold P(args) p`]],
+  [The same pair with both directions reversed: \
+   #vm[`h1, e := h - P@loc(args) @ p`] \
+   #vm[`h' := h1 inhale P(args) @ p with unwrap(e)`]],
   [check], [#sec(<sec:impl-predicates>)],
 
   vi[`if (c) { .. } else { .. }`],
@@ -191,11 +198,16 @@ The _support_ column is what @sec:beyond-fragment and the fragment claim of
 
 #lower-table(
   vi[`acc(x.f, p)`],
-  [One heap add or subtract at #vm[`f(x)`], according to the direction],
+  [One heap add or subtract at #vm[`f(x)`], according to the direction. An add
+   carries a bind point — #vm[`with fresh`] in a method body, #vm[`with self`]
+   in a resource body — and a subtract yields what it removed],
   [full], [#sec(<sec:impl-heap-interaction>)],
 
   vi[`acc(P(args), p)`],
-  [One #vm[`inhale`] or #vm[`exhale`] instruction over the whole resource],
+  [The same add or subtract, at the derived location #vm[`P@loc(args)`], holding
+   the instance's snapshot. The whole-resource #vm[`inhale`] and #vm[`exhale`]
+   are reached from #vi[`fold`], #vi[`unfold`] and contract application, not from
+   an #vi[`acc`]],
   [full], [#sec(<sec:impl-predicates>)],
 
   vi[`A && B`],
@@ -230,8 +242,9 @@ The _support_ column is what @sec:beyond-fragment and the fragment claim of
   [full], [#sec(<sec:impl-predicates>)],
 
   vi[`f(args)`],
-  [A pure application; a heap-dependent callee additionally takes
-   #vm[`snap[h] f#requires(..)`] as its trailing argument],
+  [A pure application; a heap-dependent callee additionally takes the snapshot
+   yielded by #vm[`_, e := h exhale f#requires(..) @ wildcard`] — an exhale whose
+   heap is not requested, and so a frame check rather than a payment],
   [check], [#sec(<sec:impl-functions>)],
 
   vi[`perm(x.f)`],
@@ -239,7 +252,8 @@ The _support_ column is what @sec:beyond-fragment and the fragment claim of
   [check], [#sec(<sec:impl-heap-interaction>)],
 
   vi[`unfolding P(args) in e`],
-  [—],
+  [The #vi[`unfold`] pair against the heap in hand, then #vi[`e`] lowered against
+   the heap it produced; the enclosing expression keeps the original],
   [check], [#sec(<sec:impl-predicates>)],
 
   vi[`old(e)`, `old[L](e)`],

@@ -5,8 +5,7 @@
 #note[
   *How this chapter is organised.* Every section follows the same three beats:
   the Viper construct, the VMIR it lowers to (a lowering table), and how the
-  verifier executes that VMIR. The third beat is the one still missing in most
-  sections.
+  verifier executes that VMIR.
 
   Some design decisions are forced by Prusti's encoding and some are right for
   any frontend. Where the difference matters, say so in the sentence itself —
@@ -23,15 +22,31 @@
   heading level.
 ]
 
-// Go with a guiding example
-In this chapter we progressively build up a new backend for Viper,
-describing how each of the core features that are necessary to discharge
-proofs. We will start out by describing the general execution model and
-how it differs from that of Silicon, TODO
+This chapter builds the new backend one construct at a time. It opens with a real
+Prusti encoding — the program the whole chapter is answerable to — and then starts
+from the smallest thing a verifier can do: execute a heapless method and discharge
+an obligation about it. The symbolic heap arrives next, first without any
+conditional structure at all, so that the operations on it can be stated on their
+own; then fields and predicates, which are the two things a program can hold
+permission to; then control flow, which is what forces two heaps to be reconciled
+and where the representation earns or loses its keep. Methods, functions,
+datatypes, quantifiers and loops follow, each needing the ones before it and
+nothing after.
 
-To start simply we will look at how a simple heapless program is executed, and then we
-will progressively add more complexity, such that it eventually matches the features
-required to verify a full Prusti program.
+The order is deliberate in one further respect. Each section says what its
+construct costs the verifier and, where the answer differs from Silicon's, why.
+The claim the chapter is accumulating is not that any single mechanism is novel,
+but that a particular set of them composes into a verifier on which the great
+majority of a Prusti program's obligations are true by construction rather than by
+proof — and @sec:impl-together is where that claim is cashed out on the program
+@sec:impl-example put on the table.
+
+One convention about the listings. VMIR is an explicit representation and its
+real form is correspondingly verbose: a postcondition, for instance, is not
+syntax attached to a declaration but a function of its own. Where that verbosity
+would bury the point a listing is making, the listing is written in
+_pseudo-VMIR_ — the same language with the mechanical parts elided — and tagged
+as such. Anything tagged VMIR is what the verifier would actually be given.
 
 #include "04/01-worked-example.typ"
 #include "04/02-execution-model.typ"

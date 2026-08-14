@@ -3,50 +3,15 @@
 == The Symbolic Heap <sec:impl-heap>
 
 #todo[
-  New section, and it must precede Fields. This is a representation
-  contribution in its own right — do not let it get discovered incidentally
-  under method calls.
-
-  Deliberately restricted to the *straight-line* heap. Everything conditional
-  is deferred to @sec:impl-cfg, which is where a branch first forces two heaps
-  to be reconciled and so where conditional chunks are actually motivated.
-
-  Drafted. Permission amounts and proving sufficiency live in
-  @sec:impl-heap-interaction, which owns every operation; this section says what
-  a chunk is and what the partitioning of chunks buys, and nothing about
-  operating on one.
-
-  Chunks are presented as the bare triple, deliberately. A chunk also carries a
-  reachability guard and a recipe provenance; the first belongs to
-  @sec:impl-cfg and the second to functions, and neither means anything yet on
-  the straight-line path. Decide later whether they arrive unannounced or get
-  one forward sentence here.
-
   The closing claim of Partitioning — that the corpus never needs a
   non-aliasing constraint — is asserted, not shown. Either cite the evidence
   from @sec:prusti-needs or soften it to what was observed.
-
-  Consolidation has a precision result worth writing up if there is room.
-  Silicon's `combineSnapshots` splits the same three ways, but where neither
-  fraction is definitely positive it mints a *fresh* snapshot constrained by
-  both implications, on the grounds that picking either value and constraining
-  it is unsound. Case-analysing on $p_0 > 0$ is that statement made total: no
-  fresh symbol, and strictly more precise. Source it from Silicon's
-  implementation rather than the thesis before claiming it.
-
-  Location axioms leaves one obvious question unanswered, and it belongs here
-  rather than under Fields: the non-aliasing axiom is stated over addresses and
-  never mentions a receiver, so how does #vi[`x != y`] ever come out? Via the
-  contrapositive of congruence (`rewrite.rs:636`, sound for any function,
-  injective or not, and firing only once every argument pair but one is already
-  merged). #vi[`assert x != y`] under #vi[`acc(x.f) && acc(y.f)`] is discharged
-  at the location level — the amounts sum past the bound, so the addresses
-  differ — and narrowed to the receivers afterwards. One or two sentences at the
-  end of Location axioms, no more.
-
-  #para[Run-in headings] Locations / Chunks / Partitioning / Consolidation /
-  Location axioms
 ]
+
+This section is deliberately restricted to the _straight-line_ heap. Everything
+conditional is deferred to @sec:impl-cfg, which is where a branch first forces two
+heaps to be reconciled and so where conditional chunks are actually motivated;
+what a chunk is and what partitioning it buys can be settled without any of that.
 
 #para[Locations] Viper distinguishes between the two kinds of resource a
 program can hold permission to: a field of an object, and an instance of a
@@ -61,7 +26,7 @@ program produces only the two extremes: #vm[`1/1`] for a field, matching
 program from holding arbitrarily many of those. The _group_ #vm[`g`] identifies
 the declaration the location came from.
 
-#todo[
+#todo(keep: true)[
   *Figure.* Anatomy of #vm[`&[g] T @ p`], arrows from each component to its
   name and one-line gloss. Three components in one sentence each is exactly the
   shape prose handles worst. Use a concrete type rather than the schematic one
@@ -86,6 +51,12 @@ location is an e-class of the graph that already carries the program's
 equalities, so two chunks sit at the same location exactly when their location
 e-classes are one, and establishing that costs a lookup rather than a query.
 
+The triple is the whole of it on a straight-line path. A chunk carries two further
+components that mean nothing until later: a reachability guard, which records the
+branch a conditionally-held chunk survived (@sec:impl-cfg), and a provenance for
+its value, which lets a function's body be replayed at a call site
+(@sec:impl-functions). Both are introduced where they do something.
+
 #para[Partitioning] <sec:impl-heap-partitioning> The symbolic heap is not a
 single flat map from locations to chunks. It is partitioned by _location kind_,
 which is nothing other than the location type itself: group, stored type and
@@ -93,7 +64,7 @@ permission bound. Every chunk lives in exactly the partition its type names,
 and the two are looked up together: an access resolves first to a partition and
 only then to a chunk within it.
 
-#todo[
+#todo(keep: true)[
   *Figure.* The heap as boxes, one per location kind, chunks inside each. Two
   field groups and one predicate group is enough. It should make three things
   visible at a glance that the prose spends a paragraph on each: that a chunk
@@ -110,7 +81,19 @@ when their location terms have been merged. What remains is to say what becomes 
 pair of chunks that does turn out to be at one location, and what is assumed of
 a pair that does not.
 
-#para[Consolidation] Equality reasoning can therefore bring two chunks of a
+#todo[
+  *Consolidation is not wired on `verify/lazy-function-unfold`.* `Heap::chunk`
+  matches `c.addr == addr` on the raw `egg::Id`, so a chunk found after its
+  location's e-class has been merged with another is not found at all, and
+  `declaration.rs` carries a `TODO(heap-consolidation)` saying as much. Probed:
+  `requires x == y { inhale acc(x.f, write); exhale acc(y.f, write) }` reports
+  insufficient permission, and holding two halves under an assumed `x == y` does
+  not add up. The paragraph below describes the design, not the build. Either
+  wire it, or say plainly that the fold is specified and unimplemented — it is
+  cited from Fields and from Beyond the Fragment.
+]
+
+#para[Consolidation] <para:impl-consolidation> Equality reasoning can therefore bring two chunks of a
 partition to one location after both are already held, simply by merging the
 e-classes of their locations. The two then hold permission to the same thing,
 and their amounts have to be added up before either can be counted against a
@@ -130,6 +113,15 @@ is _assumed_ rather than asserted:
 
 $ p_0 > 0 and p_1 > 0 => v_0 = v_1 $
 
+Silicon's `combineSnapshots` splits the same three ways and, where neither
+fraction is definitely positive, mints a _fresh_ snapshot constrained by both
+implications — on the stated grounds that using either of the two values and
+constraining it would be unsound. The asymmetric pick is that judgement made
+total rather than contradicted: the value is case-analysed on $p_0 > 0$ instead of
+being left to a new symbol, which needs no fresh name and is strictly more
+precise, since on each side of the case the value that is genuinely held is the
+one selected.
+
 Stating it this way makes both cases come out on their own. When both fractions
 are positive the antecedent holds, saturation collapses the implication to
 $v_0 = v_1$, the two values are merged into one e-class, and the asymmetry of
@@ -138,7 +130,7 @@ false, nothing is assumed of a value nobody holds, and the pick selects the one
 genuinely held. Equating the values outright would be unsound in the second
 case, and is unnecessary in the first.
 
-#todo[
+#todo(keep: true)[
   *Figure.* Consolidation before and after. Left: one partition, two chunks at
   distinct location e-classes. Middle: the e-classes merge. Right: one chunk
   holding $p_0 + p_1$ and the picked value, with the assumed agreement beside
@@ -211,6 +203,17 @@ declare it at #vm[`2/1`], and the declaration is not merely documentation: it
 moves that predicate's partition from the case that yields no constraint to the
 case that yields one. A bound a frontend can justify is non-aliasing reasoning
 the verifier then gets for free.
+
+One question the axiom leaves open is how a program ever concludes #vi[`x != y`]
+from it, since it is stated over locations and never mentions a receiver. The
+answer is that it does not have to. Under #vi[`acc(x.f) && acc(y.f)`] the two
+amounts sum past the bound, so the axiom's implication forces its antecedent
+false and the two _locations_ are known distinct. Narrowing that to the receivers
+is then the contrapositive of congruence: from a disproven #vm[`f(x) == f(y)`],
+with every argument pair but one already merged — here there is only one pair —
+the remaining pair must differ. That step is sound for any function, injective or
+not, which is why the field's location function needed no injectivity axiom to
+make it work.
 
 None of this is needed to verify the corpus of @sec:prusti-needs. Prusti's
 encoding does not ask the verifier to derive that two references are distinct,

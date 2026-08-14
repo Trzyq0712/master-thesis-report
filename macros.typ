@@ -14,18 +14,26 @@
 //
 // `rust` is highlighted by Typst's built-in syntect grammars; `viper` and
 // `vmir` are not, so we ship grammars for them in `syntaxes/`.
+//
+// A fourth tag, `pvmir`, is not a fourth language: it is VMIR written
+// schematically, for the places where the real encoding is too verbose to make
+// a point with. It shares VMIR's hue and grammar (`pvmir` is an extension of
+// the VMIR grammar) and differs only in the corner tag, so a reader can always
+// tell a listing that could be fed to the verifier from one that could not.
 // ---------------------------------------------------------------------------
 
 #let lang-colors = (
   rust: rgb("#b7410e"), // rust orange
   viper: rgb("#5b57c7"), // indigo
   vmir: rgb("#0f766e"), // teal
+  pvmir: rgb("#0f766e"),
 )
 
 #let lang-names = (
   rust: [Rust],
   viper: [Viper],
   vmir: [VMIR],
+  pvmir: [pseudo-VMIR],
 )
 
 // The per-language dictionary codly uses for the little language tag it draws
@@ -34,6 +42,7 @@
   rust: (name: lang-names.rust, color: lang-colors.rust),
   viper: (name: lang-names.viper, color: lang-colors.viper),
   vmir: (name: lang-names.vmir, color: lang-colors.vmir),
+  pvmir: (name: lang-names.pvmir, color: lang-colors.pvmir),
 )
 
 // All three are languages in the same pipeline, so they are presented
@@ -130,6 +139,7 @@
   show raw.where(lang: "rust", block: true): it => _style-raw("rust", it)
   show raw.where(lang: "viper", block: true): it => _style-raw("viper", it)
   show raw.where(lang: "vmir", block: true): it => _style-raw("vmir", it)
+  show raw.where(lang: "pvmir", block: true): it => _style-raw("pvmir", it)
 
   // Captioned listings use `kind: "listing"`, not `kind: raw`. `codly-init`
   // installs a `show figure.where(kind: raw)` rule that, for a *labelled*
@@ -212,6 +222,16 @@
   numbers: numbers,
 )
 
+/// A pseudo-VMIR listing — VMIR written schematically, where the real encoding
+/// would bury the point being made. Used only where the difference is stated.
+#let pvmir(body, caption: none, label: none, numbers: auto) = _listing(
+  "pvmir",
+  body,
+  caption: caption,
+  label: label,
+  numbers: numbers,
+)
+
 // ---------------------------------------------------------------------------
 // Lowering tables
 //
@@ -256,7 +276,9 @@
 ///   e2: Int := *[h1] e1
 ///   assert e2 > 0
 ///   ```]
-#let lowering(source, target, caption: none, label: none, columns: (1fr, 1.15fr)) = {
+/// `target-lang` is `"vmir"` by default and `"pvmir"` where the right-hand side
+/// is written schematically (see the note on pseudo-VMIR in @sec:implementation).
+#let lowering(source, target, caption: none, label: none, columns: (1fr, 1.15fr), target-lang: "vmir") = {
   let src-chunks = _chunks(source)
   let tgt-chunks = _chunks(target)
   if src-chunks.len() != tgt-chunks.len() {
@@ -272,7 +294,7 @@
     )
   }
 
-  let langs = ("viper", "vmir")
+  let langs = ("viper", target-lang)
   let tints = langs.map(l => _lang-style(l).fill)
   let accents = langs.map(l => lang-colors.at(l))
 
@@ -321,10 +343,16 @@
 // from the output — do that before handing a draft to anyone.
 // ---------------------------------------------------------------------------
 
-#let show-notes = true
+// Compile with `--input no-notes=1` to drop every callout without editing this
+// line, e.g. when producing an excerpt to hand to someone.
+#let show-notes = "no-notes" not in sys.inputs
 
-#let _callout(tag, accent, body) = {
-  if not show-notes { return }
+// True when building `excerpt.typ` (`--input excerpt=1`). Guard passages that
+// are deliberately left out of a hand-out with `#if not excerpt-mode [..]`.
+#let excerpt-mode = "excerpt" in sys.inputs
+
+#let _callout(tag, accent, body, keep: false) = {
+  if not show-notes and not keep { return }
   block(
     width: 100%,
     fill: accent.lighten(90%),
@@ -353,10 +381,19 @@
 }
 
 /// Work still to be done. Loud on purpose.
-#let todo(body) = _callout("todo", rgb("#b45309"), body)
+///
+/// `keep: true` survives `--input no-notes=1`, for the placeholders a reader of
+/// a stripped-down draft still has to see — a figure that is described but not
+/// yet drawn, say, where dropping the note would leave the prose referring to
+/// nothing.
+#let todo(body, keep: false) = _callout("todo", rgb("#b45309"), body, keep: keep)
 
 /// An observation to keep in mind while writing, not itself a task.
 #let note(body) = _callout("note", rgb("#475569"), body)
+
+/// Prose that is written but not settled: the mechanism it describes may still
+/// change, so it is fenced off rather than left to read as finished text.
+#let wip(body) = _callout("wip", rgb("#7c3aed"), body)
 
 /// A short inline marker, for a gap mid-sentence.
 #let tbd(body) = if show-notes {

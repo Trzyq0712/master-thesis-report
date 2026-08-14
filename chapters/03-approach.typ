@@ -83,14 +83,23 @@ the following:
   - Why an IR at all, rather than running over Silver directly: a smaller
     language means each verifier rule is written once, and the shapes that
     matter can be made explicit rather than recovered from syntax.
-  - Values and heap states are both ordinary SSA temporaries; a heap state is
-    a value like any other.
+  - Values and heap states are both SSA temporaries, but of separate sorts:
+    `e` names an e-class, `h` a heap state, and only the former is a value.
   - Resources subsume predicates, method contracts and function
     preconditions, so one mechanism covers all three.
   - What VMIR deliberately does not have, and why.
+  - *Pseudo-VMIR is defined here*, in the closing paragraph, and nowhere else.
+    It is only definable once the real syntax is on the page: show one
+    construct in full — a postcondition, which is a function of its own rather
+    than syntax attached to a declaration — beside the schematic form the
+    thesis writes instead, and say that listings tagged #emph[pseudo-VMIR]
+    elide exactly that kind of mechanical structure while listings tagged
+    #emph[VMIR] are what the verifier would be given. @sec:implementation's
+    introduction currently carries a standalone version of this; cut it back to
+    a pointer once this section exists.
 
   #para[Run-in headings] Why an intermediate representation / Values and heap
-  states / Resources / What VMIR omits
+  states / Resources / What VMIR omits / Writing VMIR down
 ]
 
 == Non-Goals

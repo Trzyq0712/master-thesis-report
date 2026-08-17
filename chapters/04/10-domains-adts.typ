@@ -115,38 +115,83 @@ function is worth one clause: those get no such rule, because nothing says a
 field's location function is injective, and @sec:impl-heap derives what a program
 needs about distinct locations from permission arithmetic instead.
 
-#para[What we do not decide] Everything above runs _forwards_, from a known
-constructor or a known discriminator value to its consequences. The two inverse
-directions are not available, and they are the honest gap in this section.
+#para[Refuting an equality] <para:impl-refuting> Everything above runs _forwards_,
+from a known constructor or a known discriminator value to its consequences. The
+inverse direction — refuting an equality, so that a variant can be ruled _out_ —
+needs something more, because an e-graph stores equalities and has no place to put
+a disequality. What it does have is enough structure to _derive_ one, and two rules
+do exactly that.
 
-The first is inversion: from a discriminator value back to a constructor. Knowing
-#vi[`x != one()`] does not yield #vi[`!x.isone`], because nothing states that the
-discriminator determines the constructor — and in general it does not, since two
-applications of one constructor with different arguments share a tag. For a
-nullary variant it does, and that is the case Prusti's enums are full of.
+Both rest on the same notion. A class carries a _fingerprint_ when its value is
+pinned: either a folded literal, or the identity of a constructor it was built by.
+Two fingerprints separate when they cannot denote the same value — two different
+literals, or two distinct constructors of one datatype at one instantiation, which
+is free-constructor distinctness and the same premise that folds a
+constructor-to-constructor comparison to #vm[`false`]. The comparison is
+conservative in every direction it is unsure about: the same constructor at
+different arguments never separates, since the fingerprint is the constructor's
+identity and not the whole term, and a literal against a constructor never does.
 
-The second is exhaustiveness: from "not this variant and not that one" to "then
-it is the remaining one". The discriminator is an ordinary integer-valued
-function and nothing constrains its range, so a scrutinee ruled out of every
-variant but one is not thereby known to be that one.
+The first rule uses that to _pin a condition from its arms_. Where a ternary's own
+class has a fingerprint and one arm's fingerprint separates from it, that arm
+cannot be the one taken, so the condition is pinned the other way — with no
+knowledge of the condition itself. This is what inverts a Prusti snapshot tower.
+After a #vi[`&mut`] round trip the recovered link is an equality between the old
+snapshot and the new, and the snapshot function's body is a nested ternary over
+constructor arms: each non-matching arm pins its guard false, ternary reduction
+exposes the next level, and the ground constructor at the bottom pins the matching
+guard true — recovering the discriminant equality that gates the variant's
+footprint (#pararef(<para:impl-gate-split>, [Conditional footprints])).
 
-Both stay undischarged because an e-graph stores equalities and not their
-negations: the reasoning available _from_ a disproven equality is there — a
-disproven equality propagates through conditionals, and the contrapositive of
-congruence fires where every argument pair but one is already merged — but there
-is no store to put a disequality into that is not derived from something already
-in the graph.
+The second walks from applications back to arguments. Congruence gives that
+$a = b$ implies $f(a) = f(b)$; contrapositively, if some unary $f$ has $f(a)$ and
+$f(b)$ in classes whose fingerprints separate, then $a = b$ is #vm[`false`]. This
+is the contrapositive of congruence and not of injectivity, so it is sound for any
+$f$ — which is what makes it reach the case the rule exists for. Prusti encodes a
+primitive snapshot not as an #vi[`adt`] but as a domain with a
+constructor--retraction pair, so its constructions carry no free-constructor
+distinctness of their own; the retraction axiom nonetheless puts the two
+underlying literals in the graph, and those separate the constructions. The rule
+mirrors the contrapositive that walks the other way, from an already-refuted
+application equality to a disequality between arguments, and together they close
+the loop between arguments and applications.
 
-Two directions would close it. The cheaper is to state what is missing as ordinary
-axioms at the declaration: that the discriminator ranges over the declared
-variants, and that its value determines the constructor for each nullary variant.
-Neither needs new machinery — they are facts of the kind the axiom mechanism
-already handles — and the second is what makes the case-splitting tier able to
-reason over variants at all. The more invasive is to give the e-graph native
-disequality edges, so that distinctness is stored and detected at a merge rather
-than being reconstructed from a constant-folding collision. That is a change to
-the engine rather than to the encoding, and it is the one that would also make a
-program's own #vi[`assume a != b`] first-class under a path condition.
+One cost is worth recording, because it was the dominant one. The rule's _failing_
+scan is the hot path: it finds nothing and, without a memo, repeats in full on
+every saturation iteration for every undecided equality — 65% of a payload-enum
+file's wall clock. It is memoized on the pair together with the number of parents
+each side has, which is a free monotone version stamp, since parent lists only
+grow: a pair is re-scanned exactly when a side has gained a parent, which is when a
+new observation can have appeared. That trades completeness and not soundness — a
+fingerprint can sharpen without either side gaining a parent — and a missed
+refutation only fails to prove something.
+
+#para[What we still do not decide] Two gaps survive, and both are about the
+discriminator rather than about constructors.
+
+The first is exhaustiveness: from "not this variant and not that one" to "then it
+is the remaining one". The discriminator is an ordinary integer-valued function and
+nothing constrains its range, so a scrutinee ruled out of every variant but one is
+not thereby known to be that one.
+
+The second is inversion _through the tag_, as opposed to through a term: nothing
+states that a discriminator value determines the constructor, and in general it
+does not, since two applications of one constructor with different arguments share
+a tag. For a nullary variant it does, and that is the case Prusti's enums are full
+of. Where the tower's structure is available the pinning rule above recovers the
+same conclusion; where only the tag is, it does not.
+
+Two directions would close them. The cheaper is to state what is missing as
+ordinary axioms at the declaration: that the discriminator ranges over the
+declared variants, and that its value determines the constructor for each nullary
+variant. Neither needs new machinery — they are facts of the kind the axiom
+mechanism already handles — and a finite tag range is what would let a snapshot
+tower's arms be mutually exclusive by construction, rather than by the
+telescoping split whose cost @sec:results-enum-scaling measures. The more invasive
+is to give the e-graph native disequality edges, so that distinctness is stored and
+detected at a merge rather than reconstructed. That is a change to the engine
+rather than to the encoding, and it is the one that would also make a program's own
+#vi[`assume a != b`] first-class under a path condition.
 
 #para[What we record] A discriminator test that cannot be decided is left as an
 equality between an application and a literal, in the state, with both sides

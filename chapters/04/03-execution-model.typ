@@ -77,22 +77,33 @@ and discharged, and reasoning under a cube needs an explicit mechanism rather th
 being free. That mechanism is next.
 
 #para[Discharging an obligation] <para:impl-tiers> An obligation is a goal e-class
-and a path condition, and the verifier answers it by escalating through tiers,
-cheapest first. Each tier is a strictly larger amount of work than the last, and
-the great majority of obligations never leave the first two.
+and a path condition, and the verifier answers it by escalating through named
+tiers, cheapest first. Each tier is a strictly larger amount of work than the last,
+and the great majority of obligations never leave the cheap ones.
 
-The first tier asks whether the implication is _already_ #vm[`true`] — either
-trivially, or because an identical obligation was proven earlier and the result
-recorded. This costs one comparison of class identifiers. Discharging an
+Two verdicts come first because they are vacuous, and because reaching one makes
+every later tier pointless. The graph may hold #vm[`true == false`] — a
+contradiction is recorded as an ordinary merge, so detecting it is two comparisons
+of class identifiers — and the block's own cube may be unsatisfiable, which is
+decided once when the block's scratch is built rather than once per obligation.
+Both are the state saying the path cannot be taken, and an unreachable path
+discharges anything asked of it.
+
+Two constant-time hits follow. The goal may be _unconditionally_ true, in which
+case the implication holds whatever the path condition is; this is checked before
+the implication is built at all, because building it allocates nodes and the bulk
+of the stream is const-folding obligations of the shape $0 < 1\/1$. Failing that,
+the implication itself may already be #vm[`true`] — either trivially, or because an
+identical obligation was proven earlier and the result recorded. Discharging an
 obligation by merging it with #vm[`true`] is what makes the record; the second
 occurrence of an obligation is therefore free, which matters because a Prusti
 encoding raises the same framing obligation at every one of a long run of
 statements.
 
-Failing that, the graph is _saturated_: the rewrite rules are run to a fixpoint
-and the implication re-checked. Saturation runs on the live graph and adds no
-assumption, so it proves whatever holds unconditionally — which is most of what
-a heap operation asks for.
+Failing those, the graph is _saturated_: the rewrite rules are run to a fixpoint
+and the implication re-checked. Saturation runs on the live graph, which holds
+only unconditional facts, so it proves whatever holds unconditionally — which is
+most of what a heap operation asks for. No copy is taken.
 
 Only if that fails does the path condition get assumed, and assuming it is what
 costs. The cube cannot be merged into the live graph, since it holds on this path
@@ -103,17 +114,21 @@ it, since every instruction of a block shares the block's cube (@sec:impl-cfg).
 Outside one — in a function or a resource body, which have no branch structure to
 share — each such obligation clones.
 
-Two further tiers exist and are deliberately narrow. The first decomposes a goal
-that is itself a guarded implication, assuming the one condition that the goal's
-own shape names and re-checking the surviving arm; it does not fork, and it
-telescopes a chain of nested guards one assumption at a time. The last is a
-genuine case split, and it is the only place the verifier reasons by cases at all.
-Its candidate conditions are read off the goal term rather than searched for,
-because the obligations that need it come from _branching pure functions_ — a
-function whose two arms establish its postcondition differently — and a function
-goal nests only a handful of conditions. Method control flow does not reach here:
-a join is discharged structurally by the block walk, which is the subject of
-@sec:impl-cfg and the reason the split stays rare.
+The last tier is deliberately narrow. It decomposes a goal that is itself a
+guarded implication, assuming the one condition that the goal's own shape names and
+re-checking the surviving arm; it does not fork, and it telescopes a chain of
+nested guards one assumption at a time. The conditions it may assume are read off
+the goal term rather than searched for, which is what makes the obligations from
+_branching pure functions_ — a function whose two arms establish its postcondition
+differently — reachable at all.
+
+What is not here is a case split. A goal that needs genuine reasoning by cases over
+an opaque condition is reported unproven rather than forked on, and method control
+flow never needs one: a join is discharged structurally by the block walk, which is
+the subject of @sec:impl-cfg. The single exception lives outside this ladder, in
+the permission arithmetic rather than in the prover — a sufficiency check against a
+gated amount splits on the gate, and only after the flat prove has failed
+(#pararef(<para:impl-gate-split>, [Conditional footprints])).
 
 #para[The reasoning core] Underneath every tier is one rule set, always on.
 Congruence and hash-consing come from the e-graph itself. Constant folding is an
@@ -138,8 +153,8 @@ arithmetic, so an obligation like $i < n |- i + 1 <= n$ is not discharged, and
 @sec:beyond-fragment says where that bites. There is no disequality store either:
 an e-graph records that two terms are equal and has no way to record that they are
 not, so distinctness is derived where it can be derived — from a constant-folding
-collision, or from the contrapositive of congruence — and is otherwise deferred
-(@sec:impl-adts).
+collision, from the contrapositive of congruence, or from an observation that
+separates two values — and is otherwise deferred (@sec:impl-adts).
 
 #para[Joins] The one thing this section has passed over is what happens when two
 paths meet. A branch produces two heaps as well as two bindings for every variable

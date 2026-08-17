@@ -77,6 +77,17 @@ the following:
 
 == The New Viper Intermediate Representation
 
+#note[
+  *Overlap with @sec:impl-vmir.* @sec:implementation now opens with a short
+  glance at VMIR — SSA and flat expressions, one worked lowering, the textual
+  form — because a reader hitting the first VMIR listing needs that much there.
+  It cites this section for the motivation rather than restating it, so this
+  section has to actually carry the argument: why an IR at all, values and heap
+  states as separate sorts, resources as one mechanism, what VMIR deliberately
+  omits. Portability is a further motivation to make here — a textual IR other
+  backends can consume — and @sec:impl-vmir closes on it.
+]
+
 #todo[
   Design only — how the verifier _executes_ VMIR belongs in the next chapter.
 

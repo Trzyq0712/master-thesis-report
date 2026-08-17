@@ -134,6 +134,41 @@ contributed. Where the add was unconditional the discriminant folds to #vm[`true
 and the projection reductions peel the slot back to the value, so an unconditional
 footprint pays nothing for the wrapper.
 
+#para[Conditional footprints and the gate split] <para:impl-gate-split> Putting the
+condition in the amount has a consequence the sufficiency check has to answer for.
+A Prusti enum predicate adds each variant's payload under that variant's
+discriminant, so unfolding it mints a chunk whose amount is a _gate_ —
+#vm[`discr == cons(1) ? 1/1 : 0`] — with the branch inside the graph rather than in
+the path condition. Asking the flat obligation $not (p < 1\/1)$ needs that gate
+decided up front, and after a #vi[`&mut`] round trip it is not: Prusti's
+generic--concrete pair havocs the chunk, while the reach literal the path condition
+still carries is about the _old_ discriminant.
+
+Sufficiency therefore falls back to a case split on the gate: $1\/1 >= 1\/1$ under
+the condition, and $0 >= 1\/1$ under its negation. The second is discharged exactly
+when assuming the negation refutes itself, which it does — the negation collapses
+the snapshot tower of @sec:impl-adts onto a different constructor, and the arm
+Prusti marks unreachable carries #vi[`ensures false`] at the bottom. This is the
+same step the last prove tier makes for a boolean goal
+(#pararef(<para:impl-tiers>, [Discharging an obligation])), and the same one a
+branch-splitting verifier gets for free by evaluating the ternary per branch.
+
+Three restrictions keep it a fallback rather than a search. It runs only after the
+flat prove fails, which closes all but a handful of leaves. It splits only a
+_gate_ — a ternary whose two arms are constant amounts — never the give-back
+residue, which is a tower over addresses and merge conditions where a split has
+nothing to decide and each arm costs two more probes. And a set of already-split
+classes stops a cyclic arm from being re-split.
+
+What it costs is that the split telescopes the tower one arm at a time, so its cost
+is exponential in the enum's variant count while Silicon's is linear. Measured at
+roughly $2 times$ per added variant, that is a horizon rather than a closed case:
+five variants verify at every payload size measured, eight do not
+(@sec:results-enum-scaling). Deciding the gate directly — by relating the
+discriminant across the round trip, or by asserting that a discriminator ranges
+over the declared variants (@sec:impl-adts) — would collapse the split to a lookup,
+and neither is done here.
+
 #para[Inhaling and exhaling an instance] Taking and giving back an instance needs
 no new instruction. An #vi[`acc`] naming a predicate is an #vi[`acc`] like any
 other: the location is the derived location function applied to the arguments, and

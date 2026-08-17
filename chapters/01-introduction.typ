@@ -102,17 +102,23 @@ does, so branching code does not incur the duplicated work that path-wise
 exploration entails.
 
 The backend supports the core feature set of Viper, but this support is
-deliberately incomplete. Branching control flow is supported, but back
-edges are not, so loops fall outside the supported fragment; magic wands
-and quantified permissions are likewise unsupported. Functional
-specifications are out of scope: the backend targets core proofs, and
-falling back to an SMT solver for obligations beyond its reach is left as
-future work rather than implemented here. Within the supported fragment,
-the backend discharges Prusti-generated core proofs considerably faster
-than Silicon while preserving its verification outcomes. We evaluate this
-on TODO(benchmark suite), establishing soundness by regression against
-Silicon and measuring a TODO(speedup) reduction in end-to-end
-verification time.
+deliberately incomplete. Branching control flow and natural loops are
+supported; irreducible control-flow graphs, magic wands and quantified
+permissions are not. Functional specifications are out of scope: the
+backend targets core proofs, and falling back to an SMT solver for
+obligations beyond its reach is left as future work rather than
+implemented here. What is not supported is rejected by name, never
+silently skipped, so the scoping is a refusal to answer and not a wrong
+answer.
+
+Within the supported fragment, the backend discharges Prusti-generated
+core proofs considerably faster than Silicon while preserving its
+verification outcomes. We evaluate this on 22 Prusti encodings comprising
+2886 verifying members, establishing soundness by regression against
+Silicon — every member Silicon verifies, we verify, and no run of ours is
+vacuous — and
+measuring a 30-fold reduction in total verification time across the
+corpus, with a geometric mean of 22#sym.times per file (@sec:results).
 
 == Thesis Outline
 

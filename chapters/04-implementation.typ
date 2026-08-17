@@ -23,8 +23,9 @@
 ]
 
 This chapter builds the new backend one construct at a time. It opens with a real
-Prusti encoding — the program the whole chapter is answerable to — and then starts
-from the smallest thing a verifier can do: execute a heapless method and discharge
+Prusti encoding — the program the whole chapter is answerable to — and with a
+short look at VMIR itself, enough that the listings which follow read without a
+preamble. It then starts from the smallest thing a verifier can do: execute a heapless method and discharge
 an obligation about it. The symbolic heap arrives next, first without any
 conditional structure at all, so that the operations on it can be stated on their
 own; then fields and predicates, which are the two things a program can hold
@@ -49,16 +50,17 @@ _pseudo-VMIR_ — the same language with the mechanical parts elided — and tag
 as such. Anything tagged VMIR is what the verifier would actually be given.
 
 #include "04/01-worked-example.typ"
-#include "04/02-execution-model.typ"
-#include "04/03-symbolic-heap.typ"
-#include "04/04-fields.typ"
-#include "04/05-heap-interaction.typ"
-#include "04/06-predicates.typ"
-#include "04/07-verifying-methods.typ"
-#include "04/08-calling-methods.typ"
-#include "04/09-domains-adts.typ"
-#include "04/10-functions.typ"
-#include "04/11-quantifiers.typ"
-#include "04/12-loops.typ"
-#include "04/13-putting-together.typ"
-#include "04/14-beyond-fragment.typ"
+#include "04/02-vmir.typ"
+#include "04/03-execution-model.typ"
+#include "04/04-symbolic-heap.typ"
+#include "04/05-fields.typ"
+#include "04/06-heap-interaction.typ"
+#include "04/07-predicates.typ"
+#include "04/08-verifying-methods.typ"
+#include "04/09-calling-methods.typ"
+#include "04/10-domains-adts.typ"
+#include "04/11-functions.typ"
+#include "04/12-quantifiers.typ"
+#include "04/13-loops.typ"
+#include "04/14-putting-together.typ"
+#include "04/15-beyond-fragment.typ"

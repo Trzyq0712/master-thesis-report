@@ -173,11 +173,14 @@ would build an amount of the form $ternary(c, p, 0)$ at every join a chunk
 survives, and a method exit gathering #vi[`n`] arms would carry a tower of them,
 each with a #vm[`0`] leaf. Collapsing such a tower back to #vm[`1/1`] — which is
 what the exit exhale of the postcondition demands — is not a reduction; it needs a
-proof that the branch conditions partition the state, which is the case split of
-#pararef(<para:impl-tiers>, [Discharging an obligation]). Measured on the enum
-family of the corpus, that was the sole obligation reaching the splitting tier,
-and it fired exactly once per method exit regardless of how many arms the
-#ru[`match`] had.
+proof that the branch conditions partition the state — reasoning by cases, which
+the prove ladder deliberately does not do
+(#pararef(<para:impl-tiers>, [Discharging an obligation])) and which the
+permission arithmetic does only in the narrow gated form of
+#pararef(<para:impl-gate-split>, [Conditional footprints]). Measured on the enum
+family of the corpus, that was the sole obligation reaching a split at all, and it
+arose exactly once per method exit regardless of how many arms the #ru[`match`]
+had.
 
 Keeping the guard flat and beside the amount removes the tower rather than
 collapsing it. A chunk held on one arm records that fact as a cube; a chunk held

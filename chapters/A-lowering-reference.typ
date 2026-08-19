@@ -263,7 +263,7 @@ The _support_ column is what @sec:beyond-fragment and the fragment claim of
 
   vi[`wildcard`],
   [A permission amount only — never a first-class value],
-  [check], [#sec(<sec:beyond-fragment>)],
+  [check], [#sec(<sec:impl-wildcards>)],
 
   [Operators, literals],
   [Every unary and binary operator, #vi[`?:`], the literals and #vi[`null`]: the

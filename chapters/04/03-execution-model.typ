@@ -9,158 +9,166 @@ hand this means that there is a lot more bookkeeping we have to do, but on the
 other hand, it means we have a lot more control over the symbolic state, giving us
 the opportunity to optimize the process for the common case.
 
-#viper[```viper
-var x: Bool
-var y: Bool := x ? false : true
-assert y == !x
+What that state is, and what executing an instruction does to it, is best seen on
+a fragment small enough to walk end to end. @lst:exec-source is heapless, four
+statements long, and carries one obligation.
+
+#viper(
+  caption: [The fragment this section walks: an equality assumed, and an equality over it asserted.],
+  label: "lst:exec-source",
+)[```viper
+var a: Int
+var b: Int
+assume a == b
+assert a * 2 == b * 2
 ```]
 
-While this example is actually a case where we need to do functional reasoning,
-we can still use it to illustrate the execution model. In this case, we can
-actually coincidentally discharge this due to structure, but this will not hold
-in general. Let us now look how this method will look when translated down to VMIR.
+The obligation is an equality between two terms the program built, following from
+an equality it was given. @lst:exec-vmir is what the verifier is given. Each
+declaration becomes a value
+about which nothing is assumed, and each comparison an instruction of its own, so
+that what the #vi[`assume`] and the #vi[`assert`] name is a temporary rather than
+an expression.
 
-#vmir[```vmir
-e0: Bool := fresh             // x == e0
-e1: Bool := e0 ? false : true // y == e1
-e2: Bool := e0 ? false : true // !x is desugared to a ternary
-e3: Bool := e1 == e2          // y == !x
-assert e3
+#vmir(
+  caption: [Viper @lst:exec-source lowered. Original variable names in the comments.],
+  label: "lst:exec-vmir",
+)[```vmir
+e0: Int := fresh // a
+e1: Int := fresh // b
+e2: Bool := e0 == e1
+assume e2
+e3: Int := e0 * 2
+e4: Int := e1 * 2
+e5: Bool := e3 == e4
+assert e5
 ```]
 
-The verifier will execute this method line by line, and at each step update the symbolic state.
-When it eventually reaches the assertion, it will check if the obligation is satisfied.
-More concretely, it will verify that the value #vm[e3] is in the same e-class as #vm[true].
+The verifier executes this line by line, updating the symbolic state at each step,
+and when it reaches the assertion it checks whether the obligation is satisfied.
 
 #para[Symbolic state] There is no separate store of what the verifier knows. The
 e-graph _is_ the symbolic state, and a VMIR temporary is nothing more than a
-handle into it: executing an instruction adds the term it names and returns the
-e-class that term landed in. A method body is walked once, in order, and the state
-after $n$ instructions is the graph after $n$ additions.
+handle into it: executing an instruction builds the term it names and yields the
+e-class that term landed in. The walk is forward and single-pass — instructions
+are executed in order and none is revisited — so the state at any point is the
+graph as it then stands, and everything learned up to that point is in it.
 
-This is what makes the last line of the listing above a lookup rather than a
-query. #vm[`e1`] and #vm[`e2`] name the same term, so hash-consing puts them in one
-e-class as the second is added; #vm[`e3`] is then #vm[`e1 == e1`], which
-reflexivity folds to #vm[`true`], and the assertion is discharged by comparing two
-class identifiers. Nothing was proven, in the sense of a search — the structure
-was already there and the representation made it visible.
+Each kind of instruction in @lst:exec-vmir does one thing to that graph, and the
+four kinds it uses are most of the language.
 
-Equalities enter the same way. A fact the program assumes is merged into the
-graph, and congruence closure propagates it: merging two argument classes merges
-every application over them, without any of those applications being revisited.
-This is the operation the design bets on, and the reason the state is an e-graph
-rather than a substitution or a formula set. The bet is that Prusti's obligations
-are mostly equalities between terms the program already built, and
-@sec:prusti-needs is the evidence for it.
+A #vm[`fresh`] inserts a new e-node into a new e-class. Nothing is said about it
+and nothing is equal to it, and the temporary being defined becomes the handle on
+that class — so after the first two lines, #vm[`e0`] and #vm[`e1`] name two
+distinct classes about which the verifier knows nothing at all.
 
-#para[Path conditions] Not every fact is unconditional. An instruction inside a
-branch arm carries a _path condition_: a conjunctive cube of literals over values
-already in the graph, each a boolean temporary with a polarity. The cube is
-attached to the instruction at lowering time and is exact — @sec:impl-cfg
-describes the algebra that builds it — so at execution the verifier never has to
-reconstruct where in the control-flow graph it is.
+An operation resolves the classes its operands name, and inserts a node over
+them. #vm[`e2`] is an #vm[`==`] node whose two children are the classes of
+#vm[`e0`] and #vm[`e1`], and #vm[`e2`] becomes the handle on the class that node
+landed in. Insertion is hash-consed: a node with the same operator over the same
+child classes is not a second node but the one already there, so building a term
+twice costs a lookup and yields the same class.
 
-What a cube is _for_ differs by direction. A fact assumed under a cube must not
-escape to a sibling path, so it enters the graph guarded: what is merged with
-#vm[`true`] is the implication $"pc" => "fact"$, not the fact. An obligation raised
-under a cube need only hold on that path, so what has to be proven is likewise
-$"pc" => "goal"$. Both are the same shape, which is why one operation covers them.
+An #vm[`assume`] is a union. #vm[`assume e2`] merges the class of #vm[`e2`] with
+the class of #vm[`true`], and that is the whole of how a fact enters the state.
+One rewrite then fires on what it produced: an #vm[`==`] node whose class is known
+#vm[`true`] unions its two arguments, so #vm[`e0`] and #vm[`e1`] become one class.
 
-Silicon takes the other route and forks: a branch produces two symbolic states,
-each with its own decider and its own path conditions, and a fact assumed in one
-is simply absent from the other. Keeping one graph with guarded facts instead is a
-trade. What it buys is that a term built before the branch is shared by both arms
-rather than duplicated, that no state has to be copied at a fork, and that a join
-is a merge of two heaps rather than a pair of independent continuations. What it
-costs is that facts are no longer unconditional, so the guards have to be carried
-and discharged, and reasoning under a cube needs an explicit mechanism rather than
-being free. That mechanism is next.
+Lines five and six are operations again, and the merge is what they run into.
+Inserting #vm[`e1 * 2`] means inserting a #vm[`*`] node over the class of
+#vm[`e1`] and the class of #vm[`2`] — but that is the node line five already
+built, since #vm[`e0`] and #vm[`e1`] are by now the same class, so the insertion
+finds it and #vm[`e4`] is a handle on #vm[`e3`]'s class. Had the two been built
+_before_ the assume instead, they would have been merged by it: congruence closure
+propagates a union to every application over the classes it merged, without either
+application being revisited. Which order the program happens to use is therefore
+not something the verifier has to care about.
 
-#para[Discharging an obligation] <para:impl-tiers> An obligation is a goal e-class
-and a path condition, and the verifier answers it by escalating through named
-tiers, cheapest first. Each tier is a strictly larger amount of work than the last,
-and the great majority of obligations never leave the cheap ones.
+#vm[`e5`] is then an #vm[`==`] node whose two children are one class, and the
+assertion on the last line is the question of whether #vm[`e5`]'s class is the
+class of #vm[`true`]. Here it is, because an equality between a class and itself
+folds to #vm[`true`] on insertion. What the verifier does when the answer is not
+immediate is @sec:impl-proving.
 
-Two verdicts come first because they are vacuous, and because reaching one makes
-every later tier pointless. The graph may hold #vm[`true == false`] — a
-contradiction is recorded as an ordinary merge, so detecting it is two comparisons
-of class identifiers — and the block's own cube may be unsatisfiable, which is
-decided once when the block's scratch is built rather than once per obligation.
-Both are the state saying the path cannot be taken, and an unreachable path
-discharges anything asked of it.
+#para[Well-definedness] Building a term is not always free of obligations. Some
+operations are partial, and an instruction applying one raises a side condition
+saying that it was applied where it denotes something. Division is the case in
+this fragment: #vi[`x / d`] means nothing where #vi[`d`] is zero, so
+#vm[`e2: Int := e0 / e1`] raises #vm[`e1 != 0`] as an obligation, at the point the
+term is built and whatever the surrounding expression goes on to do with the
+result.
 
-Two constant-time hits follow. The goal may be _unconditionally_ true, in which
-case the implication holds whatever the path condition is; this is checked before
-the implication is built at all, because building it allocates nodes and the bulk
-of the stream is const-folding obligations of the shape $0 < 1\/1$. Failing that,
-the implication itself may already be #vm[`true`] — either trivially, or because an
-identical obligation was proven earlier and the result recorded. Discharging an
-obligation by merging it with #vm[`true`] is what makes the record; the second
-occurrence of an obligation is therefore free, which matters because a Prusti
-encoding raises the same framing obligation at every one of a long run of
-statements.
+#para[Path conditions] The obligation is not always raised flatly, and a division
+is the smallest thing that shows why. A program guards one by writing the check
+into the expression, as in #vi[`var y: Int := d != 0 ? x / d : 0`] — the divisor
+is only ever divided by where the guard says it is safe, and a verifier that
+ignored that would reject a correct program.
 
-Failing those, the graph is _saturated_: the rewrite rules are run to a fixpoint
-and the implication re-checked. Saturation runs on the live graph, which holds
-only unconditional facts, so it proves whatever holds unconditionally — which is
-most of what a heap operation asks for. No copy is taken.
+The lowering is what carries the guard to the division. An instruction may hold a
+_path condition_, written in angle brackets before it: a _cube_, meaning a
+conjunction of boolean values already in the graph, each taken with a polarity. It
+is attached at lowering time and is exact, so the verifier reads off what is in
+force rather than working it out.
 
-Only if that fails does the path condition get assumed, and assuming it is what
-costs. The cube cannot be merged into the live graph, since it holds on this path
-only; so a copy of the graph is taken, the literals are fixed in the copy, and the
-copy is saturated. Inside a method body the copy is amortised — one _scratch_ graph
-per block, built on the block's first hard obligation and reused by the rest of
-it, since every instruction of a block shares the block's cube (@sec:impl-cfg).
-Outside one — in a function or a resource body, which have no branch structure to
-share — each such obligation clones.
+#vmir(
+  caption: [A guarded division. The obligation the division raises is carried under the guard the program wrote.],
+  label: "lst:exec-guard",
+)[```vmir
+e0: Int := fresh // x
+e1: Int := fresh // d
+e2: Bool := e1 != 0
+e3: Int := <e2> e0 / e1
+e4: Int := e2 ? e3 : 0 // y
+```]
 
-The last tier is deliberately narrow. It decomposes a goal that is itself a
-guarded implication, assuming the one condition that the goal's own shape names and
-re-checking the surviving arm; it does not fork, and it telescopes a chain of
-nested guards one assumption at a time. The conditions it may assume are read off
-the goal term rather than searched for, which is what makes the obligations from
-_branching pure functions_ — a function whose two arms establish its postcondition
-differently — reachable at all.
+The #vm[`<e2>`] on line four is the path condition, and it is one literal: the
+class of #vm[`e2`], taken positively. Without it the division would raise
+#vm[`e1 != 0`] outright, which is not provable here and would reject the program
+for a division it never performs.
 
-What is not here is a case split. A goal that needs genuine reasoning by cases over
-an opaque condition is reported unproven rather than forked on, and method control
-flow never needs one: a join is discharged structurally by the block walk, which is
-the subject of @sec:impl-cfg. The single exception lives outside this ladder, in
-the permission arithmetic rather than in the prover — a sufficiency check against a
-gated amount splits on the gate, and only after the flat prove has failed
-(#pararef(<para:impl-gate-split>, [Conditional footprints])).
+The translator maintains that cube as a stack of literals while it walks. Lowering
+the then-arm of a ternary pushes the condition positively and lowering the else-arm
+pushes it negatively, each around the lowering of that arm and popped after it, so
+the stack always holds exactly the literals in force and an instruction takes its
+cube by snapshotting it.
 
-#para[The reasoning core] Underneath every tier is one rule set, always on.
-Congruence and hash-consing come from the e-graph itself. Constant folding is an
-analysis attached to each e-class: a class whose term folds to a literal carries
-that literal, and a class forced to carry two different literals is a
-contradiction — which is how an inconsistent state is detected, and why an
-unreachable path discharges anything asked of it.
+Not every instruction takes one. An instruction that only builds a term needs no
+cube, since a term is the same term wherever it was built: the arithmetic, the
+comparisons and the ternary itself are emitted flat however deeply nested in
+conditions they stand, and one temporary stands for the term across all of them.
+An instruction with an obligation is the case that needs the cube, and in the
+heapless pure fragment that is division and modulo alone. Heap instructions and
+calls fall on the same line and are taken up where those constructs are
+(@sec:impl-heap-interaction, @sec:impl-functions).
 
-On top of those sit the rewrites. The arithmetic ones are identities rather than
-a theory: adding zero, multiplying by one, and the two cancellation shapes
-$(x - p) + p$ and $x - x$, which are exactly what a permission consumed and given
-back leaves behind. The boolean ones normalise ternaries, since VMIR has no
-negation or conjunction of its own and spells both as #vm[`?:`] — an assumed branch
-literal reduces a gated permission #vm[`b ? p : 0`] to #vm[`p`] by the same rule
-that simplifies any other conditional. And a proven equality is turned back into a
-merge: an #vm[`==`] node whose class is known #vm[`true`] unions its two arguments,
-which is what lets an assumed equality participate in congruence rather than
-sitting inertly as a fact.
+What the cube then does is weaken the obligation. One raised under a cube need
+only hold where the cube does, so what has to be proven is not the goal but the
+implication $"pc" => "goal"$ — here $e_2 => e_1 != 0$, whose consequent is the
+literal the cube already contains.
 
-What is absent is as deliberate. There is no decision procedure for linear
-arithmetic, so an obligation like $i < n |- i + 1 <= n$ is not discharged, and
-@sec:beyond-fragment says where that bites. There is no disequality store either:
-an e-graph records that two terms are equal and has no way to record that they are
-not, so distinctness is derived where it can be derived — from a constant-folding
-collision, from the contrapositive of congruence, or from an observation that
-separates two values — and is otherwise deferred (@sec:impl-adts).
+#para[One state, not two] Carrying the condition on the instruction is what lets
+the verifier keep a single graph where a forking symbolic execution keeps one
+state per path. Silicon takes that other route, its #vi[`branch`] rule taking one
+continuation per outcome:
 
-#para[Joins] The one thing this section has passed over is what happens when two
-paths meet. A branch produces two heaps as well as two bindings for every variable
-the arms disagree about, and reconciling them is where both the path-condition
-machinery and the symbolic heap are put under real pressure. That is
-@sec:impl-cfg, and it deliberately comes after the heap has been introduced: the
-heap of @sec:impl-heap is presented straight-line first, precisely so that a join
-can be shown as the thing that forces every piece of conditional structure it
-carries.
+#quote(block: true, attribution: [@silicon[Section 3.2]])[
+  #vi[`branch`] enables splitting the symbolic execution into two paths: one path
+  ($Q_v$) is taken under the assumption that $v$ is true, the second path
+  ($Q_(not v)$) is taken under the assumption that $v$ is false.
+]
+
+Forking gives each path a state of its own. A fact obtained on one path is simply
+not present on the other, and every fact a path does hold is unconditional:
+nothing proven there has to mention the condition the path was taken under. Two
+paths that share nothing can moreover be explored on two verifiers at once, which
+Silicon can be asked to do.
+
+A single graph gives sharing instead. Every term built before the condition serves
+both readings of it, and nothing is copied when the condition arises. The price is
+that a fact holding on one side only cannot be stated outright, and that an
+obligation raised under a cube is an implication rather than a goal.
+
+Which of the two pays depends on the obligations. This design bets, on the
+evidence of @sec:prusti-needs, that most of them follow from the structure the
+program has already built, and so are discharged without the cube being assumed at
+all. What becomes of the ones that are not is @sec:impl-proving.

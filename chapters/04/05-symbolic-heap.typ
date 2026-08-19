@@ -8,6 +8,16 @@
   from @sec:prusti-needs or soften it to what was observed.
 ]
 
+#todo[
+  Cash out the rewrite rules here. @sec:impl-proving states them neutrally,
+  because permissions did not exist yet at that point in the chapter: the
+  rational arithmetic, $(x - p) + p -> x$, $x - x -> 0$, and
+  $ternary(b, p, 0) -> p$ under an assumed guard are all shaped by permission
+  accounting and are idle until this section. Say so once the heap operations
+  are on the table, and point back at
+  #pararef(<para:impl-rewrites>, [The rewrites]).
+]
+
 This section is deliberately restricted to the _straight-line_ heap. Everything
 conditional is deferred to @sec:impl-cfg, which is where a branch first forces two
 heaps to be reconciled and so where conditional chunks are actually motivated;
@@ -154,7 +164,7 @@ work so much as the fix-point. Congruence closure has already propagated the
 equalities, so one pass over one partition suffices, and it is cheap enough to
 run at every lookup rather than be scheduled.
 
-#para[Location axioms] Two chunks of one partition that have _not_
+#para[Location axioms] <para:impl-location-axioms> Two chunks of one partition that have _not_
 been merged are the converse case, and partitioning says just as precisely
 where a non-aliasing constraint has to be injected: between exactly those
 pairs, since

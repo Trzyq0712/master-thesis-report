@@ -55,7 +55,7 @@ condition does. Our verifier rejects it, and injectivity is only the second of t
 missing steps — concluding #vm[`f(x) == f(y)`] from the sum reaching #vm[`1/1`] is
 arithmetic driving a case analysis on a condition the program never mentions,
 which is exactly the general-prover reasoning the core is not built to do
-(@sec:impl-execution).
+(@sec:impl-proving).
 
 Were the fact wanted, it could be stated by declaring an inverse beside the
 location function.

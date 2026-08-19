@@ -33,7 +33,7 @@ Every line of it has appeared before. What is worth stating is that checking suc
 a body well-formed is not a separate discipline: the instructions mean what they
 mean anywhere else, and the obligations they raise — the read of #vm[`h0`]
 demanding positive permission at #vm[`e2`], say — are discharged by the route of
-@sec:impl-execution. Viper's requirement that a predicate body be self-framing is
+@sec:impl-proving. Viper's requirement that a predicate body be self-framing is
 that obligation and nothing more.
 
 The one line that is new is the bind point. Inside a resource body an add writes
@@ -67,6 +67,61 @@ and a function's precondition all lower to resources too (@sec:impl-cfg), which 
 why the construct is worth having under its own name. Permission-carrying things
 themselves are _locations_ in VMIR (@sec:impl-heap), so a predicate instance sits
 in the heap on the same terms as a field does.
+
+#para[Slots and recipes] <para:impl-slot-recipes> None of that body survives
+verification as a body. A resource is checked once, at its declaration, and what is
+kept afterwards is a small record of _recipes_ — the term used for a function body
+in #pararef(<para:impl-recipes>, [Recipes]) of @sec:impl-functions, and literally
+the same construct here. There are two per footprint slot, one building the slot's
+location and one building its permission amount, and one more for the body's
+boolean. For #vm[`gt`] above that is the address recipe #vm[`f(e0)`], the permission
+recipe #vm[`1/1`], and the boolean recipe taking the slot's value to
+#vm[`value > e1`], alongside the slot's location kind and element type. Nothing of
+the body's execution is retained: not the heap it threaded, not the instructions
+that threaded it.
+
+A recipe is a sequence of pure steps in a space of its own, seeded by either a
+parameter or the value of an _earlier_ slot. That second kind of seed is what makes
+a value-dependent address expressible — Prusti's #vi[`P(this.next)`] is a slot whose
+address recipe reads a field value the slot before it produced — and it is the same
+dependency that the walk of
+#pararef(<para:impl-resource-ops>, [The resource operations]) threads back into the
+addresses it has yet to build. The ordering is not a convention the walk imposes;
+it is in the recipes, which can only refer backwards.
+
+Recipes are pure verifier-side values. A recipe holds no e-classes, no heap and no
+path condition — only steps — so rebuilding one adds terms and imports nothing:
+whatever was merged while the body was being verified stays where it was proved,
+and a user of the resource derives what it needs from what it can itself establish.
+That is why a resource has no presence in the state at all until something uses it.
+An inhale, an exhale, a fold or an unfold walks the slots, rebuilds each address and
+each amount at the actual arguments, and only then are there chunks; the recipes are
+the plan and the use is the reification. It is also why the rebuild is cheap enough
+to do at every use: it is add-only, so normalisation is run only where the rebuild
+actually introduced a node — a rebuild that added nothing named only terms the state
+already had.
+
+The permission is the one part that is not quite a recipe. It keeps the _shape_ a
+permission has (an amount, a #vm[`wildcard`], or a ternary over the two) with only
+the amounts themselves recipes. Both reasons are worth a sentence. A
+#vm[`wildcard`] is not an amount but a symbol picked at the moment the slot is
+rebuilt (@sec:impl-wildcards), and a step in a recipe is re-run wherever the recipe
+is — so flattening it would mint a _different_ wildcard at every rebuild site, which
+is not what one footprint slot means. And keeping the branch structure outside the
+term is what lets a demand's arms be lined up against the arms of what is held, so
+that precision at a conditional slot comes from two shapes agreeing rather than from
+a case analysis. Everywhere else in this chapter a slot's permission may be read as
+an ordinary recipe.
+
+Silicon keeps a predicate as the assertion the programmer wrote and re-runs its
+produce and consume rules over that assertion at each use: every #vi[`acc`] in it
+has its receiver and its permission expression evaluated afresh in the state at
+hand, which may branch, may query the solver, and may raise obligations of its own
+@silicon[Section 3.3]. Compiling the body to recipes is that walk done once, at the
+declaration, where its obligations are discharged against the body's own state; a
+use rebuilds terms instead of re-executing an assertion. What is given up is the
+other side of the same coin — a recipe is fixed when the resource is checked, so
+nothing at a use site can specialise it the way a state-dependent evaluation could.
 
 #para[Derived members] Naming a bundle costs two members the source program never
 writes. Every resource brings into being a snapshot type and a location function.
@@ -150,7 +205,7 @@ when assuming the negation refutes itself, which it does — the negation collap
 the snapshot tower of @sec:impl-adts onto a different constructor, and the arm
 Prusti marks unreachable carries #vi[`ensures false`] at the bottom. This is the
 same step the last prove tier makes for a boolean goal
-(#pararef(<para:impl-tiers>, [Discharging an obligation])), and the same one a
+(@sec:impl-proving), and the same one a
 branch-splitting verifier gets for free by evaluating the ternary per branch.
 
 Three restrictions keep it a fallback rather than a search. It runs only after the
@@ -311,7 +366,7 @@ was written with — #vm[`0 < 1/1`] here — so it const-folds to #vm[`true`], t
 yield is concretely a #vm[`Some`], and the unwrap is peeled by the reduction of
 @sec:impl-adts before anything is asked to prove anything. Where the amount is a
 #vm[`wildcard`] the same holds structurally, a wildcard being positive by
-construction. The alternative — emitting an assertion that the yield is present —
+construction (@sec:impl-wildcards). The alternative — emitting an assertion that the yield is present —
 would put a proof search where there is currently a hashmap lookup, and would make
 the pair cost more than a single instruction would have.
 

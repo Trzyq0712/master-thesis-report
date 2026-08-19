@@ -66,13 +66,16 @@ may mint a value. #vm[`with fresh`] is what would violate it, and #vm[`with e1`]
 does not: the values are the parameter's, projected. Two evaluations of the same
 call therefore build the same terms, which is what the next listing turns on.
 
-One detail in the resource is not cosmetic. The permission in a function's
-precondition footprint is weakened to a #vm[`wildcard`] — a positive but
-unspecified share. A function frames rather than consumes: it needs to know that
-_some_ permission is held so that the values it reads are stable, and it must not
-require the amount a caller happens to have. Weakening it makes the demand
-structural rather than arithmetic, and a wildcard demand is discharged by proving
-the location holds a positive share rather than by comparing fractions.
+One detail in the resource is not cosmetic. Every permission in a function's
+precondition footprint — and in its body — is weakened to a #vm[`wildcard`], which
+is the read-only policy of
+#pararef(<para:impl-readonly>, [Where wildcards come from]) applied at its two
+sites. A function frames rather than consumes: it needs to know that _some_
+permission is held so that the values it reads are stable, and it must not require
+the amount a caller happens to have. What that weakening costs and buys is
+@sec:impl-wildcards; what the rest of this section needs from it is only that a
+wildcard demand is discharged by proving the location holds a positive share rather
+than by comparing fractions.
 
 At a call site the snapshot is built, and building it is where the precondition is
 checked:
@@ -96,7 +99,7 @@ function frames rather than consumes" means: the caller keeps everything it held
 Nothing is skipped by not building it. Every obligation the walk raises is raised
 either way; what an unrequested result buys is that the subtraction chain is not
 materialised, and with it the wildcard arithmetic that would otherwise be left
-sitting in the state. This is the case @sec:impl-heap-interaction promised: a
+sitting in the state — which is the frame-only case of @sec:impl-wildcards. This is the case @sec:impl-heap-interaction promised: a
 blank binder is written by the translator and means something, so no later pass may
 introduce one — blanking the heap of a genuine exhale would turn a consume into a
 frame check.
@@ -144,7 +147,8 @@ footprint, and so is not a function of the arguments and the snapshot alone. The
 the antecedent is an opaque token over the precondition resource, which the
 precondition exhale stamps exactly where its check passed.
 
-#para[Recipes] A function _with_ a body is verified once, and what verification
+#para[Recipes] <para:impl-recipes> A function _with_ a body is verified once, and
+what verification
 leaves behind is a _recipe_: the body captured as a sequence of pure steps over
 the parameters, with every callee already resolved. At each occurrence of
 #vm[`f(args)`] the recipe is replayed — the steps are rebuilt with the parameters
@@ -166,6 +170,12 @@ fires only where a token for the same arguments is present — the marker that t
 occurrence came from a genuine call rather than from a term some rule happened to
 build — which keeps a function from being unfolded at an occurrence nobody wrote.
 Silicon does the same thing with the same shape of trigger.
+
+A resource is kept the same way, and by the same machinery: its footprint is two
+recipes per slot and its body one more
+(#pararef(<para:impl-slot-recipes>, [Slots and recipes])). The difference is only
+what the recipe is replayed _into_ — a function's into an equation between an
+application and its body, a resource's into chunks and an assertion about them.
 
 Recursion is handled by unfolding exactly once. A recursive function's recipe
 targets a _limited twin_ of itself at its in-cycle calls: an uninterpreted

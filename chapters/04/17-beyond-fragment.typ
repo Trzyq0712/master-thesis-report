@@ -56,8 +56,11 @@ Third, an irreducible control-flow graph â€” a cycle with more than one entry â€
 no natural loop and is rejected. This is a real restriction, though not one any
 frontend the author is aware of produces.
 
-Finally two smaller ones, recorded because they are the kind that is easy to lose.
-A multi-target assignment is rejected rather than lowered. And #vi[`unfolding`],
+Finally three smaller ones, recorded because they are the kind that is easy to lose.
+A multi-target assignment is rejected rather than lowered. A #vi[`wildcard`] written
+as an arithmetic operand rather than as a permission amount is rejected by the
+translator, which is the restriction @sec:impl-wildcards states positively and the
+lowering reference records as a fragment boundary. And #vi[`unfolding`],
 being an expression that lowers to statement-level heap instructions, is the one
 operation that can sit under a path condition finer than its block's
 (@sec:impl-predicates); the effect is scoped and fabricates no permission, so this

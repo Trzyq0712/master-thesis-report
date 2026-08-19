@@ -5,12 +5,6 @@
 #todo[
   The corpus counts belong in the opening: `exhale` dominates, which is what makes
   this the hot path. Cite @sec:prusti-needs once its table exists.
-
-  A wildcard amount is gated structurally rather than arithmetically, since there
-  is no term to multiply out; the rule for one is stated where wildcards arrive
-  (@sec:impl-functions). Check that
-  #pararef(<para:impl-amounts>, [Permission amounts]) still reads honestly
-  against it.
 ]
 
 A program that owns a field takes permission to it, writes through it, reads back
@@ -93,7 +87,7 @@ whichever direction it is applied in, since an assertion naming a negative
 fraction denotes nothing, and the verifier raises it as an obligation before the
 add or subtract it belongs to. The amounts of @lst:heap-inhale are literals and
 answer it on the spot; one computed from program values does not, and it is
-checked like anything else (@sec:impl-execution). Adding permission is thereby
+checked like anything else (@sec:impl-proving). Adding permission is thereby
 unconditional in the heap and conditional only on its own assertion being
 meaningful.
 
@@ -140,7 +134,7 @@ The obligation the second step raises is
 $ p_"held" >= b $
 
 under the instruction's path condition, and it is an obligation like any other:
-what discharges it is the route of @sec:impl-execution, with nothing special to
+what discharges it is the route of @sec:impl-proving, with nothing special to
 the heap about it. It is an inequality rather than an equality because an amount
 above the bound leaves the state inconsistent by the axiom of @sec:impl-heap, so
 letting the write through costs nothing.
@@ -306,6 +300,11 @@ holding no permission is inert.
   under an assumed #vm[`e0`] the ternary reduces to #vm[`p`] by the same rule that
   simplifies any conditional, and the obligation is then an amount against itself:
   one e-class compared with the same one, closed without any theory of rationals.
+
+  One amount does not gate this way, and it is the exception @sec:impl-wildcards is
+  about. A #vi[`wildcard`] has no term to push a condition into, so a guarded
+  wildcard is gated one level up — the ternary is over the permission rather than
+  inside it — and the demand it raises is structural rather than arithmetic.
 
   #wip[
     *What we record.* The mechanism here is not settled — take none of the wording

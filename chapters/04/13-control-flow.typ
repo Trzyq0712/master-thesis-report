@@ -1,24 +1,35 @@
 #import "../../macros.typ": *
 
-== Verifying Methods <sec:impl-cfg>
+== Control Flow <sec:impl-cfg>
 
 Everything so far has been straight-line, and that assumption is discharged here.
-A method is the first construct with control flow, and walking one is where the
-heap of @sec:impl-heap acquires the machinery it was deliberately introduced
-without — a chunk that is held on one path and not on another, and a demand that
-has to be met by a sum rather than by a chunk.
-
-Calling a method is a separate concern and needs none of this; it is
-@sec:impl-calls.
+A second block is what costs the verifier something: it is where the heap of
+@sec:impl-heap acquires the machinery it was deliberately introduced without — a
+chunk that is held on one path and not on another, and a demand that has to be
+met by a sum rather than by a chunk. The two ends @sec:impl-methods describes are
+untouched by any of it; what changes is everything between them.
 
 #para[Blocks and block order] A Viper method body is a basic-block graph, and the
-verifier keeps it as one. Prusti emits a flat #vi[`goto`] graph and never a
-structured #vi[`if`] or #vi[`while`], so there is no syntax tree to walk in the
-first place; a source-level #vi[`if`] is resolved into block structure before
-lowering, and after that the two are indistinguishable.
+verifier builds one before it lowers anything. Viper offers two ways to branch and
+Prusti uses both: #vi[`goto`] between labelled blocks, and a structured
+#vi[`if`] — either wrapping a pair of #vi[`goto`]s, or guarding a run of
+statements by a _reach flag_, or by a conjunction of them where the block is
+reached through more than one branch, as in @lst:example-body. A control-flow
+analysis over the typed body resolves the two into one block graph, and after it
+they are indistinguishable; nothing downstream walks a syntax tree.
 
-Blocks are lowered and executed in topological order, with back edges cut
-(@sec:impl-loops). That order is what makes a single forward walk possible: every
+That the reach flags are ordinary boolean variables rather than syntax is worth
+one sentence, because it is what makes the arrangement cheap. #vi[`_from_bb0_to_bb1`]
+is assigned #vi[`false`] in the prologue and #vi[`true`] on the edge that sets it,
+so at a block that only one path reaches, the guard's operands are literals and
+the whole conditional const-folds before the block's statements are executed. The
+branch structure Prusti writes into the data therefore collapses into the branch
+structure the verifier already has.
+
+Blocks are lowered and executed in topological order, with back edges cut. What
+a cut does is an exchange rather than a deletion — the loop's invariant is
+exhaled where the edge would have arrived and re-inhaled for the body, which is
+@sec:impl-loops. That order is what makes a single forward walk possible: every
 predecessor of a block is executed before it, so the state a block starts from is
 always available, and no block is ever revisited. Each block is a triple — the
 cube it is reached under, a _join phase_ that reconciles its predecessors, and a
@@ -27,15 +38,15 @@ been describing.
 
 #lowering(caption: [A conditional exhale, lowered to blocks.], label: "lst:blocks")[```viper
 method m(b: Bool, x: Ref)
-  requires acc(x.f)
+  requires acc(x.val_i32)
 {
-  var v: Int := x.f
+  var v: i32 := x.val_i32
   if (b) {
-    exhale acc(x.f)
+    exhale acc(x.val_i32)
   } else {
-    v := 0
+    v := i32_cons(0)
   }
-  assert !b ==> v == 0
+  assert !b ==> v == i32_cons(0)
 }
 ```][```vmir
 method m {
@@ -48,39 +59,40 @@ method m {
           m#requires(e0, e1) @ 1/1
           with e2
     body:
-    e3: &[f] Int @ 1/1 := f(e1)
-    e4: Int := *[h0] e3
+    e3: &[val_i32] i32 @ 1/1
+         := val_i32(e1)
+    e4: i32 := *[h0] e3
+    e5: i32 := i32_cons(0)
   bb1 <e0> from bb0:
     body:
     h1, _ := <e0> h0 - e3 @ 1/1
   bb2 <!e0> from bb0:
     join:
-    e5: Bool := e0 ? false : true
+    e6: Bool := e0 ? false : true
     body:
   bb3 <> join e0 [bb1, bb2]:
     join:
-    e6: Int := e0 ? e4 : 0
+    e7: i32 := e0 ? e4 : e5
     h2 := merge e0 ? h1 : h0
     body:
-    e7: Bool := e6 == 0
-    e8: Bool := e5 ? e7 : true
-    assert e8 [h2]
+    e8: Bool := e7 == e5
+    e9: Bool := e6 ? e8 : true
+    assert e9 [h2]
 }
 ```]
 
-The entry block opens with the method's own prologue: a fresh value per parameter
-and return variable, a fresh snapshot handle, and an inhale of the method's
-precondition bound to that handle, which is a
-resource like any other (@sec:impl-calls). The heap the body works in is therefore
-built rather than assumed, and it starts at #vm[`empty`] — a method may assume
-only what its contract grants it. The handle is what the entry state is _called_:
-nothing constrains it, so the footprint it widens into is as arbitrary as
-#vm[`with fresh`] would have made it, but it has a name, and an exit block needs
-that name to state the postcondition against the state the method was entered in.
-At the other end, each exit block exhales the
-postcondition against the final values of the return variables. There is nothing
-method-specific in either: they are the resource operations of
-@sec:impl-predicates, applied at the two ends of the walk.
+The method is invented rather than quoted: a single #vi[`exhale`] under a
+condition is the smallest program that forces two heaps to be reconciled, and
+#vi[`account_deposit`] does the same thing across six blocks. Everything in it
+that is not the branch — the field, its predicate's stored type, the constructor
+#vi[`i32_cons`] — is the guiding example's.
+
+The entry block opens with the prologue of @sec:impl-methods, unchanged — the
+fresh values, the snapshot handle, the inhale of the precondition into
+#vm[`empty`]. The method declares no postcondition, so no exit exhale appears in
+the listing; had it declared one, neither end would know that the body branched.
+Everything this section is about happens between them, and #vm[`bb3`]'s join
+phase is where it becomes visible: two heaps arrive there and one leaves.
 
 #para[Path conditions] A block's cube is written in its header, and every
 instruction of the block carries it. It is computed once, at lowering time, from
@@ -117,8 +129,8 @@ resource bodies have no block structure and so keep the per-obligation clone;
 there is nothing for them to share.
 
 #para[Joining values] A variable that the two arms disagree about is reconciled by
-a ternary on the branch condition, and #vm[`e6`] above is one: #vi[`v`] is #vi[`0`]
-where the else arm ran and the field's value where the then arm did. A variable
+a ternary on the branch condition, and #vm[`e7`] above is one: #vi[`v`] is the
+constant where the else arm ran and the field's value where the then arm did. A variable
 both arms agree on passes through untouched, and one only defined on a single arm
 inherits from that arm.
 
@@ -218,14 +230,84 @@ condition and requires the property of both arms. The case analysis happens in
 the prover's path condition, where it is a cube literal, and never in the state,
 where it would be a node that outlives the obligation.
 
-The shape to keep in mind for @sec:impl-calls is a chunk part-way through this
+The shape to keep in mind for what follows is a chunk part-way through this
 process: a location drained under one condition and untouched otherwise reads
-#vm[`e0 ? 0/1 : 1/1`], and every finding in the next section is about a probe
-meeting one of those.
+#vm[`e0 ? 0/1 : 1/1`]. Every finding below is about a probe meeting one of those.
+
+#para[Reborrows and aliasing] The corpus is where this stopped being
+straightforward. A #ru[`&mut`] passed into a call is, in Prusti's encoding, a
+reborrow: the caller computes a new reference whose address is provably equal to
+one it already holds permission for, and the call site then demands permission at
+_that_ address. Every failure below is a variant of the same situation — the
+demanded location and the held chunk are one location, but not visibly so at the
+moment of the lookup — and each turns on the guarded chunks above. They are
+reported here as findings, because the fixes are not obvious and three of the
+four were arrived at by first getting them wrong.
+
+#para[Finding: where the retry belongs] A reborrow's address meets the held
+chunk's address only after the full rule set has run: it reaches through the
+snapshot machinery, and the terminating reductions the verifier runs after a heap
+operation are not enough to close the gap. So a lookup that misses has to be able
+to saturate and try again.
+
+Where that retry sits is the whole of the finding. Placing it in the lookup, so
+that every miss saturates, is the obvious implementation and costs a factor of
+36 on one benchmark of the corpus — 1.48 seconds to 53.5 — because a lookup that
+misses is _normal_: an assertion may legitimately demand permission at a location
+nothing is held at, and the ordinary answer is that the demanded amount is
+provably zero. Putting the retry after that check inverts who pays. A miss that
+the zero test closes never saturates; only an obligation that would otherwise be
+reported as a failure does.
+
+#para[Finding: a reborrow created under a branch] The second failure is invisible
+to the first fix. A reborrow computed _inside_ an arm has an address whose
+equality to the held chunk's is a fact of that arm, so it is in the state as a
+guarded implication rather than as a merge of two classes. Matching chunks by
+canonical e-class cannot see it, and no amount of saturation on the unguarded
+state will make it visible, because the equality is not unconditionally true.
+
+The fix is to route the miss through the under-path-condition lookup instead: the
+same collect-the-alias-set path
+#pararef(<para:impl-pc-sufficiency>, [Sufficiency under a path condition])
+describes, which resolves the address gate under the cube rather than in the
+ground state. The consume then proceeds with its debit gated by that cube, so
+nothing is taken on the path where the addresses are unrelated.
+
+#para[Finding: consecutive reborrows] The third is a soundness bug rather than a
+completeness one, and it is what the alias _set_ exists for. Where several held
+chunks coincide with the demand under the path condition, the permission at that
+location is their sum and nothing less; proving sufficiency against the first
+chunk that matches is order-dependent and wrong. The failing case is two
+consecutive consumes through a chain of reborrows: the first drains one chunk,
+the second matches that same drained chunk, and — if the check looks no further
+— sees the permission still sitting in a sibling and succeeds. The location is
+then spent twice.
+
+Proving against the sum and distributing the debit across the set closes it. The
+case is pinned by a soundness regression test in the suite: two full consumes at one
+location, reached through nested equalities, which must not both succeed.
+
+#para[Finding: reading a field after a call] The last is a completeness failure
+with a cause in a different section entirely. Re-reading a field after a call
+should relate the value read to the one the postcondition established, and it did
+not: the occurrence of the function relating them stayed opaque, so two reads of
+an unchanged field were provably unrelated.
+
+The cause is that a function's body is captured as a recipe and replayed at each
+occurrence (@sec:impl-functions), and the replay is gated by a token marking that
+the occurrence is a genuine call. Building a recipe prunes whatever the result
+does not depend on — and the token's value is read by nothing, so it was pruned.
+An occurrence introduced by a method contract therefore arrived without its
+token and was never unfolded. The fix belongs where the pruning is, and is stated
+there.
 
 #para[What we record] A join never approximates. Where two arms cannot be
 reconciled structurally the verifier falls back to a representation that is
 larger, not to one that is weaker, and a failed obligation under a cube leaves
-the cube, the chunk and its guard exactly as they were. The state after a join is
-a faithful description of both arms, which is what lets @sec:beyond-fragment claim
-that the incompleteness is in the decision procedure rather than in the record.
+the cube, the chunk and its guard exactly as they were. A call that cannot be
+discharged leaves its transaction half-executed by design: the exhale reports
+which location it could not take enough permission from, with the demanded and
+held amounts as terms, and the caller's heap up to that point is intact. Either
+state is a faithful description of the program point, which is what lets
+@sec:beyond-fragment claim that the incompleteness is in the decision procedure
+rather than in the record.

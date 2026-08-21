@@ -1,24 +1,18 @@
 #import "../../macros.typ": *
+#import "../../figures/location-anatomy.typ": location-anatomy
+#import "../../figures/heap-partitions.typ": heap-partitions
+#import "../../figures/consolidation.typ": consolidation
 
 == The Symbolic Heap <sec:impl-heap>
 
-#todo[
-  The closing claim of Partitioning — that the corpus never needs a
-  non-aliasing constraint — is asserted, not shown. Either cite the evidence
-  from @sec:prusti-needs or soften it to what was observed.
-]
+Everything so far has been values. The heap is the other half of the state, and
+this section is what it is made of: what a permission-carrying thing is, where a
+chunk holding permission to one lives, and what happens when two chunks turn out
+to be at the same place. The instructions that move permission around are
+@sec:impl-heap-interaction; the two declaration forms that produce something to
+hold permission to are @sec:impl-fields and @sec:impl-predicates.
 
-#todo[
-  Cash out the rewrite rules here. @sec:impl-proving states them neutrally,
-  because permissions did not exist yet at that point in the chapter: the
-  rational arithmetic, $(x - p) + p -> x$, $x - x -> 0$, and
-  $ternary(b, p, 0) -> p$ under an assumed guard are all shaped by permission
-  accounting and are idle until this section. Say so once the heap operations
-  are on the table, and point back at
-  #pararef(<para:impl-rewrites>, [The rewrites]).
-]
-
-This section is deliberately restricted to the _straight-line_ heap. Everything
+The section is deliberately restricted to the _straight-line_ heap. Everything
 conditional is deferred to @sec:impl-cfg, which is where a branch first forces two
 heaps to be reconciled and so where conditional chunks are actually motivated;
 what a chunk is and what partitioning it buys can be settled without any of that.
@@ -36,13 +30,11 @@ program produces only the two extremes: #vm[`1/1`] for a field, matching
 program from holding arbitrarily many of those. The _group_ #vm[`g`] identifies
 the declaration the location came from.
 
-#todo(keep: true)[
-  *Figure.* Anatomy of #vm[`&[g] T @ p`], arrows from each component to its
-  name and one-line gloss. Three components in one sentence each is exactly the
-  shape prose handles worst. Use a concrete type rather than the schematic one
-  — #vm[`&[f] Int @ 1/1`] labelled group / stored type / bound — so the figure
-  doubles as the field example that Fields opens with.
-]
+#figure(
+  pad(y: 0.6em, location-anatomy),
+  caption: [Anatomy of a location type, against the concrete instance
+    #vm[`&[f] Int @ 1/1`] rather than the schematic #vm[`&[g] T @ p`].],
+) <fig:location-anatomy>
 
 Because all three live in the type rather than in a side table keyed by syntax,
 a location describes itself. This matters because locations are ordinary values
@@ -74,14 +66,13 @@ permission bound. Every chunk lives in exactly the partition its type names,
 and the two are looked up together: an access resolves first to a partition and
 only then to a chunk within it.
 
-#todo(keep: true)[
-  *Figure.* The heap as boxes, one per location kind, chunks inside each. Two
-  field groups and one predicate group is enough. It should make three things
-  visible at a glance that the prose spends a paragraph on each: that a chunk
-  cannot be in two boxes, that #vi[`x.f`] and #vi[`y.g`] are in different
-  boxes, and that the predicate box is the #vm[`*`] one that receives no
-  axioms.
-]
+#figure(
+  pad(y: 0.6em, heap-partitions),
+  caption: [The symbolic heap as boxes, one per location kind. A chunk lives
+    in exactly one box; #vi[`x.f`] and #vi[`y.g`] are in different boxes
+    despite sharing a stored type and bound; the predicate box is the
+    #vm[`*`]-bounded one, dashed, and receives no location axioms.],
+) <fig:heap-partitions>
 
 Since the kind is read off the location's type, a computed location is filed as
 reliably as one written as a field access, and locations from different
@@ -90,18 +81,6 @@ partition, where identity is the location's e-class: two accesses alias exactly
 when their location terms have been merged. What remains is to say what becomes of a
 pair of chunks that does turn out to be at one location, and what is assumed of
 a pair that does not.
-
-#todo[
-  *Consolidation is not wired on `verify/lazy-function-unfold`.* `Heap::chunk`
-  matches `c.addr == addr` on the raw `egg::Id`, so a chunk found after its
-  location's e-class has been merged with another is not found at all, and
-  `declaration.rs` carries a `TODO(heap-consolidation)` saying as much. Probed:
-  `requires x == y { inhale acc(x.f, write); exhale acc(y.f, write) }` reports
-  insufficient permission, and holding two halves under an assumed `x == y` does
-  not add up. The paragraph below describes the design, not the build. Either
-  wire it, or say plainly that the fold is specified and unimplemented — it is
-  cited from Fields and from Beyond the Fragment.
-]
 
 #para[Consolidation] <para:impl-consolidation> Equality reasoning can therefore bring two chunks of a
 partition to one location after both are already held, simply by merging the
@@ -124,7 +103,7 @@ is _assumed_ rather than asserted:
 $ p_0 > 0 and p_1 > 0 => v_0 = v_1 $
 
 Silicon's `combineSnapshots` splits the same three ways and, where neither
-fraction is definitely positive, mints a _fresh_ snapshot constrained by both
+fraction is definitely positive, creates a _fresh_ snapshot constrained by both
 implications — on the stated grounds that using either of the two values and
 constraining it would be unsound. The asymmetric pick is that judgement made
 total rather than contradicted: the value is case-analysed on $p_0 > 0$ instead of
@@ -140,29 +119,30 @@ false, nothing is assumed of a value nobody holds, and the pick selects the one
 genuinely held. Equating the values outright would be unsound in the second
 case, and is unnecessary in the first.
 
-#todo(keep: true)[
-  *Figure.* Consolidation before and after. Left: one partition, two chunks at
-  distinct location e-classes. Middle: the e-classes merge. Right: one chunk
-  holding $p_0 + p_1$ and the picked value, with the assumed agreement beside
-  it. This is the densest mechanism in the section — a fold, an asymmetric
-  pick and a conditional assumption, all in one operation — and the figure is
-  the one place the reader could see that the merge is what *triggers* the
-  fold, rather than being the fold.
-]
+#figure(
+  pad(y: 0.6em, consolidation),
+  caption: [Consolidation. The merge of two location e-classes is what
+    *triggers* the fold that follows it, rather than being the fold: a
+    separate step, drawn as a separate arrow.],
+) <fig:consolidation>
 
-Silicon carries the same obligation at a considerably higher price. A chunk
-there holds terms, so whether two chunks describe the same location is a
-question for the solver, and the _state consolidation_ that answers it must
-iterate to a fix-point: merging one pair contributes equalities that may in
-turn permit the next merge. Its worst case is cubic in the number of heap
-chunks, and the optimisations carried by the implementation are reported not to
-change that bound @silicon[Section 3.4.2]. That is too much to pay after every state
-update, so consolidation happens at statically and dynamically chosen points —
-partially when permissions are added, fully when an assertion fails — trading
-completeness against cost. Holding locations as e-classes does not remove the
-work so much as the fix-point. Congruence closure has already propagated the
-equalities, so one pass over one partition suffices, and it is cheap enough to
-run at every lookup rather than be scheduled.
+Silicon carries the same obligation in a different shape. A chunk there holds
+terms, so whether two chunks describe the same location is a question for the
+solver, and the _state consolidation_ that answers it iterates to a fix-point:
+merging one pair contributes equalities that may in turn permit the next merge.
+Its worst case is cubic in the number of heap chunks, and the optimisations
+carried by the implementation are reported not to change that bound
+@silicon[Section 3.4.2]. Consolidation is therefore scheduled rather than
+continuous — partially when permissions are added, fully when an assertion fails
+— which trades completeness against cost.
+
+Holding locations as e-classes removes the fix-point rather than the work.
+Congruence closure has already propagated the equalities before the heap is
+consulted, so one pass over one partition suffices and there is no second round
+to run; and because a partition is indexed by location kind, that pass is linear
+in one partition rather than in the heap. What that buys is that consolidation
+can happen at every lookup rather than at chosen points, so the scheduling
+question does not arise.
 
 #para[Location axioms] <para:impl-location-axioms> Two chunks of one partition that have _not_
 been merged are the converse case, and partitioning says just as precisely
@@ -225,7 +205,16 @@ the remaining pair must differ. That step is sound for any function, injective o
 not, which is why the field's location function needed no injectivity axiom to
 make it work.
 
-None of this is needed to verify the corpus of @sec:prusti-needs. Prusti's
-encoding does not ask the verifier to derive that two references are distinct,
-so the constraint is stated because a Viper backend should state it, not
-because the target frontend depends on it.
+
+#para[Permission arithmetic] <para:impl-perm-arith> The rewrite rules of
+#pararef(<para:impl-rewrites>, [The rewrites]) were stated there neutrally,
+because permissions did not exist yet at that point in the chapter. This is what
+half of them are for. $(x - p) + p -> x$ is an amount taken by an exhale and given
+back by the matching inhale; $x - x -> 0$ is an amount taken in full; $x + 0 -> x$
+is a give-back against a chunk that was already empty; and $ternary(b, p, 0) -> p$
+under an assumed guard is a conditionally-held chunk on the path where the guard
+holds. Each has a rational form as well as an integer one, and it is the rational
+form that runs: a permission amount is a rational term, and the accounting a
+verified program does with it is almost entirely of these four shapes. An
+obligation that reduces by them is one the prover answers at its cheapest tier
+rather than by reasoning about rationals at all.

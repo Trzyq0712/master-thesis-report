@@ -2,67 +2,67 @@
 
 // The chapter is split one file per section, under `chapters/04/`.
 
-#note[
-  *How this chapter is organised.* Every section follows the same three beats:
-  the Viper construct, the VMIR it lowers to (a lowering table), and how the
-  verifier executes that VMIR.
+In this chapter we present the design and implementation of the new IR and the
+verifier. The components are presented in the order of increasing complexity,
+with the later ones building on top of the earlier.
 
-  Some design decisions are forced by Prusti's encoding and some are right for
-  any frontend. Where the difference matters, say so in the sentence itself —
-  Future Work depends on the reader being able to tell them apart. An earlier
-  draft carried inline P/G markers for this; they read as unfilled gaps rather
-  than as annotations, so the distinction is prose now or nothing.
+We start with a brief overview of the new Viper Mid-level Intermediate
+Representation (VMIR), outlining the high level idea behind it. We then
+describe how the new verifier -- Helium -- executes
+simplest of programs consisting of heapless methods. We then
+explain in closer detail the mechanisms by which the verifier
+discharges obligations.
 
-  Where we deliberately stop short of a proof, the section ends with a
-  #emph[what we record] paragraph: the symbolic state stays complete even
-  though the decision procedure is not, so a failed obligation is a failure to
-  prove rather than a loss of information. Beyond the Fragment collects these.
+Afterwards, we introduce the symbolic heap and explain how we handle heap
+related constructs from Viper like fields and predicates. We then proceed
+with how user-defined ADTs and domains are used and reasoned about.
 
-  Structure below `==` uses run-in `#para[..]` headings, never a third
-  heading level.
-]
+The later couple of sections are dedicated to methods. These explain
+how the new infrastructure handles method calls and verifies bodies
+with control flow. To complete the picture, we then describe calling and
+verification of functions.
 
-This chapter builds the new backend one construct at a time. It opens with a real
-Prusti encoding — the program the whole chapter is answerable to — and with a
-short look at VMIR itself, enough that the listings which follow read without a
-preamble. It then starts from the smallest thing a verifier can do: execute a heapless method and discharge
-an obligation about it. The symbolic heap arrives next, first without any
-conditional structure at all, so that the operations on it can be stated on their
-own; then fields and predicates, which are the two things a program can hold
-permission to; then control flow, which is what forces two heaps to be reconciled
-and where the representation earns or loses its keep. Methods, functions,
-datatypes, quantifiers and loops follow, each needing the ones before it and
-nothing after.
+At the end of the chapter, we put all the components together and explain
+how they work together to verify a complete user specification-free Prusti-generated program.
 
-The order is deliberate in one further respect. Each section says what its
-construct costs the verifier and, where the answer differs from Silicon's, why.
-The claim the chapter is accumulating is not that any single mechanism is novel,
-but that a particular set of them composes into a verifier on which the great
-majority of a Prusti program's obligations are true by construction rather than by
-proof — and @sec:impl-together is where that claim is cashed out on the program
-@sec:impl-example put on the table.
+// This chapter builds the backend one construct at a time, checking each against
+// the program presented in @sec:example. It opens with a short look at VMIR
+// itself, enough that the listings which follow read without a preamble, and then
+// starts from the smallest thing a verifier can do: execute a heapless instruction
+// stream and discharge the obligations it raises — the prover's tiers, and the
+// rewrite rules they run underneath every one of them. The symbolic heap comes
+// next, without conditional structure at first, so that its operations can be
+// stated on their own; then fields, the instructions that move permission; then
+// datatypes, whose rules are what a fold and its unfold cancel by; then
+// predicates, which is where that cancellation is put to use. Domains and the
+// quantified axioms they carry close out the values a program can build, and only
+// then does the chapter turn to calls, method bodies, and control flow — which is
+// what forces two heaps to be reconciled. Wildcard permissions, functions and
+// loops close the chapter, each needing the ones before it and nothing after.
+//
+// The order is deliberate in one further respect. Each section says what its
+// construct costs the verifier and, where the mechanism differs from Silicon's,
+// where the difference lies. The claim the chapter is accumulating is not that any
+// single mechanism is novel, but that a particular set of them composes into a
+// verifier on which the great majority of a Prusti program's obligations are true by
+// construction rather than by proof — and @sec:impl-together is where that claim is
+// checked against the whole of the guiding example.
 
-One convention about the listings. VMIR is an explicit representation and its
-real form is correspondingly verbose: a postcondition, for instance, is not
-syntax attached to a declaration but a function of its own. Where that verbosity
-would bury the point a listing is making, the listing is written in
-_pseudo-VMIR_ — the same language with the mechanical parts elided — and tagged
-as such. Anything tagged VMIR is what the verifier would actually be given.
-
-#include "04/01-worked-example.typ"
-#include "04/02-vmir.typ"
-#include "04/03-execution-model.typ"
-#include "04/04-discharging.typ"
-#include "04/05-symbolic-heap.typ"
-#include "04/06-fields.typ"
-#include "04/07-heap-interaction.typ"
+#include "04/01-vmir.typ"
+#include "04/02-execution-model.typ"
+#include "04/03-discharging.typ"
+#include "04/04-symbolic-heap.typ"
+#include "04/05-fields.typ"
+#include "04/06-heap-interaction.typ"
+#include "04/07-adts.typ"
 #include "04/08-predicates.typ"
-#include "04/09-verifying-methods.typ"
-#include "04/10-calling-methods.typ"
-#include "04/11-domains-adts.typ"
-#include "04/12-wildcards.typ"
-#include "04/13-functions.typ"
-#include "04/14-quantifiers.typ"
-#include "04/15-loops.typ"
-#include "04/16-putting-together.typ"
-#include "04/17-beyond-fragment.typ"
+#include "04/09-domains.typ"
+#include "04/10-quantifiers.typ"
+#include "04/11-calling-methods.typ"
+#include "04/12-verifying-methods.typ"
+#include "04/13-control-flow.typ"
+#include "04/14-wildcards.typ"
+#include "04/15-functions.typ"
+#include "04/16-loops.typ"
+#include "04/17-putting-together.typ"
+#include "04/18-beyond-fragment.typ"

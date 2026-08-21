@@ -2,13 +2,14 @@
 
 == Loops <sec:impl-loops>
 
-@sec:impl-cfg assumed the block graph was acyclic and cut the back edges without
-saying what happened at the cut. This section is that. It is also the one section
-whose subject the corpus does not need: Prusti emits no #vi[`while`] and no loop
-of any kind in the 22 encodings of @sec:prusti-needs. Loops are supported because
-a Viper backend should support them, not because the target frontend asks for it,
-and the honest reading of what follows is that it is complete as a mechanism and
-limited by something else.
+@sec:impl-cfg assumed the block graph was acyclic, cut the back edges, and named
+the exchange at the cut without saying how it is performed. This section is that. It is also the one section
+whose subject the measured corpus does not exercise: the encodings of
+@sec:prusti-needs are loop-free by construction, and the two loops this chapter
+works from are the guiding example's, which is not among them (@sec:example). What
+that means for the reading of what follows is that the mechanism is pinned down by
+a program rather than by a benchmark: it is complete as a mechanism, and limited by
+something else.
 
 #para[Where a loop comes from] A loop is _any back edge_: an edge whose target
 dominates its source. Source-level #vi[`while`] is desugared at the control-flow
@@ -35,7 +36,7 @@ entry heap is built by inhaling the invariant into #vm[`empty`].
 
 That inhale binds #vm[`with fresh`], and it is the one place in a method body
 besides an allocation where that is the point rather than an admission
-(@sec:impl-predicates). A cut exists to forget: the values the invariant's
+(@sec:impl-predicates). A cut exists in order to discard information: the values the invariant's
 footprint holds at the body's entry must be an arbitrary iteration's, not the
 entry iteration's, and binding them to the snapshot the entry exhale just yielded
 would defeat the havoc as surely as leaving the written variables alone would.
@@ -61,10 +62,10 @@ contexts at this point only because its heap threads implicitly; here the frame
 has a name, and the operation that uses it is the same union that adds any two
 heaps held at once.
 
-The sum is where a subtlety bit. Two chunks at one location must agree on their
+The sum is where a subtlety arises. Two chunks at one location must agree on their
 value — but only where both are actually held, and the frame's residual after an
 exhale may be a chunk holding nothing. Equating values outright let a stale
-pre-loop value fuse with the loop's havoc'd symbol, erasing the havoc on the
+pre-loop value merge with the loop's havoc'd symbol, erasing the havoc on the
 branch where the loop ran. The rule is therefore the same one @sec:impl-heap
 states for any pair of chunks: the values are merged only where both fractions are
 provably positive, and otherwise the asymmetric pick and its conditional agreement
@@ -90,13 +91,15 @@ unsound.
 
 What fails is a family of cases that look like loop failures and are not. A
 counting loop — #vi[`while (i < n) invariant 0 <= i && i <= n`] — is rejected, and
-the obligation it dies on is $0 <= i and i <= n, i < n |- i + 1 <= n$. That
+the obligation it fails on is $0 <= i and i <= n, i < n |- i + 1 <= n$. That
 obligation has nothing to do with loops: it fails identically with no loop
 anywhere in the program. It is the arithmetic gap of @sec:impl-proving, and
 every case in the loop corpus that Silicon verifies and this verifier does not
 fails on exactly it. The structural cases — where the loop is driven by a
 discriminator test on a recursive datatype rather than by a counter — exercise the
-same cut with no arithmetic anywhere, and they pass.
+same cut with no arithmetic anywhere, and they pass. The guiding example has one
+of each, and they split exactly that way: #ru[`sum_balances`] walks its list by
+unfolding and goes through, #ru[`sum_up_to`] counts and does not.
 
 Two things are out of scope rather than unfinished. Quantified permissions are
 not supported at all (@sec:beyond-fragment), so an index-based loop over an array

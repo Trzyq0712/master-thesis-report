@@ -4,12 +4,13 @@
 
 Quantification appears in this fragment in exactly one place: a triggered
 #vi[`forall`] inside a domain axiom, relating a domain's uninterpreted functions
-to each other. @lst:domain is the shape, and @lst:example-viper's
-#vi[`s_Int_i32`] is what Prusti actually emits — a round-trip law between a
-constructor and its accessor, and a range bound on the values. There are no
-quantified permissions anywhere in the corpus and no #vi[`exists`], so the
-verifier's obligation is narrower than Viper's grammar suggests: instantiate
-pure, triggered, universally quantified facts.
+to each other. @lst:example-viper's #vi[`bool`] is the whole of the shape — a
+round-trip law between a constructor and its accessor, stated in both directions —
+and #vi[`i32`] adds one more axiom of the same form bounding the integer's
+range. Every quantifier a Prusti encoding raises is of this shape: it carries a
+written trigger, and there are no quantified permissions and no #vi[`exists`]
+at all. The verifier's obligation is therefore narrower than Viper's grammar
+suggests: instantiate pure, triggered, universally quantified facts.
 
 #para[Triggers] A trigger is a pattern the author writes, and it is never
 inferred. A #vi[`forall`] arriving without one that covers its binders is
@@ -47,8 +48,11 @@ second is a contract with the rest of the design: a rewrite that happens to
 canonicalise terms is not permitted to be load-bearing for a trigger.
 
 #para[Instantiation] An instance is the body rebuilt at the captures and the
-matched binding, by the same replay mechanism a function recipe uses
-(@sec:impl-functions) — add-only, importing no e-classes.
+matched binding: the compiled body's steps are re-run with the binders bound to
+the matched classes, add-only and importing no e-class from anywhere. The same
+mechanism installs a function's body at an occurrence of the function, and it is
+described in full there (@sec:impl-functions); a quantifier body and a function
+body are compiled to the same thing.
 
 What is then asserted is not the instance but a guarded form of it: the instance
 is released only once the quantifier's own class is known #vm[`true`]. That is
@@ -80,10 +84,9 @@ never pooled into one.
 
 Well-definedness is checked once, where the quantifier is encountered, and never
 inside the rule. The check runs in a throwaway copy of the live state with the
-binders replaced by fresh values, so the body's side conditions — a division, a
-callee's precondition — are discharged for an arbitrary binding, with every
-ambient fact available and no possibility of the fresh values polluting the real
-state. Body-local path conditions come along, so a guard proves its own
+binders replaced by fresh values, so the body's side conditions — a division by a
+bound variable, say — are discharged for an arbitrary binding, with every ambient
+fact available and no possibility of the fresh values polluting the real state. Body-local path conditions come along, so a guard proves its own
 consequent's well-definedness. The point of doing it here is that instantiation
 happens inside a rewrite rule, where nothing can be proven at all: by the time a
 recipe is replayed, every obligation it might have carried has already been

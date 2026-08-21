@@ -1,34 +1,40 @@
 #import "../../macros.typ": *
+#import "../../figures/egraph-assume.typ": egraph-assume
 
 == Execution Model <sec:impl-execution>
 
-The execution model of the new verifier is strongly based off of the symbolic
-execution model of Silicon. The main difference is that in this new verifier, it
-is us who is responsible for managing the symbolic state, rather than Z3. On one
-hand this means that there is a lot more bookkeeping we have to do, but on the
-other hand, it means we have a lot more control over the symbolic state, giving us
-the opportunity to optimize the process for the common case.
+The verifier executes a program symbolically, in Silicon's sense: it walks the
+instructions in order, maintains a symbolic state describing what is known at each
+point, and raises an obligation wherever the program claims something. What
+differs is where that state is kept. Silicon keeps its facts in the solver and asks
+Z3 what follows from them; here the state is a structure the verifier owns and
+reads directly. The bookkeeping that buys is the subject of most of this chapter.
+What it buys back is that a question about the state can be answered by looking
+rather than by asking, and that the representation can be chosen to make the
+questions a Prusti encoding actually raises (@sec:prusti-needs) the cheap ones.
 
 What that state is, and what executing an instruction does to it, is best seen on
-a fragment small enough to walk end to end. @lst:exec-source is heapless, four
+a fragment small enough to walk end to end. @lst:exec-source is heapless, five
 statements long, and carries one obligation.
 
 #viper(
-  caption: [The fragment this section walks: an equality assumed, and an equality over it asserted.],
+  caption: [The fragment this section walks: a goal built, and then the equality that settles it assumed.],
   label: "lst:exec-source",
 )[```viper
 var a: Int
 var b: Int
+var goal: Bool := a * 2 == b * 2
 assume a == b
-assert a * 2 == b * 2
+assert goal
 ```]
 
-The obligation is an equality between two terms the program built, following from
-an equality it was given. @lst:exec-vmir is what the verifier is given. Each
-declaration becomes a value
-about which nothing is assumed, and each comparison an instruction of its own, so
-that what the #vi[`assume`] and the #vi[`assert`] name is a temporary rather than
-an expression.
+The obligation is an equality between two terms the program built, and the program
+builds it before it is given the fact that settles it. @lst:exec-vmir is what the
+verifier is given. Each declaration becomes a value about which nothing is
+assumed, and each comparison an instruction of its own; the declaration of
+#vi[`goal`] becomes no instruction at all, since it is a name for the class the
+comparison already landed in. What the #vi[`assume`] and the #vi[`assert`] name is
+therefore a temporary rather than an expression.
 
 #vmir(
   caption: [Viper @lst:exec-source lowered. Original variable names in the comments.],
@@ -36,12 +42,12 @@ an expression.
 )[```vmir
 e0: Int := fresh // a
 e1: Int := fresh // b
-e2: Bool := e0 == e1
-assume e2
-e3: Int := e0 * 2
-e4: Int := e1 * 2
-e5: Bool := e3 == e4
-assert e5
+e2: Int := e0 * 2 // a * 2
+e3: Int := e1 * 2 // b * 2
+e4: Bool := e2 == e3 // goal
+e5: Bool := e0 == e1
+assume e5
+assert e4
 ```]
 
 The verifier executes this line by line, updating the symbolic state at each step,
@@ -63,32 +69,45 @@ that class — so after the first two lines, #vm[`e0`] and #vm[`e1`] name two
 distinct classes about which the verifier knows nothing at all.
 
 An operation resolves the classes its operands name, and inserts a node over
-them. #vm[`e2`] is an #vm[`==`] node whose two children are the classes of
-#vm[`e0`] and #vm[`e1`], and #vm[`e2`] becomes the handle on the class that node
+them. #vm[`e2`] is a #vm[`*`] node whose two children are the class of #vm[`e0`]
+and the class of #vm[`2`], and #vm[`e2`] becomes the handle on the class that node
 landed in. Insertion is hash-consed: a node with the same operator over the same
 child classes is not a second node but the one already there, so building a term
-twice costs a lookup and yields the same class.
+twice costs a lookup and yields the same class. #vm[`e3`] is not that case yet —
+#vm[`e0`] and #vm[`e1`] are still distinct classes, so #vm[`e1 * 2`] is a second
+node — and #vm[`e4`] is an #vm[`==`] node over those two, which nothing so far
+relates.
 
-An #vm[`assume`] is a union. #vm[`assume e2`] merges the class of #vm[`e2`] with
+An #vm[`assume`] is a union. #vm[`assume e5`] merges the class of #vm[`e5`] with
 the class of #vm[`true`], and that is the whole of how a fact enters the state.
 One rewrite then fires on what it produced: an #vm[`==`] node whose class is known
 #vm[`true`] unions its two arguments, so #vm[`e0`] and #vm[`e1`] become one class.
 
-Lines five and six are operations again, and the merge is what they run into.
-Inserting #vm[`e1 * 2`] means inserting a #vm[`*`] node over the class of
-#vm[`e1`] and the class of #vm[`2`] — but that is the node line five already
-built, since #vm[`e0`] and #vm[`e1`] are by now the same class, so the insertion
-finds it and #vm[`e4`] is a handle on #vm[`e3`]'s class. Had the two been built
-_before_ the assume instead, they would have been merged by it: congruence closure
-propagates a union to every application over the classes it merged, without either
-application being revisited. Which order the program happens to use is therefore
-not something the verifier has to care about.
+That union runs backwards into terms already built, and @fig:egraph-assume is the
+graph on either side of it. #vm[`e2`] and #vm[`e3`] are applications of #vm[`*`]
+over the classes it merged, so congruence closure merges them as well, without
+either instruction being re-executed and without either term being rebuilt.
+#vm[`e4`] is then an #vm[`==`] node whose two children are one class, and a
+rewrite folding an equality between a class and itself to #vm[`true`] is what puts
+#vm[`e4`] in the class of #vm[`true`]. Had the program built
+the goal _after_ the assume instead, hash-consing would have delivered the same
+state on the way in. Which order the program happens to use is therefore not
+something the verifier has to care about.
 
-#vm[`e5`] is then an #vm[`==`] node whose two children are one class, and the
-assertion on the last line is the question of whether #vm[`e5`]'s class is the
-class of #vm[`true`]. Here it is, because an equality between a class and itself
-folds to #vm[`true`] on insertion. What the verifier does when the answer is not
-immediate is @sec:impl-proving.
+#figure(
+  egraph-assume,
+  caption: [The state either side of #vm[`assume e5`]. A solid box is an e-node, a
+    dashed box an e-class, an arrow runs from a node to the class of each of its
+    arguments, and the handles a class answers to are written above it. The classes
+    in amber are the ones the #vm[`assume`] and the rewrites over it change; the
+    class of #vm[`2`], which nothing reaches, is drawn as it was on the left.],
+) <fig:egraph-assume>
+
+The assertion on the last line is the question of whether #vm[`e4`]'s class is the
+class of #vm[`true`], and here it is one lookup. @sec:impl-proving makes the
+mechanisms this walk leaned on precise: which rewrites there are, when they are
+run over the graph, and what the verifier does with an obligation a lookup does
+not settle.
 
 #para[Well-definedness] Building a term is not always free of obligations. Some
 operations are partial, and an instruction applying one raises a side condition
@@ -168,7 +187,7 @@ both readings of it, and nothing is copied when the condition arises. The price 
 that a fact holding on one side only cannot be stated outright, and that an
 obligation raised under a cube is an implication rather than a goal.
 
-Which of the two pays depends on the obligations. This design bets, on the
+Which of the two pays depends on the obligations. This design assumes, on the
 evidence of @sec:prusti-needs, that most of them follow from the structure the
 program has already built, and so are discharged without the cube being assumed at
 all. What becomes of the ones that are not is @sec:impl-proving.

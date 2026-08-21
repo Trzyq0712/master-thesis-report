@@ -4,7 +4,7 @@
 # src/vmir/). It is SSA-like: every value is a numbered temporary `eN`, every
 # heap state a numbered `hN`. Grammar derived from src/vmir/display.rs.
 name: VMIR
-file_extensions: [vmir, pvmir]
+file_extensions: [vmir, lvmir]
 scope: source.vmir
 
 contexts:

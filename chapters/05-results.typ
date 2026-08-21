@@ -53,10 +53,11 @@ specifications. That is the class the verifier is aimed at, and it is the class
 the numbers below are about — they say nothing about a program carrying rich
 specifications, and @sec:results-gaps is where that boundary is drawn.
 
-Sixteen of the 22 are encodings of hand-written Rust programs — vector and matrix
-arithmetic, a bank transfer, a state machine, an inventory, a physics step. The
-remaining six are the #raw("depth_dN_mM") family, generated with two knobs: `N` is
-call-nesting depth and `M` is statements per method. They exist to separate a
+Ten of the 22 are encodings of hand-written Rust programs — vector and matrix
+arithmetic, a bank transfer, a state machine, an inventory, a physics step, a
+tuple classifier, a shape-area calculator, a colour blender and a collision test.
+The remaining twelve are the #raw("depth_dD_mM") family, generated with two knobs:
+`D` is control-flow nesting depth and `M` is statements per block. They exist to separate a
 constant-factor win from an asymptotic one, and
 #pararef(<para:results-scaling>, [Scaling]) is where
 that separation is made.
@@ -94,7 +95,7 @@ that Silicon rejects. Across the whole benchmark tree — the grid of
 known-failing, and those five are the subject of that section.
 
 The second is non-vacuity. A verifier that has managed to assume #vi[`false`]
-verifies everything instantly, and would produce a spectacular and worthless
+verifies everything instantly, and would produce a large and worthless
 speedup. To rule that out, #vi[`assert false`] was appended to all 226 method
 bodies and the corpus re-verified: 0 bodies are vacuous on our side, and Silicon
 reports 0 failures on every file, so neither side is winning by proving
@@ -165,12 +166,12 @@ themselves lower bounds.
 
 The distribution is more informative than either summary. We never exceed 18.4s on
 any file, and that worst file is #raw("shape_area"), where the margin over Silicon
-is the thinnest on the table; Silicon exceeds 100s on 11 of the 22. Under a
+is the smallest; Silicon exceeds 100s on 11 of the 22. Under a
 100s-per-file budget — the shape of a limit a CI pipeline actually imposes — we
 finish all 22, Silicon finishes 11, and counting each capped run as exactly 100s
 gives #total-ours against 1487.42s.
 
-#para[Scaling] <para:results-scaling> The #raw("depth_dN_mM") family is where the
+#para[Scaling] <para:results-scaling> The #raw("depth_dD_mM") family is where the
 gap is widest, and, more to the point, where it grows. Silicon runs 15--40s at the
 small end and past 400s at the large end; we go from 0.72s to 12.51s across the
 same span. A constant factor would show as a flat ratio down that block of
@@ -310,7 +311,7 @@ from $N approx 3$--$4$ to $N approx 5$ — #raw("enum_v5_p1") lands at
 #tbd[Re-measure the remaining grid points at #srcrev so @tbl:results-enum has one
 provenance; only four of the twelve were re-run.]
 
-#para[Reading the two axes] The variant axis is the whole story and it is
+#para[Reading the two axes] The variant axis dominates, and it is
 _exponential_: at $D = 1$ the write-through member goes 0.49s, 1.48s, 8.58s,
 54.90s for $N = 2, 3, 5, 8$, roughly $2 times$ per added variant after the first
 step, while Silicon over the same range grows about $3.4 times$ in total —
@@ -329,7 +330,7 @@ is the grid's $N = 5, D = 2$ point; the grid's member there costs 14.74s against
 #raw("shape_area")'s 13.66s, so the model reproduces the program from its
 coordinates alone.
 
-#para[The horizon] <para:results-horizon> At $N = 8$ the split no longer suffices
+#para[The limit] <para:results-horizon> At $N = 8$ the split no longer suffices
 and five members are rejected with insufficient permission —
 #raw("m_e_grow") on all three files and #raw("m_e_guarded") on two — which is the
 same failure #raw("shape_area") gave before the split existed. They are the only
@@ -352,8 +353,8 @@ probes they save.
 two: constructs absent because @sec:prusti-needs found them absent from the
 target, and constructs absent because they are unfinished. This section attaches
 numbers to the second half, since that is the half a reader is entitled to
-distrust. One of them is already measured: the variant-count horizon of
-#pararef(<para:results-horizon>, [The horizon]) accounts for every known-failing
+distrust. One of them is already measured: the variant-count limit of
+#pararef(<para:results-horizon>, [The limit]) accounts for every known-failing
 member in the benchmark tree, five of them, and is not repeated here.
 
 #todo[

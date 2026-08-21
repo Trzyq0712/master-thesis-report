@@ -93,8 +93,9 @@ The _support_ column is what @sec:beyond-fragment and the fragment claim of
   [check], [#sec(<sec:impl-functions>)],
 
   vi[`method m(..) returns (..)`],
-  [Contracts become resources; the body becomes a CFG of blocks],
-  [check], [#sec(<sec:impl-cfg>)],
+  [Contracts become resources exhaled and inhaled at the two ends of the body;
+   the body itself becomes a CFG of blocks],
+  [check], [#sec(<sec:impl-methods>)],
 
   vi[`domain D { .. }`],
   [Uninterpreted functions and axioms],
@@ -259,7 +260,7 @@ The _support_ column is what @sec:beyond-fragment and the fragment claim of
   vi[`old(e)`, `old[L](e)`],
   [#vi[`e`] evaluated against the baseline heap, or against the heap named by
    #vi[`L`]],
-  [check], [#sec(<sec:impl-cfg>)],
+  [check], [#sec(<sec:impl-calls>)],
 
   vi[`wildcard`],
   [A permission amount only — never a first-class value],

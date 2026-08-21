@@ -22,7 +22,7 @@ possible only because Prusti's snapshots are #vi[`adt`]s rather than sequences.
 never emitted, which is a statement about the frontend rather than about the
 verifier — loops are supported anyway (@sec:impl-loops).
 
-Every one of these is rejected _loudly_, by the type-checker or the translator,
+Every one of these is rejected _explicitly_, by the type-checker or the translator,
 with the construct named. There is no path on which an unsupported construct is
 quietly ignored and a program is reported as verified on the strength of a
 fragment of itself. That is the property that makes the scoping a decision rather
@@ -32,7 +32,7 @@ mode is the one that would matter.
 Two constructs on the corpus's never-appears list are supported regardless, and
 they are cheap for the same reason: fractional permission literals and the
 #vi[`perm`] expression both fall out of amounts being terms
-(#pararef(<para:impl-amounts>, [Permission amounts])) rather than needing a
+(#pararef(<para:impl-amounts>, [Conditional permission amounts])) rather than needing a
 mechanism of their own. A frontend other than Prusti would find them working.
 
 #para[Genuine gaps] The list of things that ought to work and do not is shorter
@@ -64,7 +64,7 @@ lowering reference records as a fragment boundary. And #vi[`unfolding`],
 being an expression that lowers to statement-level heap instructions, is the one
 operation that can sit under a path condition finer than its block's
 (@sec:impl-predicates); the effect is scoped and fabricates no permission, so this
-is a wrinkle in an invariant rather than an unsoundness, but it is the one place
+is an exception to an invariant rather than an unsoundness, but it is the one place
 the block model is not literally true of the instruction stream.
 
 #para[Complete state, incomplete procedure] The sections above each ended by

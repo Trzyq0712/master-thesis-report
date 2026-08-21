@@ -2,17 +2,18 @@
 
 == Interacting with the Heap <sec:impl-heap-interaction>
 
-#todo[
-  The corpus counts belong in the opening: `exhale` dominates, which is what makes
-  this the hot path. Cite @sec:prusti-needs once its table exists.
-]
+These four instructions are the hot path: #vi[`exhale`], #vi[`unfold`] and
+#vi[`fold`] are among the most frequent statements a Prusti encoding contains,
+and every #vi[`acc`] assertion any of them carries is what the operations below
+ultimately do to the heap. Whatever else the verifier is good at, it has to be
+good at this.
 
 A program that owns a field takes permission to it, writes through it, reads back
-what it wrote, and gives permission away again. The following few lines do all of
-that, and serve as the example for the rest of the section.
+what it wrote, and gives permission away again. The following four lines do all of
+that, over the field @sec:impl-fields lowered.
 
 #viper(
-  caption: [The guiding example: taking permission to one field in two pieces, writing it, reading it back, and giving half of it away.],
+  caption: [Taking permission to one field in two pieces, writing it, reading it back, and giving half of it away.],
   label: "lst:heap-ops",
 )[```viper
 inhale acc(x.f, 1/3) && acc(x.f, 2/3)
@@ -21,8 +22,13 @@ assert x.f > 10
 exhale acc(x.f, 1/2)
 ```]
 
+The fractions are chosen deliberately: a Prusti encoding never states an
+#vi[`acc`] at anything but #vi[`write`], so a listing built from one would
+exercise the arithmetic at exactly one value and hide what the operations do.
+They are split here for that reason and for no other.
+
 The four statements are taken one at a time below, each becoming one kind of
-instruction. The listings are pseudo-VMIR in two respects: the receivers keep
+instruction. The listings are VMIR-lite in two respects: the receivers keep
 their source names rather than becoming numbered values, and the computation of
 an address is written where it is used rather than on a line of its own.
 
@@ -36,11 +42,11 @@ is applied on its own, threading one heap into the next, so the #vi[`inhale`] of
 #lowering(
   caption: [An #vi[`inhale`] becomes one add per #vi[`acc`], threading the heap.],
   label: "lst:heap-inhale",
-  target-lang: "pvmir",
+  target-lang: "lvmir",
 )[```viper
 inhale acc(x.f, 1/3)
     && acc(x.f, 2/3)
-```][```pvmir
+```][```lvmir
 h0 := empty + f(x) @ 1/3
       with fresh
 h1 := h0 + f(x) @ 2/3
@@ -56,7 +62,7 @@ whole of what #vi[`x.f`] means in this position; elsewhere it means the value
 stored there, which has to be read out of a particular heap.
 
 The trailing #vm[`with`] is the instruction's _bind point_: where the value of a
-chunk it brings into being comes from. An add is the one direction that has no
+chunk it creates comes from. An add is the one direction that has no
 value of its own — it puts permission somewhere the program may not have held any
 — so the value is a parameter of the instruction rather than something the
 verifier decides. #vm[`with fresh`] is the havoc form, and it is what an
@@ -71,7 +77,7 @@ chunk at the location. If it does not, a new chunk is created holding the value
 the bind supplies — for #vm[`fresh`], a new e-class with nothing assumed about it.
 If it does, the two are the same chunk: the amounts add, the value stays as it
 was, and the bind is not consulted. That is the second add of
-@lst:heap-inhale. The first minted a value and gave it #vm[`1/3`]; the second
+@lst:heap-inhale. The first created a value and gave it #vm[`1/3`]; the second
 finds #vm[`f(x)`] already present in the partition, leaves the value alone, and
 raises the amount to
 #vm[`1/3 + 2/3`], which folds to #vm[`1/1`]. Two conjuncts naming one location
@@ -107,10 +113,10 @@ value and every other chunk is untouched:
 #lowering(
   caption: [An assignment replaces one chunk's value and frames the rest.],
   label: "lst:heap-assign",
-  target-lang: "pvmir",
+  target-lang: "lvmir",
 )[```viper
 x.f := 42
-```][```pvmir
+```][```lvmir
 h2 := h1 assign(f(x), 42)
 ```]
 
@@ -125,9 +131,9 @@ for field-originated locations, which is why a program holding a half cannot sto
 through one; here the demand is met by the merged chunk, since either piece alone
 would have been too little. Third, the value is replaced: the chunk keeps its
 location and its amount, its value becomes the e-class of the term written, and no
-other chunk is examined at all. The fresh value minted by the first add is
-replaced without ever having been read, which is the usual fate of a value inhaled
-and then overwritten.
+other chunk is examined at all. The fresh value created by the first add is
+replaced without ever having been read, which is the usual outcome for a value
+inhaled and then overwritten.
 
 The obligation the second step raises is
 
@@ -148,7 +154,7 @@ unbounded are the ones nothing writes through directly — predicate instances
 fields inside.
 
 A write is not primitive in the way the others are. It could be desugared to a
-subtract of $b$, an add of $b$ — which mints a fresh value, the
+subtract of $b$, an add of $b$ — which creates a fresh value, the
 subtract having dropped the chunk — and an assumption equating that value with the
 one written. That means the same thing, but it tears a chunk down and rebuilds it,
 introduces an e-class nothing needs, and leaves an equality for congruence closure
@@ -164,10 +170,10 @@ a state was produced, a heap in brackets means one was consulted.
 #lowering(
   caption: [A read names the heap it consults and yields an ordinary value.],
   label: "lst:heap-read",
-  target-lang: "pvmir",
+  target-lang: "lvmir",
 )[```viper
 assert x.f > 10
-```][```pvmir
+```][```lvmir
 e0: Int := *[h2] f(x)
 e1: Bool := e0 > 10
 assert e1
@@ -192,10 +198,10 @@ the assertion names, with the fraction carried across unchanged:
 #lowering(
   caption: [An #vi[`exhale`] subtracts the amount the assertion names.],
   label: "lst:heap-exhale",
-  target-lang: "pvmir",
+  target-lang: "lvmir",
 )[```viper
 exhale acc(x.f, 1/2)
-```][```pvmir
+```][```lvmir
 h3, _ := h2 - f(x) @ 1/2
 ```]
 
@@ -244,10 +250,10 @@ holding no permission is inert.
   #lowering(
     caption: [A guarded access gates the amount, not the instruction.],
     label: "lst:guarded-add",
-    target-lang: "pvmir",
+    target-lang: "lvmir",
   )[```viper
   inhale p > 0 ==> acc(x.f, p)
-  ```][```pvmir
+  ```][```lvmir
   e0: Bool := p > 0
   e1: Real := e0 ? p : 0/1
   h1 := h0 + f(x) @ e1 with fresh
@@ -267,10 +273,10 @@ holding no permission is inert.
   #lowering(
     caption: [A conjoined condition gates the delta and is assumed at the end.],
     label: "lst:conjoined-add",
-    target-lang: "pvmir",
+    target-lang: "lvmir",
   )[```viper
   inhale p > 0 && acc(x.f, p)
-  ```][```pvmir
+  ```][```lvmir
   e0: Bool := p > 0
   h1 := <e0> h0 + f(x) @ p with fresh
   assume e0
@@ -285,7 +291,7 @@ holding no permission is inert.
   next line, so the add is unconditional in effect.
 
   @lst:conjoined-add gives #vi[`p`] unconditionally and _also_ learns that it is
-  positive, which every later instruction on the path enjoys; @lst:guarded-add
+  positive, which every later instruction on the path can use; @lst:guarded-add
   learns nothing and gives an amount that is only as good as #vi[`p > 0`] later
   turns out to be. A read at the location goes through immediately after
   @lst:conjoined-add, its positivity obligation being exactly the fact just assumed,
@@ -295,7 +301,7 @@ holding no permission is inert.
   form licenses a write, since neither says anything that puts #vi[`p`] at the bound.
 
   What it costs instead is that a later demand at that location is an obligation on
-  an arithmetic term, which the representation then earns back. A demand of
+  an arithmetic term, which the representation then recovers. A demand of
   #vm[`p`] against a held #vm[`e0 ? p : 0/1`] is not decidable as arithmetic, but
   under an assumed #vm[`e0`] the ternary reduces to #vm[`p`] by the same rule that
   simplifies any conditional, and the obligation is then an amount against itself:
@@ -306,22 +312,28 @@ holding no permission is inert.
   wildcard is gated one level up — the ternary is over the permission rather than
   inside it — and the demand it raises is structural rather than arithmetic.
 
-  #wip[
-    *What we record.* The mechanism here is not settled — take none of the wording
-    as final, and in particular check it against the reduction above before writing
-    it out as prose.
+  #para[What we record] A demand that cannot be discharged is reported as
+  insufficient permission, which is a failure to prove rather than a loss of
+  information: the chunk is still in its partition with its amount as a term, the
+  path condition is still exact, and the obligation is still a pair of e-classes,
+  so it could be handed to a procedure that reasons about rationals. Two
+  escalations sit before that report and need machinery introduced later — a
+  demand may have to be met by a _sum_ over chunks only conditionally at one
+  location (@sec:impl-cfg), and the location demanded may meet the one held only
+  under an equality a saturation has yet to derive (@sec:impl-calls).
 
-    A demand that cannot be discharged is reported as insufficient permission, which
-    is a failure to prove rather than a loss of information: the chunk is still in
-    its partition with its amount as a term, the path condition is still exact, and
-    the obligation is still a pair of e-classes, so it could be handed to a
-    procedure that reasons about rationals. Two escalations sit before that report
-    and need machinery introduced later — a demand may have to be met by a _sum_
-    over chunks only conditionally at one location (@sec:impl-cfg), and the location
-    demanded may meet the one held only under an equality a saturation has yet to
-    derive (@sec:impl-calls).
-
-    A demand of a fraction _different_ from the amount held is the case that decides
-    how much of this is needed, and it is the one to settle first.
-  ]
+  Where the limit actually lies is worth naming, because it is not where the
+  representation might suggest. A demand of a fraction _different_ from the amount
+  held is discharged whenever both are literals — #vi[`inhale acc(x.f, 3/4)`]
+  followed by #vi[`exhale acc(x.f, 1/2)`] leaves #vm[`1/4`] by constant folding
+  alone. A demand at a conditionally-held location is discharged whenever the
+  guard is assumed, by the ternary reduction just described. The non-negativity
+  side condition on a symbolic amount discharges too: from an assumed
+  #vi[`p > 0`] the obligation #vm[`!(p < 0)`] follows by asymmetry of a strict
+  order, $a < b => not (b < a)$, which the rule set states alongside the fold of
+  #vm[`<`] on literals — the same rule @sec:impl-wildcards leans on for its own
+  sufficiency check. What is left outside the rule set is the general arithmetic
+  gap of @sec:impl-proving: an inequality that needs reasoning about a sum of
+  terms rather than about one term's own sign, which no permission amount here
+  raises on its own.
 ]

@@ -4,45 +4,49 @@
 
 Viper's functions are pure, and in VMIR they are pure in a stronger sense: a
 function takes values and returns one, and no function application mentions a
-heap. That is a claim which has to be earned, because a Viper function may demand
-permission and read through it — #vi[`p_Account_snap`] of @lst:example-viper is
+heap. That is a claim which has to be justified, because a Viper function may demand
+permission and read through it — #vi[`snap_Account`] of @lst:example-viper is
 the shape every Prusti encoding is built from. This section is about how a
 function that reads the heap becomes one that does not, and about what a call site
 gets to know when it applies one.
 
-#para[Heap-dependent functions] The move is the snapshot of
+#para[Heap-dependent functions] The mechanism is the snapshot of
 @sec:impl-predicates, applied to a precondition. A function whose #vi[`requires`]
 contains an #vi[`acc`] has that precondition lowered to a self-framed resource,
 and the function gains a trailing parameter: the snapshot of that resource. Its
 body then opens by widening the snapshot back into a heap and reads from it.
 
 #lowering(caption: [A heap-dependent function takes its precondition's snapshot.], label: "lst:heapdep-fn")[```viper
-predicate P(x: Ref) { acc(x.f) }
-
-function get(x: Ref): Int
-  requires acc(P(x), write)
+function snap_i32(self: Ref)
+  : i32
+  requires acc(own_i32(self), write)
 {
-  unfolding acc(P(x), write) in x.f
+  (unfolding acc(own_i32(self), write)
+    in self.val_i32)
 }
 ```][```vmir
-resource get#requires(e0: Ref) {
-  e1: &[P] P@snap @ * := P@loc(e0)
-  h0 := empty + e1 @ wildcard
-        with self
+resource snap_i32#requires(e0: Ref) {
+  e1: &[own_i32] own_i32@snap @ *
+     := own_i32@loc(e0)
+  h0 := empty + e1 @ wildcard with self
   result: (h0, true)
 }
 
-function get(e0: Ref, e1: get#requires@snap) -> Int
-  requires get#requires(e0, e1)
+function snap_i32(e0: Ref,
+    e1: snap_i32#requires@snap)
+  -> i32
+  requires snap_i32#requires(e0, e1)
 {
-  h0 := empty inhale get#requires(e0)
+  h0 := empty inhale
+        snap_i32#requires(e0)
         @ wildcard with e1
   h1, e2 := h0
-        - P@loc(e0) @ wildcard
-  h2 := h1 inhale P(e0) @ wildcard
+        - own_i32@loc(e0) @ wildcard
+  h2 := h1 inhale own_i32(e0) @ wildcard
         with unwrap(e2)
-  e3: &[f] Int @ 1/1 := f(e0)
-  e4: Int := *[h2] e3
+  e3: &[val_i32] i32 @ 1/1
+     := val_i32(e0)
+  e4: i32 := *[h2] e3
   result: e4
 }
 ```]
@@ -62,7 +66,7 @@ from a parameter rather than inherited from a caller.
 That a function body may inhale at all is worth a sentence, since a body has to be
 deterministic — a function of its parameters, its snapshot and nothing else. The
 rule that secures this is not "no inhale"; it is that no instruction in such a body
-may mint a value. #vm[`with fresh`] is what would violate it, and #vm[`with e1`]
+may create a value. #vm[`with fresh`] is what would violate it, and #vm[`with e1`]
 does not: the values are the parameter's, projected. Two evaluations of the same
 call therefore build the same terms, which is what the next listing turns on.
 
@@ -80,11 +84,11 @@ than by comparing fractions.
 At a call site the snapshot is built, and building it is where the precondition is
 checked:
 
-#vmir(caption: [Two calls of one heap-dependent function.], label: "lst:heapdep-call")[```vmir
-_, e2 := h0 exhale get#requires(e0) @ wildcard
-e3: Int := get(e0, e2)
-_, e4 := h0 exhale get#requires(e0) @ wildcard
-e5: Int := get(e0, e4)
+#vmir(caption: [Two calls of one heap-dependent function against one heap. #vi[`account_over_limit`] makes exactly this pair — two applications of #vi[`snap_RefImm`] to #vi[`_1p`], one per field it reads — in a single block.], label: "lst:heapdep-call")[```vmir
+_, e2 := h0 exhale snap_i32#requires(e0) @ wildcard
+e3: i32 := snap_i32(e0, e2)
+_, e4 := h0 exhale snap_i32#requires(e0) @ wildcard
+e5: i32 := snap_i32(e0, e4)
 e6: Bool := e3 == e5
 assert e6 [h0]
 ```]
@@ -110,19 +114,19 @@ gets a snapshot, the body inhales the same resource at wildcard bound to that
 snapshot. One resource, one permission mode, mirrored.
 
 That the check happens here, and only here, is what makes the application itself
-pure. #vm[`get(e0, e2)`] is an ordinary two-argument application with no heap in
+pure. #vm[`snap_i32(e0, e2)`] is an ordinary two-argument application with no heap in
 sight, and everything the heap contributed to it is in #vm[`e2`].
 
 It also makes the framing question trivial in the case that matters. The two
 calls above read one heap and one resource, so they build the same snapshot term
 — literally the same e-class — and the two applications are congruent. The
 assertion that they agree is discharged by congruence, with no obligation raised
-and no reasoning about what #vi[`get`] does. Silicon reaches the same conclusion
+and no reasoning about what #vi[`snap_i32`] does. Silicon reaches the same conclusion
 through the function's framing axiom and a solver query; here there is nothing to
 query, because the two terms were never distinct.
 
 #para[Postconditions as axioms] A function may have no body at all, and then its
-contract is all there is. Prusti's #vi[`make_generic`] and #vi[`make_concrete`]
+contract is all there is. Prusti's #vi[`generic_Account`] and #vi[`concrete_Account`]
 (@lst:example-viper) are the canonical pair: no bodies, and postconditions saying
 that the two are inverse and that a generic value's type tag is the concrete
 one's.
@@ -131,9 +135,9 @@ Such a function exports one guarded fact, the shape of which is
 
 $ f "#requires"(overline(x)) => f "#ensures"(overline(x), f(overline(x))) $
 
-replayed at every occurrence of the application. For #vi[`make_generic_s_Account`]
+replayed at every occurrence of the application. For #vi[`generic_Account`]
 the postcondition is an equality, so what an occurrence contributes is
-#vi[`make_concrete(make_generic(a)) == a`] — and a fact of that shape is what the
+#vi[`concrete_Account(generic_Account(a)) == a`] — and a fact of that shape is what the
 reasoning core is best at. It is merged, congruence propagates it, and a
 round-trip through the two functions collapses to the identity without any
 obligation being raised.
@@ -158,7 +162,7 @@ occurrence at a time, as saturation encounters them.
 
 Replaying rather than importing is the property that matters. A recipe adds terms
 and never carries an e-class across: nothing that was merged while the body was
-being verified rides along into a caller. This is not a performance nicety. The
+being verified is carried into a caller. This is not merely a performance concern. The
 body is verified under its own precondition, so the merges it establishes are
 conditional on that precondition, and importing them would let a caller that has
 not established it inherit facts it has no right to. Rebuilding from the steps
@@ -189,7 +193,7 @@ the function's contract promised.
 #para[Slicing] A recipe is built by a backward closure: start from the result and
 keep the steps it depends on. That is the right default — a body may compute
 things it does not return, and replaying them at every occurrence would be waste —
-and it is where finding four of @sec:impl-calls comes from.
+and it is where finding four of @sec:impl-cfg comes from.
 
 The tokens gating a callee's facts are emitted alongside the callee's application,
 and their value is read by nothing. They are therefore unreachable from the

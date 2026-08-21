@@ -17,7 +17,7 @@ produce a wildcard: writing one in the source, and the verifier's own read-only
 lowering, which is where the great majority of them come from.
 
 #para[Representation] A wildcard is a #vm[`Symbolic::Wildcard`] node — a fresh
-symbolic real, assumed $0 < w$ the moment it is minted, and distinct from an
+symbolic real, assumed $0 < w$ the moment it is created, and distinct from an
 ordinary fresh value in exactly one respect: it can be _recognised_. That is its
 whole purpose as a separate node. The facts a wildcard carries are the same facts
 a fresh positive real would carry; what the distinct node buys is that an
@@ -33,11 +33,15 @@ wildcard cannot escape into a term, and every rule below is selected off that sh
 rather than off anything in the e-graph.
 
 #lowering(caption: [A source-level #vi[`wildcard`] is a permission amount and nothing else.], label: "lst:wildcard-inhale")[```viper
-inhale acc(x.f, wildcard)
+inhale acc(own_Account(x), wildcard)
 ```][```vmir
-h1 := h0 + f(e0) @ wildcard
+h1 := h0 + own_Account@loc(e0) @ wildcard
       with fresh
 ```]
+
+Source-level wildcards are rare and uniform in a Prusti encoding: every one is
+a predicate share taken by an #vi[`unfolding`], never a field share and never
+in a contract.
 
 #para[Where wildcards come from] <para:impl-readonly> The lowering applies a
 _read-only policy_ in the two places where the program is known to be reading: a
@@ -52,7 +56,7 @@ The three cases are one rule seen at three levels of information. A demand for
 nothing stays a demand for nothing; a demand for something definite is weakened to
 a demand for anything positive; and a demand whose size is not known until run time
 is weakened to whichever of those two it turns out to be. The gate is what keeps a
-_conditional_ footprint conditional: a precondition #vi[`requires b ==> acc(x.f)`]
+_conditional_ footprint conditional: a precondition #vi[`requires b ==> acc(x.val_i32)`]
 lowers to a slot whose permission is #vm[`ite(b, wildcard, 0)`], so the slot is
 demanded where #vm[`b`] holds and is exactly zero where it does not, and a branch
 that const-folds away takes its wildcard with it.
@@ -91,22 +95,22 @@ because it is the same reason as everywhere else in this chapter. The e-graph
 carries no order theory over the reals, so from a node standing for
 $p_"held" - w$ neither $0 < p_"held" - w$ nor $p_"held" - w < p_"held"$ follows;
 both would have to be assumed, about a term that grows a layer with every exhale.
-A fresh $r$ states them once, at any depth: $0 < r$ comes free with the mint, and
+A fresh $r$ states them once, at any depth: $0 < r$ comes free with its creation, and
 $r < p_"held"$ is asserted here. That second fact is not bookkeeping — it is what
-makes #vi[`assert perm(x.f) < 1/2`] provable after a wildcard has been taken from a
+makes #vi[`assert perm(x.val_i32) < 1/2`] provable after a wildcard has been taken from a
 half share.
 
 #para[Adding a wildcard] <para:impl-wildcard-add> Consolidation
 (#pararef(<para:impl-consolidation>, [Consolidation])) folds two chunks at one
 location by summing their amounts, and a sum with a wildcard in it is opaque for
 the same missing-order-theory reason: from a node standing for $1/2 + w$, even
-$0 < 1/2 + w$ is underivable. Building the sum and then bolting facts onto it means
+$0 < 1/2 + w$ is underivable. Building the sum and then attaching facts to it means
 restating those facts over a tree that keeps getting deeper.
 
 So the sum is not built. A leaf whose summands mention a wildcard becomes a fresh
-share $s$ carrying the facts instead: $0 < s$, which comes free with the mint, and
+share $s$ carrying the facts instead: $0 < s$, which comes free with its creation, and
 $x < s$ for each summand $x$ whose _other_ summand is positive. The second is what the sum node never gave, and it
-is what makes #vi[`perm(x.f) > 1/2`] provable after inhaling a wildcard onto a half
+is what makes #vi[`perm(x.val_i32) > 1/2`] provable after inhaling a wildcard onto a half
 share. Meeting the location axiom's $p <= b$ from the same partition, it also makes
 #vi[`inhale write; inhale wildcard`] come out inconsistent — the state is
 unreachable, which is Silicon's verdict on it too.
@@ -123,10 +127,10 @@ lives entirely in _which_ leaf, which the positivity test has already decided.
 What is _not_ stated is worth as much as what is. Two wildcards are related by
 nothing — neither $w_1 < w_2$ nor $w_1 = w_2$ nor any bound on their sum — so two
 wildcard shares do not add up to a full permission, and a subsequent
-#vi[`exhale acc(x.f, 1/1)`] correctly fails. That is Viper's semantics and not an
+#vi[`exhale acc(x.val_i32, 1/1)`] correctly fails. That is Viper's semantics and not an
 approximation of it: two unspecified positive shares genuinely need not be a whole.
 
-Silicon reaches the same place by the opposite road. It materialises the same sums
+Silicon reaches the same place by the opposite route. It materialises the same sums
 and hands them to the solver's linear real arithmetic, so it needs no wildcard case
 for addition at all — the facts above are consequences the solver derives rather
 than facts a rule states. Where it does treat a wildcard specially is
@@ -162,7 +166,7 @@ wildcard's place and subtracts nothing: gated, that is #vm[`ite(g, 1, 0)`], whos
 positivity folds to #vm[`g`] itself, so the obligation is exactly the slot's
 presence and the heap is untouched.
 
-The reason is cost rather than meaning. Minting a real wildcard here would leave a
+The reason is cost rather than meaning. Creating a real wildcard here would leave a
 ternary over a symbol in the persistent e-graph — one that no reduction can
 collapse, since its arms are genuinely different — and every later saturation would
 walk it. Building the presence indicator instead leaves a term that folds away
@@ -174,7 +178,7 @@ on one pattern, and it is a pattern Prusti's encoding is built out of. Consider 
 function that unfolds a predicate and, _inside_ that unfold, calls another function
 which itself requires the same predicate:
 
-#viper(caption: [A function that unfolds a predicate it also passes on.], label: "lst:wildcard-nested-unfold")[```viper
+#viper(caption: [A function that unfolds a predicate it also passes on. Invented: the corpus's nested calls are always to a _different_ predicate's snapshot function.], label: "lst:wildcard-nested-unfold")[```viper
 function get(this: Ref): Int
     requires acc(P(this))
 { unfolding P(this) in this.v }
@@ -199,38 +203,36 @@ the consume path are gated on a flag computed once per program, so a wildcard-fr
 program builds the same terms it would have built without any of this.
 
 #para[What we record] Every fact a wildcard carries is stated directly — $0 < w$ at
-the mint, $x < s$ at a sum, $r < p_"held"$ at an exhale — and nothing chains them.
+creation, $x < s$ at a sum, $r < p_"held"$ at an exhale — and nothing chains them.
 The gaps are all in that: they are the arithmetic gap of @sec:beyond-fragment seen
 from the permission side, and they are narrow enough to name.
 
-Holding $1/2 + w$ and exhaling $1/2$ is not discharged. The produce rule assumed
-$1/2 < s$ of the fresh share, and the sufficiency goal is $not (s < 1/2)$; bridging
-the two is asymmetry of a strict order, which the rule set does not have —
-$<=$ is encoded as a negated $<$, and $<$ is folded only on literals. Silicon
-accepts the same program, and does so out of the solver's linear real arithmetic
-rather than out of its representation, which is why it is not something a
-fact-stating scheme can copy for free. Two facts do not chain either: after
+Holding $1/2 + w$ and exhaling $1/2$ discharges. The produce rule assumed
+$1/2 < s$ of the fresh share, the sufficiency goal is $not (s < 1/2)$, and
+asymmetry of a strict order — $a < b => not (b < a)$ — closes the two directly,
+now that the rule set states it alongside the fold of $<$ on literals. What still
+does not chain is two facts in sequence: after
 #vi[`inhale acc(x.f, 1/2)`] and two wildcard inhales the state holds
-$1/2 < s_1 < s_2$, and concluding #vi[`perm(x.f) > 1/2`] from it needs transitivity.
-The single-fact form of the same assertion does verify — the wall is at chaining,
-not at wildcards.
+$1/2 < s_1 < s_2$, and concluding #vi[`perm(x.f) > 1/2`] from it needs
+transitivity, which asymmetry alone does not give. The single-fact form of the
+same assertion verifies on the strength of asymmetry by itself — the remaining
+limit is at chaining two wildcards, not at a single one.
 
-Two smaller ones. No upper bound is imposed when a wildcard is minted; it arrives
+One smaller gap. No upper bound is imposed when a wildcard is created; it arrives
 later, from the location axiom of a bounded partition
 (#pararef(<para:impl-location-axioms>, [Location axioms])) and from
-$r < p_"held"$ at each exhale. And the non-negativity obligation an ordinary
-permission carries is skipped for any wildcard-bearing amount, including a gated one
-that is genuinely zero on one path: there is no order reasoning to prove
-$not (w < 0)$ with, and the mint-time assumption stands in its place. Silicon skips
-the same assertion for a constrainable read permission.
+$r < p_"held"$ at each exhale. The non-negativity obligation an ordinary
+permission carries, by contrast, now discharges for a wildcard-bearing amount as
+well, including a gated one that is genuinely zero on one path: the creation-time
+assumption $0 < w$ closes $not (w < 0)$ by the same asymmetry rule.
 
-None of this is reached by the corpus. Every wildcard in the 22 encodings is a
+None of this is reached by the corpus. Every wildcard in the encodings is a
 predicate share taken by an #vi[`unfolding`] at a location holding nothing else, so
 no sum of a wildcard with a fraction is ever formed and no order between two shares
-is ever needed. What is lost in each case above is a proof and not a record: the
-chunk is in its partition with its share as a term, the facts that were assumed are
-in the state, and the obligation is a pair of e-classes that a procedure with an
-order theory would close.
+is ever needed. What is lost in the chaining case above is a proof and not a
+record: the chunk is in its partition with its share as a term, the facts that
+were assumed are in the state, and the obligation is a pair of e-classes that a
+procedure with transitivity would close.
 
 A wildcard used as an arithmetic operand rather than as a permission amount is
 rejected by the lowering outright, and is one of the constructs collected in

@@ -4,12 +4,15 @@
 
 The first of Viper's two ways of declaring something a program can hold
 permission to is also the smaller one. A field declaration is lowered to a unary
-function from a receiver to the location of that receiver's field.
+function from a receiver to the location of that receiver's field. Prusti emits
+one field per _primitive type_ and never per Rust field, so one declaration,
+below, is where every value of that type in the whole encoding is stored.
 
 #lowering(caption: [A field declaration becomes a location function.], label: "lst:field-decl")[```viper
 field f: Int
 ```][```vmir
-function f(e0: Ref): &[f] Int @ 1/1
+function f(e0: Ref)
+  : &[f] Int @ 1/1
 ```]
 
 The declaration fixes all three components of the location type (@sec:impl-heap):
@@ -17,31 +20,35 @@ the stored type is the field's own, the bound is #vm[`1/1`] matching
 #vi[`write`], and the group is the field's name. The last of these is the
 load-bearing one. A group per declaration is a partition per declaration, so
 chunks of two distinct fields can never be brought to one location and nothing
-has to be stated to rule it out.
+has to be stated to rule it out. In a Prusti encoding that partitioning is
+coarser than it looks — every Rust value of that primitive type, anywhere in
+the program, shares one partition — which is why the aliasing question below
+is one the design has to answer rather than one the frontend arranges away.
 
 #para[The mapping is not injective] The function is declared and nothing else: no
 body, no axiom, no postcondition. This is where our verifier diverges from field
 semantics in Silicon or Carbon. The other two verifiers make fields an injective
-mapping implicitly. It boils down to how they define the non-aliasing axiom: they
+mapping implicitly. It comes down to how they state the non-aliasing axiom: they
 talk directly about the receivers and not about the locations.
 
-Does the missing injectivity matter? Not in the usual case. For example, when
-we would want to assert that two receivers are distinct.
+Does the missing injectivity matter? Not in the usual direction, which is
+concluding that two receivers are distinct.
 
 #viper(caption: [Distinctness of receivers, derived without injectivity.], label: "lst:field-distinct")[```viper
 inhale acc(x.f, write) && acc(y.f, write)
 assert x != y
 ```]
 
-The pair axiom of @sec:impl-heap gives #vm[`f(x) == f(y) ==> write + write <= write`],
-whose right-hand side constant-folds to false, so #vm[`f(x) != f(y)`]. The
+The pair axiom of @sec:impl-heap gives
+#vm[`f(x) == f(y) ==> write + write <= write`], whose
+right-hand side constant-folds to false, so the two locations are distinct. The
 contrapositive of congruence — from #vm[`g(a) != g(b)`] conclude #vi[`a != b`] —
-narrows that to #vi[`x != y`]. Neither step needs #vm[`f`] to be injective, which
-is why this direction is not missed.
+narrows that to #vi[`x != y`]. Neither step needs the location function to be
+injective, which is why this direction is not missed.
 
-Injectivity is the converse: concluding #vi[`x == y`] from #vm[`f(x) == f(y)`]. A
-program reaches for it when it learns an aliasing fact by _counting permission_
-rather than by being told it.
+Injectivity is the converse: concluding #vi[`x == y`] from an equality between
+their locations. A program reaches for it when it learns an aliasing fact by
+_counting permission_ rather than by being told it.
 
 #viper(caption: [The shape that needs an injective field mapping.], label: "lst:field-inj-need")[```viper
 inhale acc(x.f, 1/2) && acc(y.f, 1/2)
@@ -50,21 +57,21 @@ assert x == y
 ```]
 
 The assertion holds in Viper: what is genuinely held at #vi[`x`]'s location is
-$1\/2 + ternary(f(x) = f(y), 1\/2, 0)$, so the assumption can hold only where the
-condition does. Our verifier rejects it, and injectivity is only the second of two
-missing steps — concluding #vm[`f(x) == f(y)`] from the sum reaching #vm[`1/1`] is
-arithmetic driving a case analysis on a condition the program never mentions,
-which is exactly the general-prover reasoning the core is not built to do
-(@sec:impl-proving).
+$1\/2 + ternary(ell_x = ell_y, 1\/2, 0)$, so the assumption can hold only where
+the condition does. Our verifier rejects it, and injectivity is only the second of
+two missing steps — concluding that the two locations coincide from the sum
+reaching #vm[`1/1`] is arithmetic driving a case analysis on a condition the
+program never mentions, which is exactly the general-prover reasoning the core is
+not built to do (@sec:impl-proving).
 
 Were the fact wanted, it could be stated by declaring an inverse beside the
 location function.
 
-#pvmir(caption: [How injectivity of a field mapping would be stated.], label: "lst:field-inv")[```pvmir
-function f(e0: Ref): &[f] Int @ 1/1
+#lvmir(caption: [How injectivity of a field mapping would be stated.], label: "lst:field-inv")[```lvmir
+function f(e0: Ref): &[f] T @ 1/1
   ensures e0 == f_inv(result)
 
-function f_inv(e0: &[f] Int @ 1/1): Ref
+function f_inv(e0: &[f] T @ 1/1): Ref
 ```]
 
 From #vm[`f(x) == f(y)`], congruence gives #vm[`f_inv(f(x)) == f_inv(f(y))`], and

@@ -1,88 +1,55 @@
 #import "../../macros.typ": *
 
-== Domains and ADTs <sec:impl-adts>
+== ADTs <sec:impl-adts>
 
-The two declaration forms left are the ones that carry no permission at all. A
-domain is a set of uninterpreted functions and the axioms relating them; an
-#vi[`adt`] is a datatype with constructors that a verifier is expected to know
-something about. Prusti uses both heavily and for one purpose: a domain per
-primitive Rust type, and an #vi[`adt`] per struct or enum whose values are the
-snapshots that predicates store.
+An #vi[`adt`] is a datatype with constructors that a verifier is expected to
+know something about, and Prusti uses it heavily and for one purpose: one per
+struct or enum. The guiding example declares two — a struct's and an enum's —
+in @lst:example-viper.
 
-#para[Domains] A domain declaration flattens. Its functions become ordinary
-function declarations and its axioms become top-level axioms; the domain itself
-survives only as a type.
+An #vi[`adt`] does not introduce anything into the IR. Its constructors, its
+field projections and its discriminator are all ordinary function applications,
+and what makes them mean something is a side table the verifier keeps: which
+function is a constructor of which datatype, at which variant index, and which
+function projects which field of it. Nothing in the instruction language grew a
+case for datatypes, and no match site in the verifier had to learn about them; a
+constructor application is executed exactly as any other application is.
 
-#lowering(caption: [A domain flattens into functions, a type, and axioms.], label: "lst:domain")[```viper
-domain Box {
-  function box(v: Int): Box
-  function unbox(b: Box): Int
+What the side table buys is a family of rewrite rules — the reductions the
+ladder of @sec:impl-proving runs underneath every tier — created once per
+datatype as it is first encountered, and it is why ADTs are introduced here,
+immediately before Predicates: a snapshot is an #vi[`adt`] value, and a fold and
+its unfold cancel by a reduction stated in this section rather than by anything
+the heap does.
 
-  axiom ax_roundtrip {
-    forall v: Int :: { box(v) }
-      unbox(box(v)) == v
-  }
-}
-```][```vmir
-domain Box
-
-function box(e0: Int) -> Box
-function unbox(e0: Box) -> Int
-
-axiom ax_roundtrip {
-  e0: Bool := forall e1: Int :: {box(e1)} {
-    e2: Box := box(e1)
-    e3: Int := unbox(e2)
-    e4: Bool := e3 == e1
-    result: e4
-  }
-  result: e0
-}
-```]
-
-An axiom's body is ordinary pure VMIR, and executing it is the same walk as any
-other body: each instruction adds its term, and the result is merged with
-#vm[`true`]. Axioms are made available up front, before the unit being verified is
-walked, and they are _trusted_ — no obligation is checked on an axiom body, not
-even division by zero, since an axiom is an assumption about the model rather than
-a claim to be discharged.
-
-Nothing about this is heap-dependent, and nothing about it needs quantifiers.
-A closed axiom without a #vi[`forall`] is simply a fact merged into the state at
-the start. A quantified one is a single value — the #vm[`forall`] on the first
-line above — whose instantiation is @sec:impl-quantifiers's subject.
-
-#para[Constructors and projections] An #vi[`adt`] does not introduce anything into
-the IR. Its constructors, its field projections and its discriminator are all
-ordinary function applications, and what makes them mean something is a side table
-the verifier keeps: which function is a constructor of which datatype, at which
-variant index, and which function projects which field of it. Nothing in the
-instruction language grew a case for datatypes, and no match site in the verifier
-had to learn about them; a constructor application is executed exactly as any
-other application is.
-
-What the side table buys is a family of rewrite rules, minted once per datatype as
-it is first encountered. The first is the projection reduction: a projection
-applied to a matching constructor gives the field back,
+#para[Constructors and projections] The first rule is the projection reduction:
+a projection applied to a matching constructor gives the field back,
 
 $ "proj"_i (C(a_0, ..., a_n)) => a_i $
 
 which is what makes the fold–unfold round trip of @sec:impl-predicates exact, and
-what makes a snapshot readable without an axiom relating the two.
+what makes a snapshot readable without an axiom relating the two. In the guiding
+example that rule is what reads a field back: #vi[`snap_Account`] builds
+#vi[`Account_cons(b0, b1)`], and a later
+#vi[`.. .Account_1`] over the same value is the projection at index one, which
+reduces to #vi[`b1`] rather than needing anything proved about the constructor.
 
 The rule also commutes into a conditional. Where the argument's class does not
 hold the constructor directly but a ternary over two constructions, the
 projection is pushed inside and applied to each arm. This is not a convenience:
-an enum discriminator's body is a tower of ternaries over boxed values, and a
+an enum discriminator's body is a tower of ternaries over boxed values — one
+level of it in #vi[`Transaction_discr`], more as a Rust enum widens — and a
 program comparing the _unboxed_ value never sees a constructor under the
 projection unless the rule descends. Because the argument is typically a shared
 graph rather than a tree, the descent memoises per class; without that, a graph
 with $d$ shared classes is walked along up to $2^d$ paths.
 
-#para[Discriminators] Viper's #vi[`x.isC`] tests which variant a value is. The
-obvious encoding gives each variant its own predicate function and each pair of
-variants a rule relating them, which is quadratic in the number of variants — and
-Prusti's enums are wide.
+#para[Discriminators] Viper's #vi[`x.isC`] tests which variant a value is, and it
+is the enum snapshots of @lst:example-viper that a Prusti encoding asks it of —
+#vi[`Transaction_discr`]'s body is #vi[`self.isTransaction_1_cons`] under a
+ternary, and #vi[`AccountList_discr`]'s is the same shape. The obvious encoding gives each
+variant its own predicate function and each pair of variants a rule relating them,
+which is quadratic in the number of variants, and Prusti's enums are wide.
 
 Instead each datatype gets _one_ discriminator function into the integers, and
 #vi[`x.isC`] is lowered to an ordinary equality against the variant's index:
@@ -98,7 +65,7 @@ that is running anyway rather than by any datatype reasoning.
 Constructor distinctness then comes for free. If a program ever forces two
 distinct constructors of one datatype into the same class, congruence merges their
 discriminators, and two different integer literals collide in one e-class. That is
-a constant-folding contradiction, which is the state saying it is inconsistent —
+a constant-folding contradiction, which records the state as inconsistent —
 and an inconsistent state discharges every obligation asked of it, which is
 exactly the treatment an unreachable path should get. No disequality edge, no
 axiom, and no case split.
@@ -111,7 +78,7 @@ sound precisely because constructors are free. This is information that is
 otherwise unreachable: the projection rule recovers the same equalities, but only
 where an application of the projection already exists, and two constructor terms
 can meet with no projection over them anywhere. The contrast with a location
-function is worth one clause: those get no such rule, because nothing says a
+function is worth stating: those get no such rule, because nothing says a
 field's location function is injective, and @sec:impl-heap derives what a program
 needs about distinct locations from permission arithmetic instead.
 

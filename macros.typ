@@ -15,9 +15,9 @@
 // `rust` is highlighted by Typst's built-in syntect grammars; `viper` and
 // `vmir` are not, so we ship grammars for them in `syntaxes/`.
 //
-// A fourth tag, `pvmir`, is not a fourth language: it is VMIR written
+// A fourth tag, `lvmir`, is not a fourth language: it is VMIR written
 // schematically, for the places where the real encoding is too verbose to make
-// a point with. It shares VMIR's hue and grammar (`pvmir` is an extension of
+// a point with. It shares VMIR's hue and grammar (`lvmir` is an extension of
 // the VMIR grammar) and differs only in the corner tag, so a reader can always
 // tell a listing that could be fed to the verifier from one that could not.
 // ---------------------------------------------------------------------------
@@ -26,14 +26,14 @@
   rust: rgb("#b7410e"), // rust orange
   viper: rgb("#5b57c7"), // indigo
   vmir: rgb("#0f766e"), // teal
-  pvmir: rgb("#0f766e"),
+  lvmir: rgb("#0f766e"),
 )
 
 #let lang-names = (
   rust: [Rust],
   viper: [Viper],
   vmir: [VMIR],
-  pvmir: [pseudo-VMIR],
+  lvmir: [VMIR-lite],
 )
 
 // The per-language dictionary codly uses for the little language tag it draws
@@ -42,7 +42,7 @@
   rust: (name: lang-names.rust, color: lang-colors.rust),
   viper: (name: lang-names.viper, color: lang-colors.viper),
   vmir: (name: lang-names.vmir, color: lang-colors.vmir),
-  pvmir: (name: lang-names.pvmir, color: lang-colors.pvmir),
+  lvmir: (name: lang-names.lvmir, color: lang-colors.lvmir),
 )
 
 // All three are languages in the same pipeline, so they are presented
@@ -139,7 +139,7 @@
   show raw.where(lang: "rust", block: true): it => _style-raw("rust", it)
   show raw.where(lang: "viper", block: true): it => _style-raw("viper", it)
   show raw.where(lang: "vmir", block: true): it => _style-raw("vmir", it)
-  show raw.where(lang: "pvmir", block: true): it => _style-raw("pvmir", it)
+  show raw.where(lang: "lvmir", block: true): it => _style-raw("lvmir", it)
 
   // Captioned listings use `kind: "listing"`, not `kind: raw`. `codly-init`
   // installs a `show figure.where(kind: raw)` rule that, for a *labelled*
@@ -222,10 +222,10 @@
   numbers: numbers,
 )
 
-/// A pseudo-VMIR listing — VMIR written schematically, where the real encoding
+/// A VMIR-lite listing — VMIR written schematically, where the real encoding
 /// would bury the point being made. Used only where the difference is stated.
-#let pvmir(body, caption: none, label: none, numbers: auto) = _listing(
-  "pvmir",
+#let lvmir(body, caption: none, label: none, numbers: auto) = _listing(
+  "lvmir",
   body,
   caption: caption,
   label: label,
@@ -276,8 +276,8 @@
 ///   e2: Int := *[h1] e1
 ///   assert e2 > 0
 ///   ```]
-/// `target-lang` is `"vmir"` by default and `"pvmir"` where the right-hand side
-/// is written schematically (see the note on pseudo-VMIR in @sec:implementation).
+/// `target-lang` is `"vmir"` by default and `"lvmir"` where the right-hand side
+/// is written schematically (see the note on VMIR-lite in @sec:implementation).
 #let lowering(source, target, caption: none, label: none, columns: (1fr, 1.15fr), target-lang: "vmir") = {
   let src-chunks = _chunks(source)
   let tgt-chunks = _chunks(target)

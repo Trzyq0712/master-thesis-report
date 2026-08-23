@@ -1,45 +1,95 @@
 #import "../../macros.typ": *
-#import "../../figures/egraph-assume.typ": egraph-assume
+#import "../../figures/egraph-assume.typ": egraph-saturate
+#import "../../figures/prove-ladder.typ": prove-ladder
 
-== Execution Model <sec:impl-execution>
+== Verifying Client Code with VMIR and Helium <sec:impl-execution>
 
-The verifier executes a program symbolically, in Silicon's sense: it walks the
-instructions in order, maintains a symbolic state describing what is known at each
-point, and raises an obligation wherever the program claims something. What
-differs is where that state is kept. Silicon keeps its facts in the solver and asks
-Z3 what follows from them; here the state is a structure the verifier owns and
-reads directly. The bookkeeping that buys is the subject of most of this chapter.
-What it buys back is that a question about the state can be answered by looking
-rather than by asking, and that the representation can be chosen to make the
-questions a Prusti encoding actually raises (@sec:prusti-needs) the cheap ones.
+We will show how Helium verifies a Viper program, starting from the simplest
+case a verifier can process, a stream of heap-independent statements, and
+building up, through a single running example, to the full mechanism by which
+obligations are discharged.
 
-What that state is, and what executing an instruction does to it, is best seen on
-a fragment small enough to walk end to end. @lst:exec-source is heapless, five
-statements long, and carries one obligation.
+The program in @lst:ex_v1 assumes a fact about an integer and then trivially
+asserts it.
 
-#viper(
-  caption: [The fragment this section walks: a goal built, and then the equality that settles it assumed.],
-  label: "lst:exec-source",
+#lowering(
+  caption: [Viper program that assumes a fact, asserts it; and the VMIR
+      translation.],
+  label: "lst:ex_v1",
+)[```viper
+var a: Int
+assume a == 42
+assert a == 42
+```][```vmir
+e0: Int := fresh // a
+e1: Bool := e0 == 42
+assume e1
+e2: Bool := e0 == 42
+assert e2
+```]
+
+The variable #vi[a] becomes a temporary #vm[e0] in VMIR. As the declaration of
+#vi[a] has no explicit initialiser, it is lowered to a #vm[`fresh`] instruction.
+When the verifier executes the instruction, it creates a new e-class in the
+e-graph, and #vm[e0] becomes a handle for it.
+
+Following that, the #vi[`assume`] is translated to two VMIR instructions: first
+the equality check #vm[e1], using the #vm[e0] temporary and a constant
+#vm[`42`], and then the #vm[`assume`] instruction. The equality check is
+executed by inserting a new #vm[==] node into the e-graph with the #vm[e0] and
+#vm[42] e-classes as its children. The #vm[assume] instruction then merges
+#vm[e1] with #vm[true], which means that #vi[a == 42] now holds.
+
+Finally, #vi[assert a == 42] is lowered to two instructions. First the equality
+#vm[e0 == 42] is restated as #vm[e2]. The verifier executes it the same way as
+#vm[e1] above. This time, however, the e-graph already contained the same
+e-node, making the #vm[e1] and #vm[e2] handles point to the same e-class.
+Second, the #vm[assert e2] is executed by checking whether the e-classes of
+#vm[e2] and #vm[true] match, which they do due to #vm[assume e1] above.
+
+We will slightly alter the program to make the assertion non-trivial. @lst:ex_v2
+lists a program that declares #vi[a] to be equal to #vi[10], and then asserts
+that #vi[a + 32] is equal to #vi[42].
+
+#lowering(
+  caption: [A program expressing an obligation that `10 + 32 = 42`, and the
+      corresponding VMIR translation.],
+  label: "lst:ex_v2",
+)[```viper
+var a: Int := 10
+a := a + 32
+assert a == 42
+```][```vmir
+e0: Int := 10 // a
+e1: Int := e0 + 32
+e2: Bool := e1 == 42
+assert e2
+```]
+
+The #vm[assert e2] cannot directly prove that #vm[e2] is equivalent to
+#vm[true]; this requires some lightweight reasoning. Concretely, Helium employs
+constant folding enabled by _egg_'s analyses. When #vm[e1] is built, the two
+children of the #vm[+] node are e-classes with constant values, #vm[10] and
+#vm[32], which constant-fold to #vm[42]. Afterwards, when #vm[e2] is built, the
+two children of #vm[==] carry the same constant value, which folds to #vm[true],
+allowing the verifier to discharge the obligation.
+
+@lst:ex_v3 expresses an obligation that cannot be closed by structure and
+constant folding alone. It declares two variables #vi[a] and #vi[b] and states a
+#vi[goal] of #vi[`a * 2 == b * 2`]. The fact holds if #vi[a] and #vi[b] are
+equal, which is assumed in the next line. We expect the verifier to be able to
+prove the goal.
+
+#lowering(
+  caption: [],
+  label: "lst:ex_v3",
 )[```viper
 var a: Int
 var b: Int
 var goal: Bool := a * 2 == b * 2
 assume a == b
 assert goal
-```]
-
-The obligation is an equality between two terms the program built, and the program
-builds it before it is given the fact that settles it. @lst:exec-vmir is what the
-verifier is given. Each declaration becomes a value about which nothing is
-assumed, and each comparison an instruction of its own; the declaration of
-#vi[`goal`] becomes no instruction at all, since it is a name for the class the
-comparison already landed in. What the #vi[`assume`] and the #vi[`assert`] name is
-therefore a temporary rather than an expression.
-
-#vmir(
-  caption: [Viper @lst:exec-source lowered. Original variable names in the comments.],
-  label: "lst:exec-vmir",
-)[```vmir
+```][```vmir
 e0: Int := fresh // a
 e1: Int := fresh // b
 e2: Int := e0 * 2 // a * 2
@@ -50,142 +100,167 @@ assume e5
 assert e4
 ```]
 
-The verifier executes this line by line, updating the symbolic state at each step,
-and when it reaches the assertion it checks whether the obligation is satisfied.
+Helium discharges the assertion from @lst:ex_v3 by employing rewrite rules. The
+rule used here states that a proven equality (#vm[`e0 == e1`]) merges the
+e-classes of the arguments. It can be formally expressed as:
 
-There is no separate store of what the verifier knows. The
-e-graph _is_ the symbolic state, and a VMIR temporary is nothing more than a
-handle into it: executing an instruction builds the term it names and yields the
-e-class that term landed in. The walk is forward and single-pass — instructions
-are executed in order and none is revisited — so the state at any point is the
-graph as it then stands, and everything learned up to that point is in it.
+$ (x = y) equiv "true" -> x equiv y $
 
-Each kind of instruction in @lst:exec-vmir does one thing to that graph, and the
-four kinds it uses are most of the language.
+This means that the e-classes of #vi[`e0`] and #vi[e1] are merged (the two
+#vi[fresh] now belong to the same e-class). Through congruence, an invariant of
+the e-graph, #vi[e2] and #vi[e3] then point to the same e-class. Finally, the
+goal #vm[`e2 == e3`] is discharged by another rewrite rule, reflexivity of
+equality, stated as
 
-A #vm[`fresh`] inserts a new e-node into a new e-class. Nothing is said about it
-and nothing is equal to it, and the temporary being defined becomes the handle on
-that class — so after the first two lines, #vm[`e0`] and #vm[`e1`] name two
-distinct classes about which the verifier knows nothing at all.
+$ x = x -> "true" $
 
-An operation resolves the classes its operands name, and inserts a node over
-them. #vm[`e2`] is a #vm[`*`] node whose two children are the class of #vm[`e0`]
-and the class of #vm[`2`], and #vm[`e2`] becomes the handle on the class that node
-landed in. Insertion is hash-consed: a node with the same operator over the same
-child classes is not a second node but the one already there, so building a term
-twice costs a lookup and yields the same class. #vm[`e3`] is not that case yet —
-#vm[`e0`] and #vm[`e1`] are still distinct classes, so #vm[`e1 * 2`] is a second
-node — and #vm[`e4`] is an #vm[`==`] node over those two, which nothing so far
-relates.
-
-An #vm[`assume`] is a union. #vm[`assume e5`] merges the class of #vm[`e5`] with
-the class of #vm[`true`], and that is the whole of how a fact enters the state.
-One rewrite then fires on what it produced: an #vm[`==`] node whose class is known
-#vm[`true`] unions its two arguments, so #vm[`e0`] and #vm[`e1`] become one class.
-
-That union runs backwards into terms already built, and @fig:egraph-assume is the
-graph on either side of it. #vm[`e2`] and #vm[`e3`] are applications of #vm[`*`]
-over the classes it merged, so congruence closure merges them as well, without
-either instruction being re-executed and without either term being rebuilt.
-#vm[`e4`] is then an #vm[`==`] node whose two children are one class, and a
-rewrite folding an equality between a class and itself to #vm[`true`] is what puts
-#vm[`e4`] in the class of #vm[`true`]. Had the program built
-the goal _after_ the assume instead, hash-consing would have delivered the same
-state on the way in. Which order the program happens to use is therefore not
-something the verifier has to care about.
+To complete the picture, @fig:egraph-saturate visualises how the e-graph changes
+after saturating the representation using the rewrite rules.
 
 #figure(
-  egraph-assume,
-  caption: [The state either side of #vm[`assume e5`]. A solid box is an e-node, a
-    dashed box an e-class, an arrow runs from a node to the class of each of its
-    arguments, and the handles a class answers to are written above it. The classes
-    in amber are the ones the #vm[`assume`] and the rewrites over it change; the
-    class of #vm[`2`], which nothing reaches, is drawn as it was on the left.],
-) <fig:egraph-assume>
+  egraph-saturate,
+  caption: [How the e-graph of @lst:ex_v3 evolves as the representation is
+      saturated via rewrite rules. Nodes touched by rewrite rules are
+      highlighted in orange.],
+) <fig:egraph-saturate>
 
-The assertion on the last line is the question of whether #vm[`e4`]'s class is the
-class of #vm[`true`], and here it is one lookup. @sec:impl-proving makes the
-mechanisms this walk leaned on precise: which rewrites there are, when they are
-run over the graph, and what the verifier does with an obligation a lookup does
-not settle.
+One important aspect of verification that has been omitted thus far is that some
+operations are partial. The verifier must ensure they are only ever applied in a
+state where they are well-defined. Take the example from @lst:safe-div below,
+which attempts to divide by an unconstrained variable #vi[a].
 
-Building a term is not always free of obligations. Some
-operations are partial, and an instruction applying one raises a side condition
-saying that it was applied where it denotes something. Division is the case in
-this fragment: #vi[`x / d`] means nothing where #vi[`d`] is zero, so
-#vm[`e2: Int := e0 / e1`] raises #vm[`e1 != 0`] as an obligation, at the point the
-term is built and whatever the surrounding expression goes on to do with the
-result.
-
-The obligation is not always raised flatly, and a division
-is the smallest thing that shows why. A program guards one by writing the check
-into the expression, as in #vi[`var y: Int := d != 0 ? x / d : 0`] — the divisor
-is only ever divided by where the guard says it is safe, and a verifier that
-ignored that would reject a correct program.
-
-The lowering is what carries the guard to the division. It attaches a path
-condition to the instruction (@sec:impl-vmir), and that condition is exact, so
-the verifier reads off what is in force rather than working it out.
-
-#vmir(
-  caption: [A guarded division. The obligation the division raises is carried under the guard the program wrote.],
-  label: "lst:exec-guard",
-)[```vmir
-e0: Int := fresh // x
-e1: Int := fresh // d
-e2: Bool := e1 != 0
-e3: Int := <e2> e0 / e1
-e4: Int := e2 ? e3 : 0 // y
+#viper(
+  caption: [Safe division implementation, #vi[a] is ensured non-zero before
+      division.],
+  label: "lst:safe-div",
+)[```viper
+var a: Int
+var b: Int := a != 0 ? 1 / a : 0
 ```]
 
-The #vm[`<e2>`] on line four is the path condition, and it is one literal: the
-class of #vm[`e2`], taken positively. Without it the division would raise
-#vm[`e1 != 0`] outright, which is not provable here and would reject the program
-for a division it never performs.
+As expected, Helium would raise a non-zero division obligation when reaching the
+#vi[`1 / a`] instruction. However, there would be nothing in the global
+fact-base that would rule out #vi[a] equaling zero, so Helium would reject the
+program and the obligation would remain unproven. To avoid this, VMIR employs a
+notion of path conditions (PC for short). @lst:safe-div-vmir shows how Viper is
+lowered to VMIR, when an obligation is raised under a guard.
 
-The translator maintains that cube as a stack of literals while it walks. Lowering
-the then-arm of a ternary pushes the condition positively and lowering the else-arm
-pushes it negatively, each around the lowering of that arm and popped after it, so
-the stack always holds exactly the literals in force and an instruction takes its
-cube by snapshotting it.
+#vmir(
+  caption: [The division #vm[`1 / e0`] is released under the guard PC
+      #vm[`<e2>`]],
+  label: "lst:safe-div-vmir",
+)[```vmir
+e0: Int := fresh              // a
+e1: Bool := e0 == 0           // e0 == 0
+e2: Bool := e1 ? false : true // e0 != 0
+e3: Int := <e2> 1 / e0
+e4: Int := e1 ? e2 : 0        // b
+```]
 
-Not every instruction takes one. An instruction that only builds a term needs no
-cube, since a term is the same term wherever it was built: the arithmetic, the
-comparisons and the ternary itself are emitted flat however deeply nested in
-conditions they stand, and one temporary stands for the term across all of them.
-An instruction with an obligation is the case that needs the cube, and in the
-heapless pure fragment that is division and modulo alone. Heap instructions and
-calls fall on the same line and are taken up where those constructs are
-(@sec:impl-heap-interaction, @sec:impl-functions).
+By default, Helium attempts to discharge obligations directly -- by the
+mechanisms described above. When unable to do so, it retries under the path
+condition: when the obligation raised by the division on line 3 fails, Helium
+tries to prove the implication $"e0" != 0 => "e0" != 0$ ($"PC" => "goal"$)
+instead. The implication is thus added to the e-graph (via a ternary chain). The
+implication will collapse to $x ? x : "false"$ with $"e0" != 0$ for $x$, which
+will then simply identity-rewrite to $"true"$. Notably, after adding the
+implication to the e-graph, it is not saturated immediately. It might happen
+that the implication has already been proven and recorded true in the e-graph,
+short-circuiting the proof.
 
-What the cube then does is weaken the obligation. One raised under a cube need
-only hold where the cube does, so what has to be proven is not the goal but the
-implication $"pc" => "goal"$ — here $e_2 => e_1 != 0$, whose consequent is the
-literal the cube already contains.
+Finally, sometimes facts that are required to discharge the obligation are not
+immediately available. Looking at @lst:ex-ite-decompose, the fact that
+#vi[`f(x) == f(y)`] can only be learned once #vi[`x == y`] is.
 
-Carrying the condition on the instruction is what lets
-the verifier keep a single graph where a forking symbolic execution keeps one
-state per path. Silicon takes that other route, its #vi[`branch`] rule taking one
-continuation per outcome:
+#viper(
+  caption: [Equality #vi[`f(x) == f(y)`] is reachable only after assuming
+      #vi[b].],
+  label: "lst:ex-ite-decompose",
+)[```viper
+var b: Bool, x: Int, y: Int
+assume b ==> x == y
+assert b ==> f(x) == f(y)
+```]
 
-#quote(block: true, attribution: [@silicon[Section 3.2]])[
-  #vi[`branch`] enables splitting the symbolic execution into two paths: one path
-  ($Q_v$) is taken under the assumption that $v$ is true, the second path
-  ($Q_(not v)$) is taken under the assumption that $v$ is false.
-]
+For such cases, Helium employs a last-resort mechanism, which is to decompose
+the goal into an implication. This is done by inspecting the goal e-class and
+looking for two kinds of nodes: $x ? "false" : y$ or $x ? y : "false"$. The
+verifier follows this chain, decomposing the goal into an implication. The
+e-graph state is then cloned, and the antecedent is assumed in the clone with
+matching polarity ($x$ from above merged with #vm[`true`] or #vm[`false`]
+depending on $y$ 's position). If necessary, the clone is rewrite-saturated to
+check if the goal is provable.
 
-Forking gives each path a state of its own. A fact obtained on one path is simply
-not present on the other, and every fact a path does hold is unconditional:
-nothing proven there has to mention the condition the path was taken under. Two
-paths that share nothing can moreover be explored on two verifiers at once, which
-Silicon can be asked to do.
+#para[Formalising the mechanism] The examples above show how one would discharge
+an obligation; we now state precisely how Helium does it. The proof strategy is
+summarized by the diagram in @fig:prove-ladder: our verifier is a tiered prover,
+where each tier progressively commits more resources to discharge the
+obligation.
 
-A single graph gives sharing instead. Every term built before the condition serves
-both readings of it, and nothing is copied when the condition arises. The price is
-that a fact holding on one side only cannot be stated outright, and that an
-obligation raised under a cube is an implication rather than a goal.
+#figure(
+  prove-ladder,
+  caption: [Helium uses a tiered prover to discharge obligations, with each tier
+      progressively being more expensive to run than the last.],
+) <fig:prove-ladder>
 
-Which of the two pays depends on the obligations. This design assumes, on the
-evidence of @sec:prusti-needs, that most of them follow from the structure the
-program has already built, and so are discharged without the cube being assumed at
-all. What becomes of the ones that are not is @sec:impl-proving.
+We describe in more detail what each verification tier does, before handing off
+the work to the next one.
+
+- *`inconsistent`:* This tier has not yet been shown above; it is the simplest
+  and cheapest one. It checks whether the e-graph has reached an inconsistent
+  state. This is not explicitly searched for, but recorded as it happens -- for
+  example, when an e-class holds two different constants, the simplest case
+  being #vm[`true`] equated with #vm[`false`]. It is logically sound: if the
+  premise, the e-graph's truth state, is inconsistent, any obligation follows.
+- *`goal_true`:* Here the verifier checks if the goal e-class has been unioned
+  with #vm[`true`]. It also rebuilds the e-graph, which runs the
+  constant-folding analysis and can discharge the goal that way.
+- *`implication_true`:* This is a tier that only fires for goals with an
+  explicit path condition. It replaces the original obligation with the weakened
+  one -- $"PC" => "goal"$.
+- *`saturate`:* The e-graph is saturated with rewrite rules until the goal is
+  met, or the representation is saturated. Running a saturation is a relatively
+  expensive operation, so we deliberately run it once the cheaper tiers have
+  been insufficient.
+- *`implication_decompose`:* This is the most resource-intensive tier by far. It
+  proves the goal by decomposing it into an implication chain, cloning the
+  e-graph and assuming the antecedent of the implication in the clone. The
+  obligation is then retried using the tiers above -- checking for
+  inconsistency, checking if the goal is true, and finally saturating the
+  representation. Any work that has been done in the clone e-graph is then
+  thrown away, and in the original e-graph we only record successfully
+  discharging the original obligation by assuming it true.
+
+This concludes the mechanism by which Helium attempts to discharge obligations.
+If unsuccessful, the verifier reports the obligation as unproven. Stopping at
+this point, rather than searching harder, is a deliberate design choice: Helium
+is not a complete theorem prover, but a lightweight verifier for highly
+structured proof obligations, such as the ones raised by Prusti.
+
+#para[Performance considerations] Keeping the e-graph size under control has
+been the main concern throughout, and it drove two design choices. Most of what
+a verifier reasons about is boolean: which facts hold, under which conditions.
+So how that reasoning is represented in the e-graph matters disproportionately.
+
+First, VMIR keeps only a single boolean connective, the ternary operator, which
+concisely represents $or$, $and$, $not$, and $=>$ under one canonical
+representation: Helium no longer needs to know, for example, that
+$p => q equiv not p or q$.
+
+Second, when picking which rewrite rules to include, we favoured ones that add
+no new e-nodes. A rule like $x ? x : "false" -> x$ or $"true" ? x : y -> x$ only
+uses nodes its left-hand side already binds, so applying it merely unions
+existing e-classes. This ruled out distributivity, associativity, and
+commutativity: a rule such as $(x ? y : z) > w -> (x ? y > w : z > w)$ would be
+useful, but its right-hand side names a term the left-hand side does not already
+contain, and applying it repeatedly blows up the e-graph exponentially in the
+depth of the ternary tower. The cost is completeness -- Helium is often unable
+to prove obligations that look trivial to the human eye.
+
+For the complete list of rewrite rules included in Helium, please refer to
+@sec:appendix-rewrites.
+
+#para[Silicon] TODO
+
+#pagebreak()
+

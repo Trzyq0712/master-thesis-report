@@ -15,16 +15,6 @@ design: an obligation should cost what it takes to answer it and not what it wou
 take to answer the hardest one. Where the obligations of a real program actually
 stop is a measurement, and @sec:results is where it is made.
 
-#figure(
-  prove-ladder,
-  caption: [The prove ladder. Each arrow is a tier failing to answer: a tier that
-    does answer discharges the obligation and the search stops there.
-    #vm[`probe`] answers nothing itself — it copies the graph, fixes the cube in
-    the copy and saturates it, after which the same cheap questions are put to
-    that copy, with #vm[`ite_decompose`] the last resort on it. The dashed edge is
-    an obligation with nothing to assume: #vm[`probe`] would change nothing, so
-    the copy's cheap questions are skipped with it.],
-) <fig:tiers>
 
 #para[#vm[`inconsistent`]] Asks, on a best-effort basis, whether the state
 contains a contradiction: not every inconsistency the graph implies is found, but
@@ -146,7 +136,7 @@ that simplifies any other conditional, with no case analysis anywhere.
 One more rule turns a proven equality back into a merge: an #vm[`==`] node whose
 class is known #vm[`true`] unions its two arguments. That is what lets an assumed
 equality participate in congruence rather than sitting inertly as a fact, and it
-is the rule doing the work in @lst:exec-vmir. A disproven #vm[`==`] node is read
+is the rule doing the work in lst:exec-vmir. A disproven #vm[`==`] node is read
 back the other way, into whatever distinctness can be derived from it — that
 family is where @sec:impl-adts picks up.
 

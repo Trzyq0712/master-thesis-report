@@ -21,3 +21,5 @@ We propose a smaller, more focused intermediate representation, which we call VM
 - *Instruction Decomposition:* VMIR breaks down Viper's complex operations into a minimal set of core instructions. For instance, a method call is decomposed into two distinct instructions: exhaling the precondition resource, and inhaling the postcondition. Similarly, a predicate fold is exactly equivalent to exhaling the predicate body and adding a heap chunk representing the folded predicate.
 
 The following sections detail how different Viper constructs are lowered to VMIR, and how the verifier reasons about them.
+
+#pagebreak()

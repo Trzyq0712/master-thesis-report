@@ -9,7 +9,7 @@
 /// `assume` merges one class with `true`; everything else on the right is a
 /// consequence propagated into terms that were already there, which is why the
 /// classes drawn in amber are the whole of the difference.
-#let egraph-assume = {
+#let egraph-saturate = {
   set par(justify: false)
   set text(hyphenate: false)
 
@@ -51,8 +51,8 @@
       )
       if tag != none {
         content(
-          ((x0 + x1) / 2, y + nh / 2 + p + 0.04),
-          anchor: "south",
+          (x0 - nw / 2 - p, y + nh / 2 + p + 0.04),
+          anchor: "south-west",
           mono(tag, size: 0.55em, fill: hue.darken(10%)),
         )
       }
@@ -64,7 +64,7 @@
     // edge below the row between the two, clearing the boxes sitting there.
     let edge(from, to, hue: luma(55%), dx: 0.0, sag: none) = {
       let p0 = (from.at(0) + dx, from.at(1) - nh / 2)
-      let p1 = (to.at(0) + dx, to.at(1) + nh / 2 + 0.15)
+      let p1 = (to.at(0), to.at(1) + nh / 2 + 0.15)
       let s = 0.5pt + hue
       let m = (end: ">", scale: 0.26)
       if sag == none { line(p0, p1, mark: m, stroke: s) } else {
@@ -72,12 +72,10 @@
       }
     }
 
-    let panel(x, title, after) = {
+    let panel(x, after) = {
       let y0 = 0.0 // a, b, 2
       let y1 = 1.3 // the multiplications
       let y2 = 2.6 // the equalities and `true`
-
-      content((x + 2.1, y2 + 1.0), text(size: 0.68em, weight: "bold", fill: luma(25%), title))
 
       if not after {
         // Six classes, one node each: nothing in the graph is equal to anything
@@ -89,16 +87,16 @@
         let m1 = (x + 2.35, y1)
         let goal = (x + 1.7, y2)
         let eq = (x + 3.75, y1)
-        let tt = (x + 3.75, y2)
+        let tt = (x + 2.5, y2)
 
-        edge(m0, a)
-        edge(m0, two)
-        edge(m1, two)
-        edge(m1, b)
-        edge(goal, m0)
-        edge(goal, m1)
-        edge(eq, b)
-        edge(eq, a)
+        edge(m0, a, dx: -0.1)
+        edge(m0, two, dx: 0.1)
+        edge(m1, b, dx: -0.1)
+        edge(m1, two, dx: 0.1)
+        edge(goal, m0, dx: -0.1)
+        edge(goal, m1, dx: 0.1)
+        edge(eq, a, dx: -0.1)
+        edge(eq, b, dx: 0.1)
 
         for (p, l, t) in (
           (a, "a", "e0"),
@@ -106,13 +104,17 @@
           (b, "b", "e1"),
           (m0, "*", "e2"),
           (m1, "*", "e3"),
-          (goal, "==", "e4"),
           (eq, "==", "e5"),
-          (tt, "true", none),
         ) {
           cls(p.at(0), p.at(0), p.at(1), base, t)
           node(p, l, base)
         }
+
+        // `e4` already merged with `true`, so the assume on the right only
+        // has to account for `e0, e1` and `e2, e3`.
+        cls(goal.at(0), tt.at(0), y2, base, "e4")
+        node(goal, "==", base)
+        node(tt, "true", base)
       } else {
         // `a ~ b` by the assumed equality, `a * 2 ~ b * 2` by congruence over
         // it, and both equalities in the class of `true` by reflexivity.
@@ -125,9 +127,9 @@
         let eq = (x + 2.47, y2)
         let tt = (x + 3.29, y2)
 
-        edge(m, ab, hue: hot.lighten(10%))
-        edge(m, two)
-        for d in (-0.13, 0.13) {
+        edge(m, ab, hue: hot.lighten(10%), dx: -0.1)
+        edge(m, two, hue: hot.lighten(10%), dx: 0.1)
+        for d in (-0.1, 0.1) {
           edge(goal, m, hue: hot.lighten(10%), dx: d)
           // Curved out to the right of the `*` class rather than through it.
           edge(eq, ab, hue: hot.lighten(10%), dx: d, sag: (x + 2.0 + d, y1 - 0.3))
@@ -152,8 +154,8 @@
 
     let pw = 4.3
     let gap = 1.5
-    panel(0, [before #raw("assume e5")], false)
-    panel(pw + gap, [after #raw("assume e5")], true)
+    panel(0, false)
+    panel(pw + gap, true)
 
     // The step between the two states.
     line(
@@ -165,7 +167,7 @@
     content(
       (pw + gap / 2, 1.4),
       anchor: "south",
-      text(size: 0.55em, fill: hot.darken(15%))[union],
+      text(size: 0.55em, fill: hot.darken(15%))[saturate],
     )
   })
 }

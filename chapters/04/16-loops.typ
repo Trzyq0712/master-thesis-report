@@ -11,7 +11,7 @@ that means for the reading of what follows is that the mechanism is pinned down 
 a program rather than by a benchmark: it is complete as a mechanism, and limited by
 something else.
 
-#para[Where a loop comes from] A loop is _any back edge_: an edge whose target
+A loop is _any back edge_: an edge whose target
 dominates its source. Source-level #vi[`while`] is desugared at the control-flow
 graph and is only a special case; a Prusti-shaped method carries its invariant on
 the loop head's #vi[`label`] and reaches it with a #vi[`goto`], and back-edge
@@ -26,7 +26,7 @@ leaves and which it enters — innermost-first for the former, since leaving two
 loops at once has to unwind them in order. A cycle with more than one entry is
 irreducible, has no natural loop, and is rejected with a diagnostic.
 
-#para[The cut] At a loop head the verifier stops threading the incoming state and
+At a loop head the verifier stops threading the incoming state and
 performs an exchange. The invariant is _exhaled_ from the heap the forward
 predecessor arrived with, at the pre-havoc values: that is the entry obligation,
 and it is a claim about the state control actually arrives in. What the exhale
@@ -53,7 +53,7 @@ syntactically. Over-approximating it is sound — a needlessly havoc'd variable 
 loses information — and under-approximating it is not, so the analysis errs in the
 direction that costs precision.
 
-#para[Framing] What the invariant does not mention survives the loop untouched,
+What the invariant does not mention survives the loop untouched,
 and that is not a modifies analysis: it is permission arithmetic. The frame is an
 ordinary heap, named by a temporary like any other heap, and an edge leaving the loop simply
 takes the _sum_ of the body's live state and the frame that head set aside.
@@ -80,7 +80,7 @@ programs differing only in that amount therefore differ in whether an assertion
 after the loop holds — and both agree with Silicon, which is the pair the test
 corpus uses to pin the mechanism down.
 
-#para[Where we fall short] The mechanism above verifies loops that Silicon
+The mechanism above verifies loops that Silicon
 verifies: a zero-iteration loop, a load-bearing invariant established and
 preserved and consumed, a #vi[`break`], nested loops, loops under a path
 condition, a linked structure traversed by unfolding, and a half-permission frame
@@ -108,7 +108,7 @@ reach for a reason that is not about loops either. And termination is not checke
 #vi[`decreases`] is ignored and the guarantee is partial correctness, matching
 Silicon's default.
 
-#para[What we record] A loop that cannot be verified fails at a named obligation
+A loop that cannot be verified fails at a named obligation
 in a named block, with the cut already performed: the invariant's exhale, the
 havoc and the rebuilt entry heap have all happened, and the state at the failure
 is the state of an arbitrary iteration. Nothing about the loop was approximated to

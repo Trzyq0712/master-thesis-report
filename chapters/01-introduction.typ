@@ -125,7 +125,7 @@ corpus, with a geometric mean of 22#sym.times per file (@sec:results).
 @sec:background introduces Viper, the Prusti front-end, and equality
 reasoning via equality saturation. @sec:approach presents a real Prusti
 encoding, measures what such an encoding demands of a
-backend, and presents VMIR and the design that follows from it. @sec:implementation describes
-the implementation, and @sec:results evaluates it against Silicon, both
+backend, and states the principles that follow. @sec:implementation presents VMIR and describes
+the implementation built on it, and @sec:results evaluates it against Silicon, both
 for soundness and for performance. @sec:future-work concludes and
 discusses directions for extending the supported fragment.

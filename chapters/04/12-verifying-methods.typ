@@ -13,7 +13,7 @@ The body below is straight-line, and that is the whole of the restriction. A
 method whose body branches has two heaps to reconcile where the arms meet, which
 is @sec:impl-cfg.
 
-#para[The prologue] A method body starts from #vm[`empty`]. Nothing is inherited,
+A method body starts from #vm[`empty`]. Nothing is inherited,
 because a method may assume only what its contract grants it, so the state the
 body works in is built by its first instructions: a fresh value per parameter and
 per return variable, a fresh snapshot handle, and an inhale of the precondition
@@ -55,7 +55,7 @@ the prologue's inhale put a chunk at #vm[`val_i32(e0)`], and the write goes
 through because that chunk is at the bound — both obligations are the ordinary
 ones, raised against a heap the contract happens to have built.
 
-#para[The handle] The prologue binds its inhale to #vm[`e2`] rather than writing
+The prologue binds its inhale to #vm[`e2`] rather than writing
 #vm[`with fresh`], and the difference is that the handle is needed twice. The exit
 exhales the postcondition against the state the precondition described, and a
 two-state postcondition resource takes that snapshot as an argument
@@ -63,7 +63,7 @@ two-state postcondition resource takes that snapshot as an argument
 makes them one; the slots underneath are no less arbitrary for it, since nothing
 constrains the handle either.
 
-#para[The exit] Each exit block exhales the postcondition against the final values
+Each exit block exhales the postcondition against the final values
 of the return variables — #vm[`e4`] above, the value #vi[`v`] ended up naming,
 rather than the #vm[`e1`] the prologue created for it. The exhale is the one of
 #pararef(<para:impl-subtract>, [Giving permission back]): it walks the
@@ -77,7 +77,7 @@ state a method leaves behind, and the snapshot is blanked, since a
 postcondition's slot values are what the _caller_ receives rather than anything
 the callee has a use for.
 
-#para[What we record] A method that fails does so at one instruction, with the
+A method that fails does so at one instruction, with the
 walk up to it intact: the entry heap is the one the precondition built, every
 chunk since is where the body put it, and the obligation naming the failure is an
 e-class in that state.

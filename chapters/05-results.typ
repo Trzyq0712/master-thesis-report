@@ -244,7 +244,7 @@ either way.]
 
 == Scaling in Variant Count <sec:results-enum-scaling>
 
-#para[Why this measurement exists] #raw("shape_area") differed from the cheap
+#raw("shape_area") differed from the cheap
 payload-enum programs along two axes at once — more variants _and_ deeper payloads
 — so neither could be blamed for its cost. #raw("benchmarks/rust/gen_enum.py")
 separates them. #emph[N] is the variant count, which is how deep the snapshot tower
@@ -257,8 +257,8 @@ all encoded by Prusti without error, every one checked non-vacuous by the same
 #vi[`assert false`] instrumentation as
 #pararef(<para:results-validity>, [Validity]).
 
-#para[Results] Whole file, ours against warm Silicon, same setup as
-#pararef(<para:results-setup>, [Setup]). Both columns are at #sweeprev, which is
+The results below are per whole file, ours against warm Silicon, with the same
+setup as #pararef(<para:results-setup>, [Setup]). Both columns are at #sweeprev, which is
 where the shape of the curve was established; the four points re-measured after
 the memoization are quoted separately below, and they move the constant without
 moving the shape.
@@ -295,7 +295,7 @@ moving the shape.
   },
 ) <tbl:results-enum>
 
-#para[What the memoization moved] The equality-refutation rule of @sec:impl-adts
+The equality-refutation rule of @sec:impl-adts
 was 65% of a grid file's wall clock, and essentially all of that was its _failed_
 scans: at $N = 5$ it spent 11.9s on 266 successful merges, 45ms apiece for a rule
 whose payload is a single union. Ablating it took #raw("enum_v5_p1") from 18.41s
@@ -311,7 +311,7 @@ from $N approx 3$--$4$ to $N approx 5$ — #raw("enum_v5_p1") lands at
 #tbd[Re-measure the remaining grid points at #srcrev so @tbl:results-enum has one
 provenance; only four of the twelve were re-run.]
 
-#para[Reading the two axes] The variant axis dominates, and it is
+The variant axis dominates, and it is
 _exponential_: at $D = 1$ the write-through member goes 0.49s, 1.48s, 8.58s,
 54.90s for $N = 2, 3, 5, 8$, roughly $2 times$ per added variant after the first
 step, while Silicon over the same range grows about $3.4 times$ in total —

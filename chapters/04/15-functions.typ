@@ -10,7 +10,7 @@ the shape every Prusti encoding is built from. This section is about how a
 function that reads the heap becomes one that does not, and about what a call site
 gets to know when it applies one.
 
-#para[Heap-dependent functions] The mechanism is the snapshot of
+The mechanism for a heap-dependent function is the snapshot of
 @sec:impl-predicates, applied to a precondition. A function whose #vi[`requires`]
 contains an #vi[`acc`] has that precondition lowered to a self-framed resource,
 and the function gains a trailing parameter: the snapshot of that resource. Its
@@ -125,7 +125,7 @@ and no reasoning about what #vi[`snap_i32`] does. Silicon reaches the same concl
 through the function's framing axiom and a solver query; here there is nothing to
 query, because the two terms were never distinct.
 
-#para[Postconditions as axioms] A function may have no body at all, and then its
+A function may have no body at all, and then its
 contract is all there is. Prusti's #vi[`generic_Account`] and #vi[`concrete_Account`]
 (@lst:example-viper) are the canonical pair: no bodies, and postconditions saying
 that the two are inverse and that a generic value's type tag is the concrete
@@ -190,7 +190,7 @@ that is what makes induction over a recursive call work at all — it is the onl
 thing the caller learns about the recursive occurrence, and it is precisely what
 the function's contract promised.
 
-#para[Slicing] A recipe is built by a backward closure: start from the result and
+A recipe is built by a backward closure: start from the result and
 keep the steps it depends on. That is the right default — a body may compute
 things it does not return, and replaying them at every occurrence would be waste —
 and it is where finding four of @sec:impl-cfg comes from.
@@ -209,7 +209,7 @@ It applies to a resource's body boolean and not to the slot recipes, since a slo
 resolves its inputs against the slot values built so far and pulling in a token
 that mentions a later slot would reach past the end.
 
-#para[What we record] A function whose postcondition cannot be discharged is
+A function whose postcondition cannot be discharged is
 reported at the assertion its own body raises, with the body's terms in the state
 and the contract's occurrence intact. A call site whose precondition cannot be
 established fails at the #vm[`snap`], naming the footprint slot it could not

@@ -80,7 +80,7 @@ covers an obligation the program wrote as an implication without needing to tell
 the two shapes apart, and no tier above can do anything with a conditional as it
 stands.
 
-#para[Constant folding] Underneath every tier is one rule set, always on.
+Underneath every tier is one rule set, always on.
 Congruence and hash-consing come from the e-graph itself; the rest is an analysis
 and a set of rewrites.
 
@@ -150,7 +150,7 @@ is the rule doing the work in @lst:exec-vmir. A disproven #vm[`==`] node is read
 back the other way, into whatever distinctness can be derived from it — that
 family is where @sec:impl-adts picks up.
 
-#para[What the ladder cannot do] Three things are missing from it, and the first
+Three things are missing from it, and the first
 two are the price of the property the rest of the section was arguing for: every
 tier answers with work proportional to the obligation in front of it, and a tier
 that searches does not.

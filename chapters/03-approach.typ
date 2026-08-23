@@ -15,7 +15,7 @@ Everything the next two chapters do refers back to one place: a Viper program
 Prusti actually emitted. This section presents that program. Nothing in
 it is a simplification, and @sec:impl-together returns to it verifying.
 
-#para[The source program] The Rust is unannotated. There is no precondition, no
+The Rust is unannotated. There is no precondition, no
 postcondition, and nothing a user wrote to help a verifier along;#footnote[The
 file as it is fed to Prusti carries #ru[`use prusti_contracts::*`] and one
 #ru[`body_invariant!(true)`] per loop body, because Prusti refuses a loop without
@@ -109,7 +109,7 @@ The three functions not shown — #ru[`account_over_limit`], #ru[`account_classi
 and #ru[`account_adjust`] — read a field, nest two conditionals, and assign twice
 under separate guards. They add volume rather than shapes.
 
-#para[The encoding] Prusti's output for this crate is 3371 lines of Viper
+Prusti's output for this crate is 3371 lines of Viper
 declaring 151 members. Almost all of it is machinery repeated per type: the same
 half-dozen shapes instantiated at #ru[`i32`], at #ru[`bool`], at #ru[`isize`], at
 the unit and two-element tuples, at #ru[`&Account`] and #ru[`&mut Account`], at
@@ -256,7 +256,7 @@ entire content is a contract, and what they ask for is equality reasoning.
 every call to it is a permission transaction rather than a jump (@sec:impl-calls).
 Prusti routes every assignment to a place of struct type through one of these.
 
-#para[The method bodies] The bodies are where the rest of the volume is. They are
+The bodies are where the rest of the volume is. They are
 basic-block graphs, and @lst:example-body is #vi[`bb_2`] of
 #vi[`account_deposit`] — the block that runs when the condition held, so the
 write goes through.
@@ -308,7 +308,7 @@ block already holds permission for is a question about terms. And the
 Prusti moves a value in and out of the opaque #vi[`Param`] representation across
 a call boundary.
 
-#para[The loop head] A loop arrives at the Viper level as a labelled block with
+A loop arrives at the Viper level as a labelled block with
 #vi[`invariant`] clauses on it and a #vi[`goto`] reaching it from two places: the
 block before the loop and the block at the end of the body. There is no
 #vi[`while`] anywhere in the file. @lst:example-loop is the head of
@@ -347,7 +347,7 @@ from #vi[`bb_2_pre0`] before the loop and from #vi[`bb_9`] at the bottom of the
 body, and the verifier finds the loop by dominance rather than by reading a
 keyword.
 
-#para[What we left out] Two families were cut from @lst:example-viper and add no
+Two families were cut from @lst:example-viper and add no
 mechanism. The arithmetic family — #vi[`lt_i32_i32`], #vi[`le_i32_i32`],
 #vi[`add_ovf_i32_i32`] and #vi[`sub_ovf_i32_i32`] — is four bodyless
 functions with #vi[`ensures`] clauses, exactly the #vi[`generic_Account`] shape at
@@ -362,7 +362,7 @@ hence the #vi[`Closure_sum_up_to`] datatype, its predicate, and the
 has one nullary constructor, the predicate's body is #vi[`true`], and the chain
 reduces by the same projection rule any other snapshot does.
 
-#para[A note on scope] This program is not one of the 22 encodings measured in
+This program is not one of the 22 encodings measured in
 @sec:prusti-needs. That corpus is loop-free by construction — Prusti's users
 write loops, but a benchmark whose cost is dominated by an arithmetic invariant
 measures the arithmetic and not the backend — and the example is here to be
@@ -382,7 +382,7 @@ and it is the evidence base for every scoping decision after it: which construct
 a Prusti backend has to execute, which it never sees, and in what proportion the
 ones it does see arrive.
 
-#para[The corpus] Twenty-two Prusti encodings, committed under
+Twenty-two Prusti encodings, committed under
 #raw("benchmarks/rust/vpr/") in the implementation's tree: 216,833 lines of Viper,
 2886 verifying members. Ten are encodings of hand-written Rust — vector and matrix
 arithmetic, a bank transfer, a state machine, an inventory, a physics step, a
@@ -400,7 +400,7 @@ not they write specifications. That is precisely the class an equality-reasoning
 core is aimed at, and it is what makes the non-goals below a scoping decision
 rather than an admission of weakness.
 
-#para[What appears] The counts below are over the 22 files. Declarations are
+The counts below are over the 22 files. Declarations are
 counted per declaration and statements per occurrence.
 
 #figure(
@@ -453,7 +453,7 @@ counted per declaration and statements per occurrence.
   },
 ) <tbl:corpus>
 
-#para[What never appears] The absences are as load-bearing as the counts, because
+The absences are as load-bearing as the counts, because
 they are what license a verifier not to implement half of Viper. Across all
 216,833 lines there is no #vi[`while`], no magic wand and no #vi[`applying`], no
 quantified permission, no #vi[`perm`] and no #vi[`forperm`], no #vi[`exists`], no
@@ -464,7 +464,7 @@ removes the collection types; its loop-free source rule is what removes
 #vi[`while`]; and its uniform #vi[`write`] discipline is what removes fractional
 literals and #vi[`perm`].
 
-#para[The target fragment] Together those two lists name it. The verifier this
+Together those two lists name the target fragment. The verifier this
 thesis builds has to execute a flat block graph over a heap partitioned into
 predicates and primitive fields, held at #vi[`write`] or at a wildcard, moved by
 #vi[`inhale`], #vi[`exhale`], #vi[`fold`] and #vi[`unfold`], read through
@@ -523,73 +523,9 @@ tree, and snapshots being first-class datatypes rather than an uninterpreted sor
 Right regardless of frontend: locations as types, so that fields and predicates
 collapse into one concept; a heap partitioned by location kind; the e-graph as the
 symbolic state rather than as a cache in front of a solver; exact rational
-permissions; and VMIR being in static single assignment form at all. The second
+permissions; and VMIR being in static single assignment form at all
+(@sec:impl-vmir). The second
 group is what survives a different frontend.
-
-== The Verifier's Intermediate Representation <sec:vmir-design>
-
-#para[Why an intermediate representation] The verifier does not execute Viper. It
-lowers it first, into an intermediate representation called VMIR, and executes
-that. Three things are bought by the indirection.
-
-The first is that each verifier rule is written once. Viper's surface language has
-several ways to say one thing — a field access and a predicate instance are both
-resources but are written and typed differently, a conditional is an #vi[`if`]
-statement or a ternary or an implication depending on where it stands — and a
-verifier over the surface syntax has a case for each. A smaller language collapses
-those into one rule apiece.
-
-The second is that the shapes the design cares about become explicit rather than
-being recovered from syntax. Whether an instruction consults a heap or produces
-one, whether a value it introduces is havoc or bound to something already in
-scope, and what path condition is in force are all written into the instruction at
-lowering time, where the frontend still knows the answer, rather than being
-inferred at execution time from context the verifier would have to maintain.
-
-The third is that a lowering is then a thing that can be tested. VMIR has a
-textual syntax and a printer, so a program can be lowered, printed, read back and
-diffed against an expected form without a verifier being run at all.
-
-#para[Values and heap states] VMIR is in static single assignment form and its
-expressions are flat: every operation is an instruction, its operands are
-temporaries, and its result is a fresh temporary with its type written out. What
-makes it more than a flattening of Viper is that temporaries come in two sorts.
-An #vm[`e`] temporary names a _value_ — concretely, an e-class of the verifier's
-symbolic state. An #vm[`h`] temporary names a _heap state_. Only the first is a
-value in the source language's sense; the second is the state a heap-dependent
-instruction reads and a heap-producing instruction returns.
-
-Making the heap an ordinary SSA temporary is what removes the notion of a
-"current" heap that a verifier threads implicitly. Framing becomes a question of
-which temporary an instruction mentions: a read that names the heap an assignment
-produced sees what was written, with no framing argument to make. A method's
-pre-state, a loop's frame and the heap an #vi[`unfolding`] opens are all just
-heaps that something else still names.
-
-#para[Resources] A predicate body, a method precondition, a method postcondition
-and a function precondition are one construct in VMIR: a _resource_, a named
-parameterised pair of a heap delta and a boolean claimed to hold of it. Viper
-keeps these apart — a predicate is a declaration, a contract is syntax attached to
-a member — and a verifier over Viper needs the produce and consume rules to know
-which it is looking at. Collapsing them means the operations that walk a
-footprint, take permission and give it back are written once and used by
-predicates, contracts and calls alike.
-
-#para[What VMIR omits] The language is smaller than Viper in ways that are
-deliberate rather than incidental. It has no negation, conjunction or disjunction:
-the ternary is the only boolean connective, and the other three are written in
-terms of it, so one reduction rule covers what would otherwise need several. It
-has no assertion language separate from its expression language — an assertion is
-lowered into the same instructions any other expression is. It has no structured
-control flow, only a block graph. And it has no notion of a store: a source
-variable is lowered to the temporary it named, and there is no map from names to
-values at run time.
-
-#para[Writing VMIR down] The real syntax is correspondingly explicit, and so
-verbose. A listing tagged _VMIR-lite_ in its corner drops mechanical detail the
-real form spells out, so what is left is what the snippet is about: the same
-language, agreeing with the real form wherever the point being made lives. A
-listing tagged plain VMIR is what the verifier would actually be given.
 
 == Non-Goals <sec:non-goals>
 

@@ -9,7 +9,7 @@ transaction against the heap: permission and facts leave at the precondition and
 come back at the postcondition. Everything needed to execute one has already been
 built.
 
-#para[Contracts as resources] A method's #vi[`requires`] and #vi[`ensures`] are
+A method's #vi[`requires`] and #vi[`ensures`] are
 lowered to resources, named #vm[`m#requires`] and #vm[`m#ensures`]. This is the
 same construct a predicate becomes (@sec:impl-predicates), and using it here is
 the point: a contract is a heap delta plus a boolean claimed of it, which is
@@ -22,7 +22,7 @@ The precondition resource is self-framed: its body accumulates from #vm[`empty`]
 and reads only what it has just granted itself. The postcondition is the one
 construct that is not, and the next paragraph is about that.
 
-#para[Call sites] A call is an exhale of the precondition followed by an inhale of
+A call is an exhale of the precondition followed by an inhale of
 the postcondition, with fresh values created in between for whatever the callee
 returns. The guiding example's functions call no other function of the crate, so
 every call in its encoding is to one of the methods Prusti generates —
@@ -88,7 +88,7 @@ from the caller's heap before the postcondition adds anything back, so a caller
 cannot silently keep a share it has handed over. And because the return values
 are created between the two, the postcondition can talk about them.
 
-#para[Two-state postconditions] A postcondition may mention #vi[`old`], and then
+A postcondition may mention #vi[`old`], and then
 it is a claim about two states rather than one. This is where the resource
 construct is stretched, and it is worth following because Prusti relies on
 #vi[`old`] heavily — it is how every method that mutates through a reference
@@ -161,7 +161,7 @@ and exhale it, and nothing else. And a postcondition can be verified for
 well-formedness once, on its own, as any resource is, with its snapshot parameter
 an ordinary symbolic value.
 
-#para[What we record] A call that cannot be discharged leaves the transaction
+A call that cannot be discharged leaves the transaction
 half-executed by design: the exhale reports which location it could not take
 enough permission from, with the demanded and held amounts as terms, and the
 caller's heap up to that point is intact. Nothing about the callee has been

@@ -33,7 +33,6 @@
 = Approach <sec:approach>
 #include "chapters/03-approach.typ"
 
-= Implementation <sec:implementation>
 #include "chapters/04-implementation.typ"
 
 = Results <sec:results>

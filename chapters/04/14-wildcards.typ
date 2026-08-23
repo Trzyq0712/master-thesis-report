@@ -16,7 +16,7 @@ would make a read-only client fail against a caller holding less. Two things
 produce a wildcard: writing one in the source, and the verifier's own read-only
 lowering, which is where the great majority of them come from.
 
-#para[Representation] A wildcard is a #vm[`Symbolic::Wildcard`] node — a fresh
+A wildcard is a #vm[`Symbolic::Wildcard`] node — a fresh
 symbolic real, assumed $0 < w$ the moment it is created, and distinct from an
 ordinary fresh value in exactly one respect: it can be _recognised_. That is its
 whole purpose as a separate node. The facts a wildcard carries are the same facts
@@ -24,13 +24,11 @@ a fresh positive real would carry; what the distinct node buys is that an
 instruction can see it is looking at a wildcard and take a different rule.
 
 Nothing else about it is special, and in particular it is not a value. A wildcard
-is legal only as a permission amount, never as an operand — the same restriction
-Viper imposes, and VMIR keeps it structurally rather than by prohibition. A
-permission written on a heap instruction is not an expression but a small shape of
-its own: an ordinary amount, a bare #vm[`wildcard`] carrying nothing under it, or a
-ternary gating one permission shape by a boolean. Nothing else can be written, so a
-wildcard cannot escape into a term, and every rule below is selected off that shape
-rather than off anything in the e-graph.
+is legal only as a permission amount and never as an operand. The permission
+grammar of @sec:impl-vmir is what enforces that: an amount, a bare
+#vm[`wildcard`], or a ternary over the two, and nothing else. A wildcard therefore
+cannot escape into a term, and every rule below is selected off that shape rather
+than off anything in the e-graph.
 
 #lowering(caption: [A source-level #vi[`wildcard`] is a permission amount and nothing else.], label: "lst:wildcard-inhale")[```viper
 inhale acc(own_Account(x), wildcard)
@@ -142,7 +140,7 @@ comparisons in this section are against the implementation, where the exhale rul
 of #pararef(<para:impl-wildcard-exhale>, [Exhaling a wildcard]) is the
 constrainable-ARP rule.
 
-#para[Recognising a wildcard] Which of the two consume rules applies is decided
+Which of the two consume rules applies is decided
 from the permission's _shape_ — statically, from the instruction the verifier was
 given — and never by inspecting the e-graph. The distinction matters more than it
 looks. Asking the e-graph whether a term is a wildcard is asking about an e-class,
@@ -157,7 +155,7 @@ gate on the lowering side is what makes this possible — a gated wildcard is ke
 a permission ternary rather than flattened into a value ternary, so the shape
 survives all the way from the source to the rule that dispatches on it.
 
-#para[Frame-only exhales] One use of a wildcard footprint does not want the
+One use of a wildcard footprint does not want the
 wildcard. A heap-dependent function call checks its precondition
 (@sec:impl-functions), and what that check needs to establish is that the footprint
 is _there_ — the call takes nothing and gives nothing back. For a slot whose
@@ -202,7 +200,7 @@ What this costs a program with no wildcards in it is nothing. Both the produce a
 the consume path are gated on a flag computed once per program, so a wildcard-free
 program builds the same terms it would have built without any of this.
 
-#para[What we record] Every fact a wildcard carries is stated directly — $0 < w$ at
+Every fact a wildcard carries is stated directly — $0 < w$ at
 creation, $x < s$ at a sum, $r < p_"held"$ at an exhale — and nothing chains them.
 The gaps are all in that: they are the arithmetic gap of @sec:beyond-fragment seen
 from the permission side, and they are narrow enough to name.

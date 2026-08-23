@@ -8,7 +8,7 @@ discharges it. The work was done in the sections above; all that is left is to
 check that a real encoding contains nothing they do not cover, and that the whole
 of it verifies.
 
-#para[Construct by construct] The unabridged file is 3371 lines of Viper declaring
+The unabridged file is 3371 lines of Viper declaring
 151 members. @lst:example-viper showed one instance of each shape; the table below
 takes each of those back to the section that owns it, and then accounts for
 everything the abridgement dropped.
@@ -99,7 +99,7 @@ snapshot functions and assignment methods is the same three shapes at fourteen
 types, two of which — the #vi[`body_invariant!`] closures — exist only because
 Prusti insists on an invariant. What they add is volume, which is what @sec:results measures.
 
-#para[The whole file] It verifies: 151 members, no failures. What it costs against
+The whole file verifies: 151 members, no failures. What it costs against
 Silicon is @sec:results's subject and is not quoted twice; what the shape of the
 proof effort was belongs here, because it is what the preceding sections were
 arranged to produce.

@@ -32,12 +32,11 @@ instruction. The listings are VMIR-lite in two respects: the receivers keep
 their source names rather than becoming numbered values, and the computation of
 an address is written where it is used rather than on a line of its own.
 
-#para[Taking permission] <para:impl-threading> The heap is not a structure the
-verifier mutates in place. It is named by a temporary of its own sort — the
-#vm[`h`] temporaries, distinct from the #vm[`e`] temporaries that name e-classes —
-and an instruction either produces one or consults one. Each conjunct of an assertion
-is applied on its own, threading one heap into the next, so the #vi[`inhale`] of
-@lst:heap-ops becomes one add per #vi[`acc`]:
+#para[Taking permission] <para:impl-threading> The heap is named by a temporary
+of its own sort, and an instruction either produces one or consults one
+(@sec:impl-vmir). Each conjunct of an assertion is applied on its own, threading
+one heap into the next, so the #vi[`inhale`] of @lst:heap-ops becomes one add per
+#vi[`acc`]:
 
 #lowering(
   caption: [An #vi[`inhale`] becomes one add per #vi[`acc`], threading the heap.],
@@ -54,23 +53,16 @@ h1 := h0 + f(x) @ 2/3
 ```]
 
 Both instructions of @lst:heap-inhale are _heap-producing_: each takes a heap and
-yields a new one, written with the new heap on the left. The chain starts at
-#vm[`empty`], the heap that holds
-nothing, since this is the first statement of a body. The location is #vm[`f(x)`],
+yields a new one. The chain starts at #vm[`empty`], since this is the first
+statement of a body. The location is #vm[`f(x)`],
 the location function of @sec:impl-fields applied to the receiver, and that is the
 whole of what #vi[`x.f`] means in this position; elsewhere it means the value
 stored there, which has to be read out of a particular heap.
 
-The trailing #vm[`with`] is the instruction's _bind point_: where the value of a
-chunk it creates comes from. An add is the one direction that has no
-value of its own — it puts permission somewhere the program may not have held any
-— so the value is a parameter of the instruction rather than something the
-verifier decides. #vm[`with fresh`] is the havoc form, and it is what an
-#vi[`inhale`] in a method body means: whatever is at that location, nothing is
-assumed about it. The other two forms bind the value to a term already in scope,
-and they are what make a resource body and a fold mean what they mean
-(@sec:impl-predicates). There is no default: a produce that wants havoc says so,
-which keeps the one case with consequences from being the silent one.
+The trailing #vm[`with`] is the instruction's bind point (@sec:impl-vmir). An add
+is the one direction that has no value of its own. It puts permission somewhere
+the program may not have held any, so the value has to be a parameter of the
+instruction rather than something the verifier decides.
 
 What an add does with the bind depends on whether the partition already holds a
 chunk at the location. If it does not, a new chunk is created holding the value
@@ -107,7 +99,7 @@ values under the agreement axiom is
 add does depends on knowing the aliasing up front; it is a lookup that happens to
 succeed early in this example.
 
-#para[Writing] An assignment produces a heap in which one location holds a new
+An assignment produces a heap in which one location holds a new
 value and every other chunk is untouched:
 
 #lowering(
@@ -161,11 +153,9 @@ introduces an e-class nothing needs, and leaves an equality for congruence closu
 to merge, where #vm[`assign`] replaces the value in place after a single lookup.
 Mutation is everywhere, so the difference is paid on the hot path.
 
-#para[Reading] A read is the first instruction here that needs a value out of a
-heap. It is _heap-dependent_: it produces an ordinary value, consults a heap
-without producing one, and names the heap it reads in brackets, #vm[`*[h] e`]
-being the value stored at location #vm[`e`] in #vm[`h`]. A heap on the left means
-a state was produced, a heap in brackets means one was consulted.
+A read is the first instruction here that needs a value out of a heap. It is
+_heap-dependent_: it produces an ordinary value and consults a heap without
+producing one.
 
 #lowering(
   caption: [A read names the heap it consults and yields an ordinary value.],
@@ -205,11 +195,10 @@ exhale acc(x.f, 1/2)
 h3, _ := h2 - f(x) @ 1/2
 ```]
 
-A subtract has a second result, which is why @lst:heap-exhale binds a pair. It is
-the counterpart of the bind point, and it points the other way: an add is told
-what value to put somewhere, a subtract _discovers_ what value was there and hands
-it back. Nothing in @lst:heap-exhale wants it, so the binder is #vm[`_`] and the
-value is never built. The one construct that does want it is an unfold
+A subtract has a second result, which is why @lst:heap-exhale binds a pair
+(@sec:impl-vmir). It is the counterpart of the bind point, and it points the other
+way. An add is told what value to put somewhere. A subtract _discovers_ what value
+was there and hands it back. The one construct that wants it is an unfold
 (@sec:impl-predicates), which passes it straight into the instruction that reproduces
 the footprint, and that is the whole reason the yield exists.
 
@@ -221,10 +210,8 @@ is optional, and the asymmetry is deliberate — presence is _discovered_ here,
 whereas a bind point _supplies_ a value and the instruction works out for itself,
 from the amount, whether a chunk results.
 
-An underscore is written by the translator, never derived. Whether a result is
-wanted is part of what an instruction is, not an accident of what a later one
-happens to read, and @sec:impl-functions has a case where blanking a result
-changes the instruction's meaning rather than merely its cost.
+@sec:impl-functions has a case where blanking a result changes the instruction's
+meaning rather than merely its cost.
 
 A subtract can fail in two ways. It carries
 the same non-negativity side condition on the amount its #vi[`acc`] names, and it
@@ -312,7 +299,7 @@ holding no permission is inert.
   wildcard is gated one level up — the ternary is over the permission rather than
   inside it — and the demand it raises is structural rather than arithmetic.
 
-  #para[What we record] A demand that cannot be discharged is reported as
+  A demand that cannot be discharged is reported as
   insufficient permission, which is a failure to prove rather than a loss of
   information: the chunk is still in its partition with its amount as a term, the
   path condition is still exact, and the obligation is still a pair of e-classes,

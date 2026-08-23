@@ -25,8 +25,8 @@ coarser than it looks — every Rust value of that primitive type, anywhere in
 the program, shares one partition — which is why the aliasing question below
 is one the design has to answer rather than one the frontend arranges away.
 
-#para[The mapping is not injective] The function is declared and nothing else: no
-body, no axiom, no postcondition. This is where our verifier diverges from field
+The mapping from a receiver to a location is not injective. The function is
+declared and nothing else: no body, no axiom, no postcondition. This is where our verifier diverges from field
 semantics in Silicon or Carbon. The other two verifiers make fields an injective
 mapping implicitly. It comes down to how they state the non-aliasing axiom: they
 talk directly about the receivers and not about the locations.

@@ -71,12 +71,12 @@ when something unfolds it. That is what lets #ru[`sum_balances`] walk a list of
 unbounded length with a fixed-size body — each iteration unfolds one node and
 inherits a slot standing for the whole of the rest.
 
-The one line that is new is the bind point. Inside a resource body an add writes
-#vm[`with self`], which binds the chunk to the next slot of the resource's _own_
-footprint — the value whoever uses this resource supplies for it. It is
-deliberately unnumbered: the slot's ordinal is a consequence of where the add
-stands in the body, never something the body states, so a body cannot name a slot
-it did not declare or name one out of order. What the footprint _is_ is read off
+The one line that is new is the bind point. An add inside a resource body writes
+#vm[`with self`] (@sec:impl-vmir), binding the chunk to the next slot of the
+resource's own footprint: the value whoever uses this resource supplies for it.
+The form is deliberately unnumbered. The slot's ordinal is a consequence of where
+the add stands in the body, never something the body states, so a body cannot name
+a slot it did not declare or name one out of order. What the footprint _is_ is read off
 these markers, which is #pararef(<para:impl-snapshots>, [Snapshots]) below.
 
 What a resource context does is restrict which instructions may appear. The rule
@@ -89,7 +89,7 @@ and they are bound to concrete arguments wherever the resource is used. A body i
 therefore a recipe over its parameters rather than a piece of program. Freshness
 is a property of the _instruction that uses_ a resource, and never of the resource.
 
-#para[Resources] The last line is what the name #vm[`resource`] refers to. A body
+The last line is what the name #vm[`resource`] refers to. A body
 evaluates to a _pair_: a heap and a value. The heap is a delta — what holding the
 resource adds. The value is an assertion _about_ that delta: a pure condition
 claimed to hold of what the delta contains. Both listings above have
@@ -294,7 +294,7 @@ discriminant across the round trip, or by asserting that a discriminator ranges
 over the declared variants (@sec:impl-adts) — would collapse the split to a lookup,
 and neither is done here.
 
-#para[Inhaling and exhaling an instance] Taking and giving back an instance needs
+Taking and giving back an instance needs
 no new instruction. An #vi[`acc`] naming a predicate is an #vi[`acc`] like any
 other: the location is the derived location function applied to the arguments, and
 the assertion lowers to the add and the subtract of @sec:impl-heap-interaction.
@@ -356,7 +356,7 @@ Contract application is where these appear first — a call is an exhale and an
 inhale of the callee's contracts (@sec:impl-calls) — but they are reached from a
 source program too, by the next paragraph.
 
-#para[Folding and unfolding] An inhale hands over an instance without ever looking
+An inhale hands over an instance without ever looking
 at what it stands for. A #vi[`fold`] is the operation that does look: it exchanges
 the chunks the body's delta names for the instance itself, and the instance it
 produces remembers what those chunks held. An #vi[`unfold`] runs the exchange the
@@ -497,7 +497,7 @@ The effect is scoped and fabricates no permission, so this is benign; but it is
 the one place where "heap instructions operate at block granularity", which
 @sec:impl-cfg relies on, is not literally true.
 
-#para[Abstract predicates] A predicate declared without a body has no delta to read
+A predicate declared without a body has no delta to read
 a snapshot type off, so it does not get one. The snapshot type is an opaque domain
 instead of an #vm[`adt`], and values of it are only ever passed around, never
 constructed or projected. Nothing else changes: there is still a derived location

@@ -9,7 +9,7 @@ decision, and one this chapter is organised against. The rest is absent because 
 is not finished, and those are gaps. Running the two together would be
 misleading in both directions.
 
-#para[Out of scope] Nothing in the following appears anywhere in the 22 encodings
+Nothing in the following appears anywhere in the 22 encodings
 of the corpus, and none of it is supported.
 
 Magic wands are the largest. Quantified permissions are the next — with no
@@ -35,7 +35,7 @@ they are cheap for the same reason: fractional permission literals and the
 (#pararef(<para:impl-amounts>, [Conditional permission amounts])) rather than needing a
 mechanism of their own. A frontend other than Prusti would find them working.
 
-#para[Genuine gaps] The list of things that ought to work and do not is shorter
+The list of things that ought to work and do not is shorter
 and more specific.
 
 The first dominates the others: there is no decision procedure for linear
@@ -67,7 +67,7 @@ operation that can sit under a path condition finer than its block's
 is an exception to an invariant rather than an unsoundness, but it is the one place
 the block model is not literally true of the instruction stream.
 
-#para[Complete state, incomplete procedure] The sections above each ended by
+The sections above each ended by
 saying what the verifier records when it cannot prove something, and the reason to
 have said it every time is that the property only means anything if it holds
 everywhere. Stated once, in full:

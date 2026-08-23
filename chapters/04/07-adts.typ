@@ -22,7 +22,7 @@ immediately before Predicates: a snapshot is an #vi[`adt`] value, and a fold and
 its unfold cancel by a reduction stated in this section rather than by anything
 the heap does.
 
-#para[Constructors and projections] The first rule is the projection reduction:
+The first rule is the projection reduction:
 a projection applied to a matching constructor gives the field back,
 
 $ "proj"_i (C(a_0, ..., a_n)) => a_i $
@@ -44,7 +44,7 @@ projection unless the rule descends. Because the argument is typically a shared
 graph rather than a tree, the descent memoises per class; without that, a graph
 with $d$ shared classes is walked along up to $2^d$ paths.
 
-#para[Discriminators] Viper's #vi[`x.isC`] tests which variant a value is, and it
+Viper's #vi[`x.isC`] tests which variant a value is, and it
 is the enum snapshots of @lst:example-viper that a Prusti encoding asks it of —
 #vi[`Transaction_discr`]'s body is #vi[`self.isTransaction_1_cons`] under a
 ternary, and #vi[`AccountList_discr`]'s is the same shape. The obvious encoding gives each
@@ -133,7 +133,7 @@ new observation can have appeared. That trades completeness and not soundness �
 fingerprint can sharpen without either side gaining a parent — and a missed
 refutation only fails to prove something.
 
-#para[What we still do not decide] Two gaps survive, and both are about the
+Two gaps survive, and both are about the
 discriminator rather than about constructors.
 
 The first is exhaustiveness: from "not this variant and not that one" to "then it
@@ -160,7 +160,7 @@ detected at a merge rather than reconstructed. That is a change to the engine
 rather than to the encoding, and it is the one that would also make a program's own
 #vi[`assume a != b`] first-class under a path condition.
 
-#para[What we record] A discriminator test that cannot be decided is left as an
+A discriminator test that cannot be decided is left as an
 equality between an application and a literal, in the state, with both sides
 intact. Nothing is approximated: the term the verifier could not fold is the term
 the program wrote, and a procedure with a theory of datatypes would find it

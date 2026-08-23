@@ -53,7 +53,7 @@ assert e4
 The verifier executes this line by line, updating the symbolic state at each step,
 and when it reaches the assertion it checks whether the obligation is satisfied.
 
-#para[Symbolic state] There is no separate store of what the verifier knows. The
+There is no separate store of what the verifier knows. The
 e-graph _is_ the symbolic state, and a VMIR temporary is nothing more than a
 handle into it: executing an instruction builds the term it names and yields the
 e-class that term landed in. The walk is forward and single-pass — instructions
@@ -109,7 +109,7 @@ mechanisms this walk leaned on precise: which rewrites there are, when they are
 run over the graph, and what the verifier does with an obligation a lookup does
 not settle.
 
-#para[Well-definedness] Building a term is not always free of obligations. Some
+Building a term is not always free of obligations. Some
 operations are partial, and an instruction applying one raises a side condition
 saying that it was applied where it denotes something. Division is the case in
 this fragment: #vi[`x / d`] means nothing where #vi[`d`] is zero, so
@@ -117,17 +117,15 @@ this fragment: #vi[`x / d`] means nothing where #vi[`d`] is zero, so
 term is built and whatever the surrounding expression goes on to do with the
 result.
 
-#para[Path conditions] The obligation is not always raised flatly, and a division
+The obligation is not always raised flatly, and a division
 is the smallest thing that shows why. A program guards one by writing the check
 into the expression, as in #vi[`var y: Int := d != 0 ? x / d : 0`] — the divisor
 is only ever divided by where the guard says it is safe, and a verifier that
 ignored that would reject a correct program.
 
-The lowering is what carries the guard to the division. An instruction may hold a
-_path condition_, written in angle brackets before it: a _cube_, meaning a
-conjunction of boolean values already in the graph, each taken with a polarity. It
-is attached at lowering time and is exact, so the verifier reads off what is in
-force rather than working it out.
+The lowering is what carries the guard to the division. It attaches a path
+condition to the instruction (@sec:impl-vmir), and that condition is exact, so
+the verifier reads off what is in force rather than working it out.
 
 #vmir(
   caption: [A guarded division. The obligation the division raises is carried under the guard the program wrote.],
@@ -165,7 +163,7 @@ only hold where the cube does, so what has to be proven is not the goal but the
 implication $"pc" => "goal"$ — here $e_2 => e_1 != 0$, whose consequent is the
 literal the cube already contains.
 
-#para[One state, not two] Carrying the condition on the instruction is what lets
+Carrying the condition on the instruction is what lets
 the verifier keep a single graph where a forking symbolic execution keeps one
 state per path. Silicon takes that other route, its #vi[`branch`] rule taking one
 continuation per outcome:

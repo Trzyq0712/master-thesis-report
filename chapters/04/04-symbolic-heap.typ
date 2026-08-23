@@ -17,13 +17,13 @@ conditional is deferred to @sec:impl-cfg, which is where a branch first forces t
 heaps to be reconciled and so where conditional chunks are actually motivated;
 what a chunk is and what partitioning it buys can be settled without any of that.
 
-#para[Locations] Viper distinguishes between the two kinds of resource a
+Viper distinguishes between the two kinds of resource a
 program can hold permission to: a field of an object, and an instance of a
 predicate. VMIR collapses that distinction and knows only about _locations_.
 
-A location type is written #vm[`&[g] T @ p`] and has three components. The
-_stored type_ #vm[`T`] is the type of the value held there. The _permission
-bound_ #vm[`p`] caps how much permission any single location of this kind may
+A location type is written #vm[`&[g] T @ p`] (@sec:impl-vmir). The _stored type_
+#vm[`T`] is the type of the value held there. The _permission bound_ #vm[`p`]
+caps how much permission any single location of this kind may
 hold, and is either a rational constant or #vm[`*`], meaning unbounded. A Viper
 program produces only the two extremes: #vm[`1/1`] for a field, matching
 #vi[`write`], and #vm[`*`] for a predicate instance, since nothing stops a
@@ -43,7 +43,7 @@ returned from a call. However it was produced, the verifier can still recover
 what is stored there and how much permission it may carry, and nothing
 downstream requires it to have come from a syntactic field access.
 
-#para[Chunks] What the heap holds is a set of _chunks_. A chunk is a triple: the
+What the heap holds is a set of _chunks_. A chunk is a triple: the
 _location_ it sits at, the _permission amount_ held there, and the _value_
 stored. For a field chunk the value is the field's contents; for a predicate it
 is the instance's snapshot (@sec:impl-predicates).

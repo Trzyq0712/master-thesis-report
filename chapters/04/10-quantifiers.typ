@@ -12,7 +12,7 @@ written trigger, and there are no quantified permissions and no #vi[`exists`]
 at all. The verifier's obligation is therefore narrower than Viper's grammar
 suggests: instantiate pure, triggered, universally quantified facts.
 
-#para[Triggers] A trigger is a pattern the author writes, and it is never
+A trigger is a pattern the author writes, and it is never
 inferred. A #vi[`forall`] arriving without one that covers its binders is
 rejected as a type error rather than being given a guess, on the grounds that a
 quantifier silently instantiated on a pattern nobody wrote is a performance cliff
@@ -23,7 +23,7 @@ of any one instantiates. A group may name several terms, and those are conjuncti
 — every term of the group must match, under one consistent binding, before the
 group fires.
 
-#para[E-matching] What is unusual is where a quantifier lives. It is not a rule.
+What is unusual is where a quantifier lives. It is not a rule.
 A #vi[`forall`] is an ordinary value in the instruction stream — an e-node whose
 payload names its compiled body and whose children are the e-classes of the
 enclosing values the body mentions. Capture is thereby implicit: the body shares
@@ -47,7 +47,7 @@ expected to fire because the graph could be normalised into the right shape. The
 second is a contract with the rest of the design: a rewrite that happens to
 canonicalise terms is not permitted to be load-bearing for a trigger.
 
-#para[Instantiation] An instance is the body rebuilt at the captures and the
+An instance is the body rebuilt at the captures and the
 matched binding: the compiled body's steps are re-run with the binders bound to
 the matched classes, add-only and importing no e-class from anywhere. The same
 mechanism installs a function's body at an occurrence of the function, and it is
@@ -70,7 +70,7 @@ binding baked into the children. The instantiation rule then picks that node up 
 the next saturation iteration, since it is data the rule scans rather than a rule
 that would have to be injected mid-run.
 
-#para[Control] Left alone, the loop of match–instantiate–match is where a solver
+Left alone, the loop of match–instantiate–match is where a solver
 diverges, and the verifier's defences are structural rather than budgeted.
 
 Instances are memoised by the quantifier and the binding that produced them, so a
@@ -92,7 +92,7 @@ happens inside a rewrite rule, where nothing can be proven at all: by the time a
 recipe is replayed, every obligation it might have carried has already been
 discharged.
 
-#para[What we record] A quantifier that never triggers is not an error and not a
+A quantifier that never triggers is not an error and not a
 loss. Its node is in the state with its captures resolved and its body compiled,
 which is a complete description of the fact it stands for; what is missing is only
 that no term the program built matched its pattern. An obligation that would have

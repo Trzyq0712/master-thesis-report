@@ -10,7 +10,7 @@ A domain introduces no new kind of instruction. What it contributes is rules —
 facts merged into the state that the ladder of @sec:impl-proving runs
 underneath every tier.
 
-#para[Flattening] A domain declaration flattens. Its functions become ordinary
+A domain declaration flattens. Its functions become ordinary
 function declarations and its axioms become top-level axioms; the domain itself
 survives only as a type.
 

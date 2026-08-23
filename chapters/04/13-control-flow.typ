@@ -9,7 +9,7 @@ chunk that is held on one path and not on another, and a demand that has to be
 met by a sum rather than by a chunk. The two ends @sec:impl-methods describes are
 untouched by any of it; what changes is everything between them.
 
-#para[Blocks and block order] A Viper method body is a basic-block graph, and the
+A Viper method body is a basic-block graph, and the
 verifier builds one before it lowers anything. Viper offers two ways to branch and
 Prusti uses both: #vi[`goto`] between labelled blocks, and a structured
 #vi[`if`] — either wrapping a pair of #vi[`goto`]s, or guarding a run of
@@ -94,7 +94,7 @@ the listing; had it declared one, neither end would know that the body branched.
 Everything this section is about happens between them, and #vm[`bb3`]'s join
 phase is where it becomes visible: two heaps arrive there and one leaves.
 
-#para[Path conditions] A block's cube is written in its header, and every
+A block's cube is written in its header, and every
 instruction of the block carries it. It is computed once, at lowering time, from
 the predecessors' cubes: each incoming edge contributes its source's condition
 extended by the literal that edge is taken under, and the block's condition is the
@@ -128,7 +128,7 @@ is what keeps the tier that clones from being paid per instruction. Function and
 resource bodies have no block structure and so keep the per-obligation clone;
 there is nothing for them to share.
 
-#para[Joining values] A variable that the two arms disagree about is reconciled by
+A variable that the two arms disagree about is reconciled by
 a ternary on the branch condition, and #vm[`e7`] above is one: #vi[`v`] is the
 constant where the else arm ran and the field's value where the then arm did. A variable
 both arms agree on passes through untouched, and one only defined on a single arm
@@ -144,7 +144,7 @@ covering every case. Manufacturing such a leaf instead would produce a term whos
 collapse depends on a proof of exhaustiveness, and that proof is exactly the one
 the case-splitting tier would have to do.
 
-#para[Joining heaps] The heaps of the two arms are reconciled by a #vm[`merge`]
+The heaps of the two arms are reconciled by a #vm[`merge`]
 instruction in the join phase, before any instruction of the block reads a heap.
 It is a structural operation: the two heaps are walked partition by partition and,
 within a partition, by canonical location, and each pair of chunks is resolved on
@@ -173,8 +173,8 @@ dropped and the surviving arm is carried across as it stands. Selecting against 
 dead arm would build precisely the structure the previous paragraph avoids, and
 for a state that cannot arise.
 
-#para[Guards, and why not ternaries] It is worth being explicit that this is the
-_opposite_ of what @lst:guarded-add does. A guarded access inside an assertion
+The treatment of guards at a join is the _opposite_ of what @lst:guarded-add
+does. A guarded access inside an assertion
 pushes its condition into the permission amount and keeps the chunk unconditional;
 a join keeps the amount guard-free and carries the condition beside it as a cube.
 The problem has the same shape in both places and gets the opposite answer, so a
@@ -234,7 +234,7 @@ The shape to keep in mind for what follows is a chunk part-way through this
 process: a location drained under one condition and untouched otherwise reads
 #vm[`e0 ? 0/1 : 1/1`]. Every finding below is about a probe meeting one of those.
 
-#para[Reborrows and aliasing] The corpus is where this stopped being
+The corpus is where this stopped being
 straightforward. A #ru[`&mut`] passed into a call is, in Prusti's encoding, a
 reborrow: the caller computes a new reference whose address is provably equal to
 one it already holds permission for, and the call site then demands permission at
@@ -244,8 +244,8 @@ moment of the lookup — and each turns on the guarded chunks above. They are
 reported here as findings, because the fixes are not obvious and three of the
 four were arrived at by first getting them wrong.
 
-#para[Finding: where the retry belongs] A reborrow's address meets the held
-chunk's address only after the full rule set has run: it reaches through the
+The first failure concerns where a retry belongs. A reborrow's address meets the
+held chunk's address only after the full rule set has run: it reaches through the
 snapshot machinery, and the terminating reductions the verifier runs after a heap
 operation are not enough to close the gap. So a lookup that misses has to be able
 to saturate and try again.
@@ -259,7 +259,7 @@ provably zero. Putting the retry after that check inverts who pays. A miss that
 the zero test closes never saturates; only an obligation that would otherwise be
 reported as a failure does.
 
-#para[Finding: a reborrow created under a branch] The second failure is invisible
+The second failure is invisible
 to the first fix. A reborrow computed _inside_ an arm has an address whose
 equality to the held chunk's is a fact of that arm, so it is in the state as a
 guarded implication rather than as a merge of two classes. Matching chunks by
@@ -273,7 +273,7 @@ describes, which resolves the address gate under the cube rather than in the
 ground state. The consume then proceeds with its debit gated by that cube, so
 nothing is taken on the path where the addresses are unrelated.
 
-#para[Finding: consecutive reborrows] The third is a soundness bug rather than a
+The third is a soundness bug rather than a
 completeness one, and it is what the alias _set_ exists for. Where several held
 chunks coincide with the demand under the path condition, the permission at that
 location is their sum and nothing less; proving sufficiency against the first
@@ -287,7 +287,7 @@ Proving against the sum and distributing the debit across the set closes it. The
 case is pinned by a soundness regression test in the suite: two full consumes at one
 location, reached through nested equalities, which must not both succeed.
 
-#para[Finding: reading a field after a call] The last is a completeness failure
+The last is a completeness failure
 with a cause in a different section entirely. Re-reading a field after a call
 should relate the value read to the one the postcondition established, and it did
 not: the occurrence of the function relating them stayed opaque, so two reads of
@@ -301,7 +301,7 @@ An occurrence introduced by a method contract therefore arrived without its
 token and was never unfolded. The fix belongs where the pruning is, and is stated
 there.
 
-#para[What we record] A join never approximates. Where two arms cannot be
+A join never approximates. Where two arms cannot be
 reconciled structurally the verifier falls back to a representation that is
 larger, not to one that is weaker, and a failed obligation under a cube leaves
 the cube, the chunk and its guard exactly as they were. A call that cannot be

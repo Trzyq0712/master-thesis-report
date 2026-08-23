@@ -2,20 +2,22 @@
 
 // The chapter is split one file per section, under `chapters/04/`.
 
+= VMIR and Helium <sec:implementation>
 In this chapter we present the design and implementation of the new IR and the
 verifier. The components are presented in the order of increasing complexity,
 with the later ones building on top of the earlier.
 
-We start with a brief overview of the new Viper Mid-level Intermediate
-Representation (VMIR), outlining the high level idea behind it. We then
+We start with the new Viper Mid-level Intermediate
+Representation (VMIR). We introduce the syntax and semantics, as well as motivate
+the design decisions taken. We then
 describe how the new verifier -- Helium -- executes
-simplest of programs consisting of heapless methods. We then
-explain in closer detail the mechanisms by which the verifier
+simplest of programs consisting of heap independent statements. We follow that
+by explaining in closer detail the mechanisms by which the verifier
 discharges obligations.
 
 Afterwards, we introduce the symbolic heap and explain how we handle heap
-related constructs from Viper like fields and predicates. We then proceed
-with how user-defined ADTs and domains are used and reasoned about.
+constructs from Viper like fields and predicates. We then proceed
+with how user-defined ADTs and domains are encoded and reasoned about.
 
 The later couple of sections are dedicated to methods. These explain
 how the new infrastructure handles method calls and verifies bodies
@@ -23,7 +25,8 @@ with control flow. To complete the picture, we then describe calling and
 verification of functions.
 
 At the end of the chapter, we put all the components together and explain
-how they work together to verify a complete user specification-free Prusti-generated program.
+how they work together to verify a complete user specification-free
+Prusti-generated program.
 
 // This chapter builds the backend one construct at a time, checking each against
 // the program presented in @sec:example. It opens with a short look at VMIR

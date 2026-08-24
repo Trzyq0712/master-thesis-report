@@ -1,6 +1,258 @@
 #import "../../macros.typ": *
 
-== Wildcard Permissions <sec:impl-wildcards>
+== Interacting with the Heap <sec:impl-heap-interaction>
+
+Four operations touch the heap: taking permission, reading, writing, giving
+permission back. One example does all four, plus a fifth line — a read before
+anything has been written — that earns its keep below:
+
+#viper(
+  caption: [Taking permission to one field in two pieces, reading before and
+    after writing, and giving half of it away.],
+  label: "lst:heap-ops",
+)[```viper
+inhale acc(x.f, 1/3) && acc(x.f, 2/3)
+assert x.f == x.f
+x.f := 42
+assert x.f == 42
+exhale acc(x.f, 1/2)
+```]
+
+The fractions on the #vi[`inhale`] and #vi[`exhale`] are split rather than
+written as one #vi[`write`], purely to exercise the arithmetic below at more
+than one value.
+
+#para[Taking permission] <para:impl-threading> Each conjunct of the
+#vi[`inhale`] is applied on its own, threading a heap temporary from one add
+to the next:
+
+#lowering(
+  caption: [An #vi[`inhale`] becomes one add per #vi[`acc`], threading the heap.],
+  label: "lst:heap-inhale",
+  target-lang: "lvmir",
+)[```viper
+inhale acc(x.f, 1/3)
+    && acc(x.f, 2/3)
+```][```lvmir
+h0 := empty + f(x) @ 1/3
+      with fresh
+h1 := h0 + f(x) @ 2/3
+      with fresh
+```]
+
+An add takes a heap and yields a new one, starting from #vm[`empty`] since
+this is the body's first statement. What it does depends on whether its
+partition already holds a chunk at #vm[`f(x)`]. The first add here does not:
+it creates one, holding the value its trailing #vm[`with`] supplies — a fresh,
+unconstrained e-class. The second add finds the chunk the first one just
+created, in the same partition at the same location, so it is not a second
+chunk: the value is left alone and the amount rises to #vm[`1/3 + 2/3`],
+folding to #vm[`1/1`]. An add can never fail for want of permission; what it
+can fail on is its own amount, which every #vi[`acc(l, p)`] carries as a side
+condition $p >= 0$ — literals discharge that on the spot, a computed amount
+raises it as an obligation like any other.
+
+#para[Reading] A read consults a heap without producing one, and yields an
+ordinary value rather than a permission chunk:
+
+#lowering(
+  caption: [A read names the heap it consults and yields an ordinary value.],
+  label: "lst:heap-read",
+  target-lang: "lvmir",
+)[```viper
+assert x.f == x.f
+```][```lvmir
+e0: Int := *[h1] f(x)
+e1: Bool := e0 == e0
+assert e1
+```]
+
+The obligation is _positivity_, $p_"held" > 0$, under the path condition: any
+amount above zero entitles the program to look, and where no chunk answers,
+the amount held is zero, so reading without permission fails the same check a
+computed amount would. What the read produces is whatever value the chunk at
+#vm[`f(x)`] currently holds — here, the fresh e-class the first add created,
+about which nothing is known, which is exactly why the assertion above can
+only compare it to itself. A read this early has nothing more interesting to
+say; what it establishes is the mechanism, which does not change once there
+is something worth reading.
+
+#para[Writing] An assignment replaces one chunk's value and leaves every
+other chunk untouched:
+
+#lowering(
+  caption: [An assignment replaces one chunk's value and frames the rest.],
+  label: "lst:heap-assign",
+  target-lang: "lvmir",
+)[```viper
+x.f := 42
+```][```lvmir
+h2 := h1 assign(f(x), 42)
+```]
+
+Three steps. First, _resolve_: #vm[`f(x)`] is taken to its canonical e-class,
+and the partition of #vm[`h1`] it belongs to is scanned for a chunk there; if
+none answers, the amount held is zero and the write fails outright. Second, the
+amount found is checked against the partition's bound — #vm[`1/1`] here, met
+by the #vm[`1/1`] the two adds above produced together, though either alone
+would have fallen short. Third, the value is replaced: the chunk keeps its
+location and its amount, only its value becomes the term written, and no other
+chunk is examined. The obligation the bound check raises, $p_"held" >= b$, is
+an inequality rather than an equality because an amount that folds past the
+bound already leaves the state inconsistent, so letting the write through
+costs nothing further.
+
+A bound of #vm[`*`] therefore makes a location unwritable in principle, not
+merely unwritten: with no $b$ to meet, no amount ever discharges the check. And
+a write earns being its own instruction rather than a subtract-then-add pair —
+that would tear a chunk down and rebuild it, leaving an e-class and an
+equality neither needed, where #vm[`assign`] replaces a value in place after
+one lookup. Mutation is common enough that the difference is paid on the hot
+path.
+
+A second #vi[`assert x.f == 42`] here would look identical to @lst:heap-read
+except for one temporary: it would name #vm[`h2`] rather than #vm[`h1`], and
+find #vm[`42`] rather than a fresh value — the same read, against the heap
+this assignment just produced.
+
+#para[Giving permission back] <para:impl-subtract> An #vi[`exhale`] subtracts
+what its assertion names, carrying the fraction across unchanged:
+
+#lowering(
+  caption: [An #vi[`exhale`] subtracts the amount the assertion names.],
+  label: "lst:heap-exhale",
+  target-lang: "lvmir",
+)[```viper
+exhale acc(x.f, 1/2)
+```][```lvmir
+h3, _ := h2 - f(x) @ 1/2
+```]
+
+A subtract binds a pair, the second slot being the counterpart of an add's
+bind point: an add is _told_ what value to place, a subtract _discovers_ what
+value was there and hands it back, as an #vm[`Option`] that is #vm[`Some(v)`]
+exactly where the amount taken away is positive — a subtract of nothing
+removes nothing and has nothing to report. It carries the same
+non-negativity side condition as an add, and raises one obligation of its own,
+
+$ p_"held" >= p_"needed" $
+
+failing as insufficient permission where it cannot be shown. What survives is
+the chunk, its amount replaced by $p_"held" - p_"needed"$, built and left
+unevaluated — here, #vm[`1/1 - 1/2`], so the chunk stays; it is dropped only
+where that difference is _provably_ zero, an optimisation rather than a
+matter of soundness.
+
+#para[Permission arithmetic] <para:impl-perm-arith> Running the example
+through, #vm[`1/3 + 2/3`] folded to #vm[`1/1`] on the way in and
+#vm[`1/1 - 1/2`] is left standing on the way out — most of the arithmetic a
+verified program does with permissions is exactly shapes like these. A small
+rewrite set closes them at the prover's cheapest tier rather than by reasoning
+about rationals at all: $(x - p) + p -> x$ is an amount an exhale takes and a
+later inhale gives back; $x - x -> 0$ is an amount taken in full; $x + 0 -> x$
+is a give-back against a chunk that was already empty; and $ternary(b, p, 0)
+-> p$ under an assumed guard is a conditionally-held chunk on the path where
+the guard holds. Each rule has a rational form as well as an integer one, and
+it is the rational form that runs.
+
+#if not excerpt-mode [
+  #para[Conditional permission amounts] <para:impl-amounts> The harder case is an
+  access taken only conditionally. A chunk's amount is an e-class exactly as its
+  location and its value are, so it may be an arbitrary term, and a guarded inhale
+  stays a single unconditional add.
+
+  #lowering(
+    caption: [A guarded access gates the amount, not the instruction.],
+    label: "lst:guarded-add",
+    target-lang: "lvmir",
+  )[```viper
+  inhale p > 0 ==> acc(x.f, p)
+  ```][```lvmir
+  e0: Bool := p > 0
+  e1: Real := e0 ? p : 0/1
+  h1 := h0 + f(x) @ e1 with fresh
+  ```]
+
+  The amount inhaled is the program's own #vi[`p`], and the condition is a fact
+  about it. With #vm[`h0`] the heap in hand, the chunk is added unconditionally and
+  the guard is pushed into the amount, which is exactly an add under a ternary whose
+  other arm is no permission at all. The _shape_ of the heap is then independent of
+  the condition — the same chunks sit in the same partitions whichever way
+  #vi[`p > 0`] goes — so the verifier never case-splits to find out what it is
+  holding, and a guarded access costs a ternary rather than a second heap.
+
+  Conjoining the condition instead of implying with it is a different assertion, and
+  the two lower apart:
+
+  #lowering(
+    caption: [A conjoined condition gates the delta and is assumed at the end.],
+    label: "lst:conjoined-add",
+    target-lang: "lvmir",
+  )[```viper
+  inhale p > 0 && acc(x.f, p)
+  ```][```lvmir
+  e0: Bool := p > 0
+  h1 := <e0> h0 + f(x) @ p with fresh
+  assume e0
+  ```]
+
+  The #vm[`<e0>`] is a guard on the instruction, and it means what the ternary of
+  @lst:guarded-add means — a guarded delta is the delta with its amount gated,
+  $ternary(e_0, p, 0)$. The pure conjunct is assumed once, after the deltas rather than before
+  them, since an assertion is self-framing and a pure conjunct may read through
+  permission an earlier conjunct granted; the gate then reduces to #vm[`p`] on the
+  next line, so the add is unconditional in effect.
+
+  @lst:conjoined-add gives #vi[`p`] unconditionally and _also_ learns that it is
+  positive, which every later instruction on the path can use; @lst:guarded-add
+  learns nothing and gives an amount that is only as good as #vi[`p > 0`] later
+  turns out to be. A read at the location goes through immediately after
+  @lst:conjoined-add, its positivity obligation being exactly the fact just assumed,
+  and after @lst:guarded-add only where #vi[`p > 0`] can be established. The pure
+  conjunct is the informative one, the guard the expensive one, and reading one for
+  the other is the standard way to be surprised by a Viper specification. Neither
+  form licenses a write, since neither says anything that puts #vi[`p`] at the bound.
+
+  What it costs instead is that a later demand at that location is an obligation on
+  an arithmetic term, which the representation then recovers. A demand of
+  #vm[`p`] against a held #vm[`e0 ? p : 0/1`] is not decidable as arithmetic, but
+  under an assumed #vm[`e0`] the ternary reduces to #vm[`p`] by the same rule that
+  simplifies any conditional, and the obligation is then an amount against itself:
+  one e-class compared with the same one, closed without any theory of rationals.
+
+  One amount does not gate this way, and it is the exception @sec:impl-wildcards is
+  about. A #vi[`wildcard`] has no term to push a condition into, so a guarded
+  wildcard is gated one level up — the ternary is over the permission rather than
+  inside it — and the demand it raises is structural rather than arithmetic.
+
+  A demand that cannot be discharged is reported as
+  insufficient permission, which is a failure to prove rather than a loss of
+  information: the chunk is still in its partition with its amount as a term, the
+  path condition is still exact, and the obligation is still a pair of e-classes,
+  so it could be handed to a procedure that reasons about rationals. Two
+  escalations sit before that report and need machinery introduced later — a
+  demand may have to be met by a _sum_ over chunks only conditionally at one
+  location, and the location demanded may meet the one held only under an
+  equality a saturation has yet to derive.
+
+  Where the limit actually lies is worth naming, because it is not where the
+  representation might suggest. A demand of a fraction _different_ from the amount
+  held is discharged whenever both are literals — #vi[`inhale acc(x.f, 3/4)`]
+  followed by #vi[`exhale acc(x.f, 1/2)`] leaves #vm[`1/4`] by constant folding
+  alone. A demand at a conditionally-held location is discharged whenever the
+  guard is assumed, by the ternary reduction just described. The non-negativity
+  side condition on a symbolic amount discharges too: from an assumed
+  #vi[`p > 0`] the obligation #vm[`!(p < 0)`] follows by asymmetry of a strict
+  order, $a < b => not (b < a)$, which the rule set states alongside the fold of
+  #vm[`<`] on literals — the same rule @sec:impl-wildcards leans on for its own
+  sufficiency check. What is left outside the rule set is the general arithmetic
+  gap of the tiered prover: an inequality that needs reasoning about a sum of
+  terms rather than about one term's own sign, which no permission amount here
+  raises on its own.
+]
+
+#if not excerpt-mode [
+=== Wildcard Permissions <sec:impl-wildcards>
 
 Everything the heap has done so far has been arithmetic. A chunk holds an amount,
 an exhale proves the amount held is at least the amount demanded, and the two
@@ -43,7 +295,7 @@ in a contract.
 
 #para[Where wildcards come from] <para:impl-readonly> The lowering applies a
 _read-only policy_ in the two places where the program is known to be reading: a
-function's body, and the resource its precondition lowers to (@sec:impl-functions).
+function's body, and the resource its precondition lowers to.
 Under that policy every permission amount is weakened as it is lowered — a constant
 zero stays zero, a constant nonzero amount becomes a #vm[`wildcard`], and a
 symbolic amount $p$ becomes
@@ -156,8 +408,8 @@ a permission ternary rather than flattened into a value ternary, so the shape
 survives all the way from the source to the rule that dispatches on it.
 
 One use of a wildcard footprint does not want the
-wildcard. A heap-dependent function call checks its precondition
-(@sec:impl-functions), and what that check needs to establish is that the footprint
+wildcard. A heap-dependent function call checks its precondition, and what
+that check needs to establish is that the footprint
 is _there_ — the call takes nothing and gives nothing back. For a slot whose
 permission is a bare wildcard the verifier therefore builds full permission in the
 wildcard's place and subtracts nothing: gated, that is #vm[`ite(g, 1, 0)`], whose
@@ -239,3 +491,4 @@ rejected by the lowering outright, and is one of the constructs collected in
 What a wildcard is has been said here; where nearly all of them come from has only
 been named. @sec:impl-functions is the construct that applies the read-only policy,
 at both of its sites, and it is the section this one exists to serve.
+]

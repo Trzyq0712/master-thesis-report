@@ -74,7 +74,7 @@ The _support_ column is what @sec:beyond-fragment and the fragment claim of
 #lower-table(
   vi[`field f: T`],
   [#vm[`function f(e0: Ref): &[f] T @ 1/1`]],
-  [full], [#sec(<sec:impl-fields>)],
+  [full], [#sec(<sec:impl-heap-interaction>)],
 
   vi[`predicate P(x: T) { A }`],
   [#vm[`resource P(..)`] with a body yielding #vm[`(h, b)`], whose footprint adds

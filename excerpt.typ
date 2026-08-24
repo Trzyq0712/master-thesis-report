@@ -27,7 +27,9 @@
   "sec:impl-cfg": [Control Flow],
   "sec:impl-functions": [Functions],
   "sec:impl-wildcards": [Wildcard Permissions],
+  "sec:beyond-fragment": [Beyond the Fragment],
   "sec:impl-together": [Putting It Together],
+  "sec:appendix-rewrites": [Rewrite Rules],
   "sec:results": [Results],
   "lst:example-viper": [the guiding example],
   "lst:example-loop": [the guiding example],
@@ -51,34 +53,23 @@
 #v(1.5em)
 
 // The chapter's own intro, from chapters/04-implementation.typ, verbatim.
-This chapter builds the backend one construct at a time, checking each against
-the program presented in @sec:example. It opens with a short look at VMIR
-itself, enough that the listings which follow read without a preamble, and then
-starts from the smallest thing a verifier can do: execute a heapless instruction
-stream and discharge the obligations it raises — the prover's tiers, and the
-rewrite rules they run underneath every one of them. The symbolic heap comes
-next, without conditional structure at first, so that its operations can be
-stated on their own; then fields, the instructions that move permission; then
-datatypes, whose rules are what a fold and its unfold cancel by; then
-predicates, which is where that cancellation is put to use. Domains and the
-quantified axioms they carry close out the values a program can build, and only
-then does the chapter turn to calls, method bodies, and control flow — which is
-what forces two heaps to be reconciled. Wildcard permissions, functions and
-loops close the chapter, each needing the ones before it and nothing after.
+We present the design and implementation of Viper Mid-Level Intermediate
+Representation (VMIR) and Helium verifier in this chapter.
+Sections increase in complexity, each building on the ones before it, and each
+introduces only the VMIR constructs it needs rather than assuming the
+representation up front.
 
-The order is deliberate in one further respect. Each section says what its
-construct costs the verifier and, where the mechanism differs from Silicon's,
-where the difference lies. The claim the chapter is accumulating is not that any
-single mechanism is novel, but that a particular set of them composes into a
-verifier on which the great majority of a Prusti program's obligations are true by
-construction rather than by proof — and @sec:impl-together is where that claim is
-checked against the whole of the guiding example.
+We start by executing the simplest programs a verifier can process, and by
+explaining the mechanism by which the verifier discharges the obligations
+they raise.
 
-#include "chapters/04/01-vmir.typ"
+Afterwards, we introduce the symbolic heap and explain how we handle heap
+constructs from Viper like fields and predicates. We then proceed
+with how user-defined ADTs and domains are encoded and reasoned about.
+
 #include "chapters/04/02-execution-model.typ"
 // #include "chapters/04/03-discharging.typ"
-#include "chapters/04/04-symbolic-heap.typ"
-#include "chapters/04/05-fields.typ"
-#include "chapters/04/06-heap-interaction.typ"
+#include "chapters/04/04-the-heap.typ"
+#include "chapters/04/05-heap-interaction.typ"
 
 #bibliography("bib.bib", title: [References])

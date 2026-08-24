@@ -15,8 +15,8 @@
 
   let hue = rgb("#0f766e")
 
-  let mw = 4.6 // column width
-  let row-h = 0.72
+  let mw = 6 // column width
+  let row-h = 1
 
   let rows = (
     [inconsistent],
@@ -35,7 +35,7 @@
       rect((0, ry - row-h + 0.26), (0.08, ry - 0.02), fill: hue, stroke: none)
       content(
         (mw / 2, ry - row-h / 2 + 0.12),
-        text(size: 0.72em, font: "DejaVu Sans Mono", fill: hue.darken(25%), r),
+        text(size: 0.9em, font: "DejaVu Sans Mono", fill: hue.darken(25%), r),
       )
     }
     for i in range(rows.len() - 1) {
@@ -57,7 +57,7 @@
     content(
       (mw / 2, bot - 0.26),
       anchor: "north",
-      text(size: 0.68em, weight: "bold", fill: hue.darken(10%))[reported unproven],
+      text(size: 0.8em, weight: "bold", fill: hue.darken(10%))[reported unproven],
     )
   })
 }

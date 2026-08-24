@@ -41,7 +41,7 @@ everything the abridgement dropped.
   vi[`field val_i32`, `val_bool`, `val_isize`,
      `val_RefMut`, …],
   [A unary location function into a bounded partition of its own
-   (@sec:impl-fields).],
+   (@sec:impl-heap-interaction).],
 
   vi[`predicate own_i32`, `own_Account`, `own_Box`, …],
   [Resources: a heap delta and a boolean, with a derived snapshot type and

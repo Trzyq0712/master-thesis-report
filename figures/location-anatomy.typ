@@ -33,7 +33,7 @@
       (x: 3.0, w: 0.75, s: "1/1", hue: base),
     )
     for t in toks {
-      content((t.x + t.w / 2, y-code), mono(t.s, size: 0.85em, fill: t.hue.darken(10%)))
+      content((t.x + t.w / 2, y-code), mono(t.s, size: 1em, fill: t.hue.darken(10%)))
     }
 
     // Three callouts, all below the code, all fanning down from their token
@@ -41,11 +41,11 @@
     // leader line, museum-placard style, rather than three vertical drops
     // crowding the same width as the tokens above them.
     let y-slot = -1.35
-    let callout(tok, slot-x, name, gloss) = {
+    let callout(tok, slot-x, name) = {
       let tx = tok.x + tok.w / 2
       line(
-        (tx, y-code - 0.18),
-        (slot-x, y-slot + 0.1),
+        (tx, y-code - 0.3),
+        (slot-x, y-slot + 0.2),
         stroke: 0.9pt + hot,
         mark: (end: ">", scale: 0.4, fill: hot),
       )
@@ -57,20 +57,18 @@
           align(center, std.stack(
             dir: ttb,
             spacing: 0.16em,
-            text(size: 0.62em, weight: "bold", fill: hot.darken(15%), name),
-            text(size: 0.52em, fill: ink.lighten(10%), gloss),
+            text(size: 0.9em, weight: "bold", fill: hot.darken(15%), name),
           )),
         ),
       )
     }
 
-    callout(toks.at(0), -1.3, [group], [which declaration this came from])
-    callout(toks.at(1), 1.85, [stored type], [type of the value held there])
+    callout(toks.at(0), -1.3, [group])
+    callout(toks.at(1), 1.7, [stored type])
     callout(
       toks.at(3),
       5.0,
       [permission bound],
-      [cap on the amount one location may hold — here #vi[`write`]],
     )
   })
 }

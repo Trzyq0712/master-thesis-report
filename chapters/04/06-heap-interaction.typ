@@ -85,7 +85,7 @@ whichever direction it is applied in, since an assertion naming a negative
 fraction denotes nothing, and the verifier raises it as an obligation before the
 add or subtract it belongs to. The amounts of @lst:heap-inhale are literals and
 answer it on the spot; one computed from program values does not, and it is
-checked like anything else (@sec:impl-proving). Adding permission is thereby
+checked like anything else. Adding permission is thereby
 unconditional in the heap and conditional only on its own assertion being
 meaningful.
 
@@ -131,9 +131,8 @@ The obligation the second step raises is
 
 $ p_"held" >= b $
 
-under the instruction's path condition, and it is an obligation like any other:
-what discharges it is the route of @sec:impl-proving, with nothing special to
-the heap about it. It is an inequality rather than an equality because an amount
+under the instruction's path condition, and it is an obligation like any other,
+with nothing special to the heap about it. It is an inequality rather than an equality because an amount
 above the bound leaves the state inconsistent by the axiom of @sec:impl-heap, so
 letting the write through costs nothing.
 
@@ -320,7 +319,7 @@ holding no permission is inert.
   order, $a < b => not (b < a)$, which the rule set states alongside the fold of
   #vm[`<`] on literals — the same rule @sec:impl-wildcards leans on for its own
   sufficiency check. What is left outside the rule set is the general arithmetic
-  gap of @sec:impl-proving: an inequality that needs reasoning about a sum of
+  gap of the tiered prover: an inequality that needs reasoning about a sum of
   terms rather than about one term's own sign, which no permission amount here
   raises on its own.
 ]

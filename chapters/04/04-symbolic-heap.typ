@@ -206,9 +206,9 @@ not, which is why the field's location function needed no injectivity axiom to
 make it work.
 
 
-#para[Permission arithmetic] <para:impl-perm-arith> The rewrite rules of
-#pararef(<para:impl-rewrites>, [The rewrites]) were stated there neutrally,
-because permissions did not exist yet at that point in the chapter. This is what
+#para[Permission arithmetic] <para:impl-perm-arith> The rewrite rules stated
+earlier in this chapter were stated neutrally, because permissions did not
+exist yet at that point in the chapter. This is what
 half of them are for. $(x - p) + p -> x$ is an amount taken by an exhale and given
 back by the matching inhale; $x - x -> 0$ is an amount taken in full; $x + 0 -> x$
 is a give-back against a chunk that was already empty; and $ternary(b, p, 0) -> p$

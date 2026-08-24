@@ -93,7 +93,7 @@ What fails is a family of cases that look like loop failures and are not. A
 counting loop — #vi[`while (i < n) invariant 0 <= i && i <= n`] — is rejected, and
 the obligation it fails on is $0 <= i and i <= n, i < n |- i + 1 <= n$. That
 obligation has nothing to do with loops: it fails identically with no loop
-anywhere in the program. It is the arithmetic gap of @sec:impl-proving, and
+anywhere in the program. It is the arithmetic gap of the tiered prover, and
 every case in the loop corpus that Silicon verifies and this verifier does not
 fails on exactly it. The structural cases — where the loop is driven by a
 discriminator test on a recursive datatype rather than by a counter — exercise the

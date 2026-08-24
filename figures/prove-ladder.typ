@@ -1,7 +1,7 @@
 #import "../macros.typ": *
 #import "@preview/cetz:0.4.2"
 
-/// The prove ladder of @sec:impl-proving: a single column of tiers, cheapest
+/// The prove ladder: a single column of tiers, cheapest
 /// first, escalating on failure. `implication_decompose` looks like any other
 /// row here — its internal loop (clone, assume pc, saturate, recheck) is
 /// explained in the surrounding text rather than drawn.

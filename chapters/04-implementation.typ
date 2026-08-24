@@ -53,7 +53,7 @@ Prusti-generated program.
 
 #include "04/01-vmir.typ"
 #include "04/02-execution-model.typ"
-#include "04/03-discharging.typ"
+// #include "04/03-discharging.typ"
 #include "04/04-symbolic-heap.typ"
 #include "04/05-fields.typ"
 #include "04/06-heap-interaction.typ"

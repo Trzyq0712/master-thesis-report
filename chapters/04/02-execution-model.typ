@@ -14,7 +14,7 @@ asserts it.
 
 #lowering(
   caption: [Viper program that assumes a fact, asserts it; and the VMIR
-      translation.],
+    translation.],
   label: "lst:ex_v1",
 )[```viper
 var a: Int
@@ -53,7 +53,7 @@ that #vi[a + 32] is equal to #vi[42].
 
 #lowering(
   caption: [A program expressing an obligation that `10 + 32 = 42`, and the
-      corresponding VMIR translation.],
+    corresponding VMIR translation.],
   label: "lst:ex_v2",
 )[```viper
 var a: Int := 10
@@ -90,10 +90,10 @@ var goal: Bool := a * 2 == b * 2
 assume a == b
 assert goal
 ```][```vmir
-e0: Int := fresh // a
-e1: Int := fresh // b
-e2: Int := e0 * 2 // a * 2
-e3: Int := e1 * 2 // b * 2
+e0: Int := fresh     // a
+e1: Int := fresh     // b
+e2: Int := e0 * 2    // a * 2
+e3: Int := e1 * 2    // b * 2
 e4: Bool := e2 == e3 // goal
 e5: Bool := e0 == e1
 assume e5
@@ -120,8 +120,8 @@ after saturating the representation using the rewrite rules.
 #figure(
   egraph-saturate,
   caption: [How the e-graph of @lst:ex_v3 evolves as the representation is
-      saturated via rewrite rules. Nodes touched by rewrite rules are
-      highlighted in orange.],
+    saturated via rewrite rules. Nodes touched by rewrite rules are
+    highlighted in orange.],
 ) <fig:egraph-saturate>
 
 One important aspect of verification that has been omitted thus far is that some
@@ -131,7 +131,7 @@ which attempts to divide by an unconstrained variable #vi[a].
 
 #viper(
   caption: [Safe division implementation, #vi[a] is ensured non-zero before
-      division.],
+    division.],
   label: "lst:safe-div",
 )[```viper
 var a: Int
@@ -147,7 +147,7 @@ lowered to VMIR, when an obligation is raised under a guard.
 
 #vmir(
   caption: [The division #vm[`1 / e0`] is released under the guard PC
-      #vm[`<e2>`]],
+    #vm[`<e2>`]],
   label: "lst:safe-div-vmir",
 )[```vmir
 e0: Int := fresh              // a
@@ -174,7 +174,7 @@ immediately available. Looking at @lst:ex-ite-decompose, the fact that
 
 #viper(
   caption: [Equality #vi[`f(x) == f(y)`] is reachable only after assuming
-      #vi[b].],
+    #vi[b].],
   label: "lst:ex-ite-decompose",
 )[```viper
 var b: Bool, x: Int, y: Int
@@ -200,7 +200,7 @@ obligation.
 #figure(
   prove-ladder,
   caption: [Helium uses a tiered prover to discharge obligations, with each tier
-      progressively being more expensive to run than the last.],
+    progressively being more expensive to run than the last.],
 ) <fig:prove-ladder>
 
 We describe in more detail what each verification tier does, before handing off
@@ -237,8 +237,20 @@ this point, rather than searching harder, is a deliberate design choice: Helium
 is not a complete theorem prover, but a lightweight verifier for highly
 structured proof obligations, such as the ones raised by Prusti.
 
-#para[Performance considerations] Keeping the e-graph size under control has
-been the main concern throughout, and it drove two design choices. Most of what
+This mechanism has real and obvious limits. First, Helium has no decision
+procedure for arithmetic: an obligation like #vi[`a + b == b + a`] is
+reported unproven,
+because rewriting only closes the identities Helium includes. Second, Helium
+does not case split. A goal that needs reasoning by cases, beyond the simple
+implication decomposition, is reported unproven rather than forked on, because
+even the cheapest case split would probe the graph once per branch on every
+obligation that reaches it.
+
+#para[Performance considerations] The tiers above only help if each one
+stays cheap. A principled ordering does not save a verifier whose own rules
+make the e-graph blow up: it just reaches the same explosion in a more
+orderly way. Keeping the e-graph size under control has been the main
+concern throughout, and it drove two design choices. Most of what
 a verifier reasons about is boolean: which facts hold, under which conditions.
 So how that reasoning is represented in the e-graph matters disproportionately.
 
@@ -260,7 +272,31 @@ to prove obligations that look trivial to the human eye.
 For the complete list of rewrite rules included in Helium, please refer to
 @sec:appendix-rewrites.
 
-#para[Silicon] TODO
+#para[Comparison with Silicon] Silicon shows what the alternative costs. It
+also verifies by symbolic execution, but beyond a handful truly trivial
+cases, every obligation is discharged to Z3, a round trip to an external
+process. This is exactly the cost the tiers above are built to avoid: Helium
+checks the goal against its own e-graph first, and only reports an
+obligation unproven once none of them close it, never handing it to a
+solver at all (at least for now).
+
+Avoiding the round trip is not the whole story: the two also differ in how
+they carry assumptions forward as verification goes deeper. Silicon builds
+up its assumptions continuously: a nested guard is one more push on top of
+the stack already there, not a rebuild from scratch. Helium fits its own
+tooling instead: egg has no scoped push and pop, so cloning the whole graph
+and assuming in the clone is the natural operation to reach for. A further,
+nested guard means cloning again from the same base, not building on the
+first clone, which is why cloning, at the #vm[`implication_decompose`]
+tier, is reserved for the one case that actually needs it, rather than how
+every path condition is handled.
+
+The cost does not disappear, it moves. If two obligations need the same
+case split, each still starts from a fresh clone: nothing carries what an
+earlier clone derived into the next one. Silicon pays for a push once and
+builds on it; Helium pays again each time an obligation needs the same
+ground revisited. In practice this is a narrow cost: obligations nested
+deep enough for it to matter are rare.
 
 #pagebreak()
 

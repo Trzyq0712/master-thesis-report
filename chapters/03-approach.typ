@@ -103,7 +103,7 @@ arithmetic; the second is driven by a discriminator test on a recursive datatype
 and its obligations are structural — the list is walked by unfolding, and
 #ru[`Box`] puts a generic type parameter between the node and its tail.
 @sec:impl-loops needs both, because the mechanism is the same for the two and only
-one of them survives the arithmetic of @sec:impl-proving.
+one of them survives the arithmetic of the tiered prover.
 
 The three functions not shown — #ru[`account_over_limit`], #ru[`account_classify`]
 and #ru[`account_adjust`] — read a field, nest two conditionals, and assign twice
@@ -486,9 +486,9 @@ below are what follows from it.
 decision is subordinate to it. Where a mechanism can be made structural — true by
 how the state is represented rather than by a query — it is, even where that costs
 generality. Where it cannot, the cost is paid on the obligations that need it and
-not on the ones that do not; @sec:impl-proving is that principle in its most
-literal form, a ladder of tiers ordered so that an obligation costs what it takes
-to answer it.
+not on the ones that do not; the prove ladder of @fig:prove-ladder is that
+principle in its most literal form, a ladder of tiers ordered so that an
+obligation costs what it takes to answer it.
 
 #para[Only support the core] The fragment of @sec:prusti-needs is the whole
 target. Constructs outside it are not approximated, not partially handled, and not

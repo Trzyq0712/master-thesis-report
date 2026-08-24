@@ -7,8 +7,8 @@ Prusti uses domains heavily and for one purpose: one per primitive Rust type,
 and the guiding example declares one in @lst:example-viper.
 
 A domain introduces no new kind of instruction. What it contributes is rules —
-facts merged into the state that the ladder of @sec:impl-proving runs
-underneath every tier.
+facts merged into the state that the tiered prover runs underneath every
+tier.
 
 A domain declaration flattens. Its functions become ordinary
 function declarations and its axioms become top-level axioms; the domain itself

@@ -115,9 +115,8 @@ exhaustive, and only the last one can.
 
 Only when the set genuinely cannot be reduced to a single cube is it materialised
 into one boolean value, and the block is then guarded by that. The distinction
-matters because a cube is what the tiered prover can assume literal by literal
-(@sec:impl-proving), while a materialised
-disjunction is one opaque boolean.
+matters because a cube is what the tiered prover can assume literal by
+literal, while a materialised disjunction is one opaque boolean.
 
 Because every instruction in a block shares the block's cube, the expensive tier
 can be shared too. A block builds at most one scratch graph — a copy of the state
@@ -186,8 +185,7 @@ survives, and a method exit gathering #vi[`n`] arms would carry a tower of them,
 each with a #vm[`0`] leaf. Collapsing such a tower back to #vm[`1/1`] — which is
 what the exit exhale of the postcondition demands — is not a reduction; it needs a
 proof that the branch conditions partition the state — reasoning by cases, which
-the prove ladder deliberately does not do
-(@sec:impl-proving) and which the
+the prove ladder deliberately does not do, and which the
 permission arithmetic does only in the narrow gated form of
 #pararef(<para:impl-gate-split>, [Conditional footprints]). Measured on the enum
 family of the corpus, that was the sole obligation reaching a split at all, and it

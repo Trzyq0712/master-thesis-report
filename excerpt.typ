@@ -21,7 +21,6 @@
 #let external-sections = (
   "sec:prusti-needs": [What Prusti Demands of a Verifier],
   "sec:example": [A Guiding Example],
-  "sec:vmir-design": [The Verifier's Intermediate Representation],
   "sec:impl-adts": [ADTs],
   "sec:impl-predicates": [Predicates],
   "sec:impl-calls": [Calling Methods],
@@ -77,7 +76,7 @@ checked against the whole of the guiding example.
 
 #include "chapters/04/01-vmir.typ"
 #include "chapters/04/02-execution-model.typ"
-#include "chapters/04/03-discharging.typ"
+// #include "chapters/04/03-discharging.typ"
 #include "chapters/04/04-symbolic-heap.typ"
 #include "chapters/04/05-fields.typ"
 #include "chapters/04/06-heap-interaction.typ"

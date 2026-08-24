@@ -30,8 +30,8 @@ resource own_i32(e0: Ref) {
 
 Every line of it has appeared before. What is worth stating is that checking such
 a body well-formed is not a separate discipline: the instructions mean what they
-mean anywhere else, and the obligations they raise are discharged by the route of
-@sec:impl-proving. Viper's requirement that a predicate body be self-framing is
+mean anywhere else, and the obligations they raise are discharged like any
+other. Viper's requirement that a predicate body be self-framing is
 that obligation and nothing more — a body that read through permission it had not
 granted itself would fail the read's positivity check like any other read.
 
@@ -274,8 +274,7 @@ the condition, and $0 >= 1\/1$ under its negation. The second is discharged exac
 when assuming the negation refutes itself, which it does — the negation collapses
 the snapshot tower of @sec:impl-adts onto a different constructor, and the arm
 Prusti marks unreachable carries #vi[`ensures false`] at the bottom. This is the
-same step the last prove tier makes for a boolean goal
-(@sec:impl-proving), and the same one a
+same step the last prove tier makes for a boolean goal, and the same one a
 branch-splitting verifier gets for free by evaluating the ternary per branch.
 
 Three restrictions keep it a fallback rather than a search. It runs only after the

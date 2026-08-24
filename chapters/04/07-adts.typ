@@ -16,7 +16,7 @@ case for datatypes, and no match site in the verifier had to learn about them; a
 constructor application is executed exactly as any other application is.
 
 What the side table buys is a family of rewrite rules — the reductions the
-ladder of @sec:impl-proving runs underneath every tier — created once per
+tiered prover runs underneath every tier — created once per
 datatype as it is first encountered, and it is why ADTs are introduced here,
 immediately before Predicates: a snapshot is an #vi[`adt`] value, and a fold and
 its unfold cancel by a reduction stated in this section rather than by anything

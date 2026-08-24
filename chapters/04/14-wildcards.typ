@@ -25,7 +25,7 @@ instruction can see it is looking at a wildcard and take a different rule.
 
 Nothing else about it is special, and in particular it is not a value. A wildcard
 is legal only as a permission amount and never as an operand. The permission
-grammar of @sec:impl-vmir is what enforces that: an amount, a bare
+grammar is what enforces that: an amount, a bare
 #vm[`wildcard`], or a ternary over the two, and nothing else. A wildcard therefore
 cannot escape into a term, and every rule below is selected off that shape rather
 than off anything in the e-graph.

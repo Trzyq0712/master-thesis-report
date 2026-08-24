@@ -3,17 +3,14 @@
 // The chapter is split one file per section, under `chapters/04/`.
 
 = VMIR and Helium <sec:implementation>
-In this chapter we present the design and implementation of the new IR and the
-verifier. The components are presented in the order of increasing complexity,
-with the later ones building on top of the earlier.
+We present the design and implementation of Viper Mid-Level Intermediate Representation (VMIR) and Helium verifier in this chapter.
+Sections increase in complexity, each building on the ones before it, and each
+introduces only the VMIR constructs it needs rather than assuming the
+representation up front.
 
-We start with the new Viper Mid-level Intermediate
-Representation (VMIR). We introduce the syntax and semantics, as well as motivate
-the design decisions taken. We then
-describe how the new verifier -- Helium -- executes
-simplest of programs consisting of heap independent statements. We follow that
-by explaining in closer detail the mechanisms by which the verifier
-discharges obligations.
+We start by executing the simplest programs a verifier can process, and by
+explaining the mechanism by which the verifier discharges the obligations
+they raise.
 
 Afterwards, we introduce the symbolic heap and explain how we handle heap
 constructs from Viper like fields and predicates. We then proceed
@@ -28,30 +25,8 @@ At the end of the chapter, we put all the components together and explain
 how they work together to verify a complete user specification-free
 Prusti-generated program.
 
-// This chapter builds the backend one construct at a time, checking each against
-// the program presented in @sec:example. It opens with a short look at VMIR
-// itself, enough that the listings which follow read without a preamble, and then
-// starts from the smallest thing a verifier can do: execute a heapless instruction
-// stream and discharge the obligations it raises — the prover's tiers, and the
-// rewrite rules they run underneath every one of them. The symbolic heap comes
-// next, without conditional structure at first, so that its operations can be
-// stated on their own; then fields, the instructions that move permission; then
-// datatypes, whose rules are what a fold and its unfold cancel by; then
-// predicates, which is where that cancellation is put to use. Domains and the
-// quantified axioms they carry close out the values a program can build, and only
-// then does the chapter turn to calls, method bodies, and control flow — which is
-// what forces two heaps to be reconciled. Wildcard permissions, functions and
-// loops close the chapter, each needing the ones before it and nothing after.
-//
-// The order is deliberate in one further respect. Each section says what its
-// construct costs the verifier and, where the mechanism differs from Silicon's,
-// where the difference lies. The claim the chapter is accumulating is not that any
-// single mechanism is novel, but that a particular set of them composes into a
-// verifier on which the great majority of a Prusti program's obligations are true by
-// construction rather than by proof — and @sec:impl-together is where that claim is
-// checked against the whole of the guiding example.
 
-#include "04/01-vmir.typ"
+// #include "04/01-vmir.typ"
 #include "04/02-execution-model.typ"
 // #include "04/03-discharging.typ"
 #include "04/04-symbolic-heap.typ"

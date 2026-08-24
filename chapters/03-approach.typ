@@ -523,8 +523,7 @@ tree, and snapshots being first-class datatypes rather than an uninterpreted sor
 Right regardless of frontend: locations as types, so that fields and predicates
 collapse into one concept; a heap partitioned by location kind; the e-graph as the
 symbolic state rather than as a cache in front of a solver; exact rational
-permissions; and VMIR being in static single assignment form at all
-(@sec:impl-vmir). The second
+permissions; and VMIR being in static single assignment form at all. The second
 group is what survives a different frontend.
 
 == Non-Goals <sec:non-goals>

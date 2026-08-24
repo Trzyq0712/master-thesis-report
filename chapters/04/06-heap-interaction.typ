@@ -33,8 +33,8 @@ their source names rather than becoming numbered values, and the computation of
 an address is written where it is used rather than on a line of its own.
 
 #para[Taking permission] <para:impl-threading> The heap is named by a temporary
-of its own sort, and an instruction either produces one or consults one
-(@sec:impl-vmir). Each conjunct of an assertion is applied on its own, threading
+of its own sort, and an instruction either produces one or consults one.
+Each conjunct of an assertion is applied on its own, threading
 one heap into the next, so the #vi[`inhale`] of @lst:heap-ops becomes one add per
 #vi[`acc`]:
 
@@ -59,7 +59,7 @@ the location function of @sec:impl-fields applied to the receiver, and that is t
 whole of what #vi[`x.f`] means in this position; elsewhere it means the value
 stored there, which has to be read out of a particular heap.
 
-The trailing #vm[`with`] is the instruction's bind point (@sec:impl-vmir). An add
+The trailing #vm[`with`] is the instruction's bind point. An add
 is the one direction that has no value of its own. It puts permission somewhere
 the program may not have held any, so the value has to be a parameter of the
 instruction rather than something the verifier decides.
@@ -194,8 +194,8 @@ exhale acc(x.f, 1/2)
 h3, _ := h2 - f(x) @ 1/2
 ```]
 
-A subtract has a second result, which is why @lst:heap-exhale binds a pair
-(@sec:impl-vmir). It is the counterpart of the bind point, and it points the other
+A subtract has a second result, which is why @lst:heap-exhale binds a pair.
+It is the counterpart of the bind point, and it points the other
 way. An add is told what value to put somewhere. A subtract _discovers_ what value
 was there and hands it back. The one construct that wants it is an unfold
 (@sec:impl-predicates), which passes it straight into the instruction that reproduces

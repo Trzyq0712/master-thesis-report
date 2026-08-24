@@ -21,7 +21,7 @@ Viper distinguishes between the two kinds of resource a
 program can hold permission to: a field of an object, and an instance of a
 predicate. VMIR collapses that distinction and knows only about _locations_.
 
-A location type is written #vm[`&[g] T @ p`] (@sec:impl-vmir). The _stored type_
+A location type is written #vm[`&[g] T @ p`]. The _stored type_
 #vm[`T`] is the type of the value held there. The _permission bound_ #vm[`p`]
 caps how much permission any single location of this kind may
 hold, and is either a rational constant or #vm[`*`], meaning unbounded. A Viper

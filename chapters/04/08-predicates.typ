@@ -72,7 +72,7 @@ unbounded length with a fixed-size body — each iteration unfolds one node and
 inherits a slot standing for the whole of the rest.
 
 The one line that is new is the bind point. An add inside a resource body writes
-#vm[`with self`] (@sec:impl-vmir), binding the chunk to the next slot of the
+#vm[`with self`], binding the chunk to the next slot of the
 resource's own footprint: the value whoever uses this resource supplies for it.
 The form is deliberately unnumbered. The slot's ordinal is a consequence of where
 the add stands in the body, never something the body states, so a body cannot name

@@ -67,7 +67,7 @@ assert e2
 ```]
 
 The #vm[assert e2] cannot directly prove that #vm[e2] is equivalent to
-#vm[true]; this requires some lightweight reasoning. Concretely, Helium employs
+#vm[true]#[;] this requires some lightweight reasoning. Concretely, Helium employs
 constant folding enabled by _egg_'s analyses. When #vm[e1] is built, the two
 children of the #vm[+] node are e-classes with constant values, #vm[10] and
 #vm[32], which constant-fold to #vm[42]. Afterwards, when #vm[e2] is built, the

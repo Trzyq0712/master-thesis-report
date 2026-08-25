@@ -437,7 +437,7 @@ counted per declaration and statements per occurrence.
       vi[`inhale`], [1511], [],
       vi[`unfolding`], [234], [In heap-dependent function bodies, and in 24 places
         at a #vi[`wildcard`] share.],
-      vi[`acc(..)`], [11648], [11624 of them at #vi[`write`]; the remaining 24 at
+      vi[`acc(..)`], [11648], [11624 of them at #vi[`write`]#[;] the remaining 24 at
         #vi[`wildcard`]. No fractional literal appears anywhere.],
       vi[`goto`], [4427], [A flat block graph. The 4642 #vi[`if`] statements
         either wrap a pair of #vi[`goto`]s or guard a run of statements by reach
@@ -461,7 +461,7 @@ quantified permission, no #vi[`perm`] and no #vi[`forperm`], no #vi[`exists`], n
 #vi[`decreases`], no fractional permission literal, and no #vi[`assume`]
 statement. Prusti's snapshots are #vi[`adt`]s rather than sequences, which is what
 removes the collection types; its loop-free source rule is what removes
-#vi[`while`]; and its uniform #vi[`write`] discipline is what removes fractional
+#vi[`while`]#[;] and its uniform #vi[`write`] discipline is what removes fractional
 literals and #vi[`perm`].
 
 Together those two lists name the target fragment. The verifier this

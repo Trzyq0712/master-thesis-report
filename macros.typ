@@ -278,7 +278,19 @@
 ///   ```]
 /// `target-lang` is `"vmir"` by default and `"lvmir"` where the right-hand side
 /// is written schematically (see the note on VMIR-lite in @sec:implementation).
-#let lowering(source, target, caption: none, label: none, columns: (1fr, 1.15fr), target-lang: "vmir") = {
+/// `stacked: true` puts the target under the source instead of beside it, for
+/// listings whose lines are too wide to survive a half-width column. Chunks
+/// still pair up: each source chunk is followed by the target chunk it lowers
+/// to.
+#let lowering(
+  source,
+  target,
+  caption: none,
+  label: none,
+  columns: (1fr, 1.15fr),
+  target-lang: "vmir",
+  stacked: false,
+) = {
   let src-chunks = _chunks(source)
   let tgt-chunks = _chunks(target)
   if src-chunks.len() != tgt-chunks.len() {
@@ -305,7 +317,30 @@
     lang-names.at(langs.at(i)),
   )
 
-  let body = {
+  // One row per side, alternating source and target, so the two languages
+  // stack. Row `y` belongs to side `calc.rem(y, 2)`, and each side keeps the
+  // header, tint and accent rule it has in the side-by-side form.
+  let stacked-body = {
+    _bare-raw.update(true)
+    table(
+      columns: (1fr,),
+      align: left + top,
+      inset: (x: 0.6em, y: 0.45em),
+      fill: (_, y) => if calc.even(y) { none } else { tints.at(calc.rem(calc.quo(y, 2), 2)) },
+      stroke: (_, y) => (
+        left: if calc.even(y) { none } else { 2pt + accents.at(calc.rem(calc.quo(y, 2), 2)) },
+        top: if calc.even(y) and y > 0 { 0.5pt + luma(80%) } else { none },
+        rest: none,
+      ),
+      ..src-chunks
+        .zip(tgt-chunks)
+        .map(((s, t)) => (head(0), _cell("viper", s), head(1), _cell("vmir", t)))
+        .flatten()
+    )
+    _bare-raw.update(false)
+  }
+
+  let side-by-side-body = {
     // The flag wraps the whole table: a `state` update placed inside a table
     // cell is not reliably visible to a `context` in that same cell.
     _bare-raw.update(true)
@@ -329,6 +364,8 @@
     )
     _bare-raw.update(false)
   }
+
+  let body = if stacked { stacked-body } else { side-by-side-body }
 
   if caption == none { return body }
   let fig = figure(body, caption: caption, kind: "listing", supplement: [Listing])

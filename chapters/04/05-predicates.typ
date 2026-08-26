@@ -436,8 +436,9 @@ would have to be rejected. The lowering never emits one, because it writes
 A use site supplies each slot value from what it already holds. Giving a
 resource up reads the value out of the heap as the walk passes the slot. Taking
 one on is handed a snapshot and takes member $i$ for slot $i$, so the arrow into
-slot 2 in @fig:node-recipes is the term #vm[`unwrap(proj_1(s))`], where
-#vm[`proj_1`] is the projection of @sec:impl-adts. The two instructions that run
+slot 2 in @fig:node-recipes is the term #vm[`unwrap(#0@1(s))`], where
+#vm[`#0@1`] is the projection at the snapshot's one constructor
+(@sec:impl-adts). The two instructions that run
 these walks are the subject of @sec:impl-fold.
 
 === Folding and unfolding <sec:impl-fold>

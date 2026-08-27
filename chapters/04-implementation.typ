@@ -16,15 +16,9 @@ Afterwards, we introduce the symbolic heap and explain how we handle heap
 constructs from Viper like fields and predicates. We then proceed
 with how user-defined ADTs and domains are encoded and reasoned about.
 
-The later couple of sections are dedicated to methods. These explain
-how the new infrastructure handles method calls and verifies bodies
-with control flow. To complete the picture, we then describe calling and
-verification of functions.
-
-At the end of the chapter, we put all the components together and explain
-how they work together to verify a complete user specification-free
-Prusti-generated program.
-
+The later sections are dedicated to methods. These explain what a contract
+becomes, how a body is verified against one, and what a call site executes,
+and then how the verifier handles bodies with control flow.
 
 // #include "04/01-vmir.typ"
 #include "04/02-execution-model.typ"
@@ -34,10 +28,9 @@ Prusti-generated program.
 // #include "04/05-fields.typ"
 #include "04/06-adts.typ"
 #include "04/07-heap-interaction.typ"
-#include "04/08-calling-methods.typ"
-#include "04/09-verifying-methods.typ"
+#include "04/08-methods.typ"
 #include "04/10-control-flow.typ"
-#include "04/11-functions.typ"
-#include "04/12-loops.typ"
-#include "04/13-putting-together.typ"
-#include "04/14-beyond-fragment.typ"
+// #include "04/11-functions.typ"
+// #include "04/12-loops.typ"
+// #include "04/13-putting-together.typ"
+// #include "04/14-beyond-fragment.typ"

@@ -45,5 +45,5 @@
 
 #frontchapter[Appendix]
 
-#include "chapters/A-lowering-reference.typ"
+// #include "chapters/A-lowering-reference.typ"
 #include "chapters/B-rewrite-rules.typ"

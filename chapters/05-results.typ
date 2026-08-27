@@ -15,8 +15,8 @@
   agree with Silicon on the corpus, and how much faster is it. The first is a
   precondition for the second — a speedup measured against a verifier that is
   proving something weaker is not a speedup — so validity is settled before any
-  timing is quoted. The second half then says where the verifier stops, which is
-  @sec:beyond-fragment's list turned into measurements.
+  timing is quoted. The second half then says where the verifier stops, in
+  measurements rather than in a list of constructs.
 
   All numbers below are from the sweep of #datestamp at #sweeprev, with one
   exception, flagged where it appears: #raw("shape_area")'s time on our side is a
@@ -212,8 +212,8 @@ inferred from one file.
 
 #todo[
   How many obligations reach the splitting fallback on this file against the corpus
-  median. @sec:impl-together quotes the distribution for the worked example (1751
-  obligations, 98% at the cheapest tier); the same three numbers for
+  median. The distribution for the worked example is 1751
+  obligations, 98% at the cheapest tier; the same three numbers for
   #raw("shape_area") are what turn this paragraph into a diagnosis.
 ]
 
@@ -349,7 +349,7 @@ probes they save.
 
 == Completeness Gaps <sec:results-gaps>
 
-@sec:beyond-fragment listed what the verifier does not do and split the list in
+What the verifier does not do splits in
 two: constructs absent because @sec:prusti-needs found them absent from the
 target, and constructs absent because they are unfinished. This section attaches
 numbers to the second half, since that is the half a reader is entitled to
@@ -360,12 +360,11 @@ member in the benchmark tree, five of them, and is not repeated here.
 #todo[
   The measurements this section needs, none of which are in the sweep report yet.
 
-  - *The arithmetic gap, quantified.* @sec:beyond-fragment names it as the
-    dominant gap: no decision procedure for linear arithmetic, so
+  - *The arithmetic gap, quantified.* It is the dominant gap: no decision
+    procedure for linear arithmetic, so
     $0 <= i and i <= n, i < n |- i + 1 <= n$ does not close. Needed here: over the
     loop corpus, how many members Silicon verifies and we do not, and confirmation
-    that every one of them fails on exactly that shape. The claim is already made
-    in @sec:impl-loops; this is where it is evidenced.
+    that every one of them fails on exactly that shape.
   - *Datatype inverses.* The two facts still missing after @sec:impl-adts —
     a discriminator's range over the declared variants, and the last variant by
     elimination. How many members do they cost, and on which files. The five
@@ -390,8 +389,8 @@ member in the benchmark tree, five of them, and is not repeated here.
 
 Nothing in either list is discovered at run time. Every unsupported construct is
 rejected by the type-checker or the translator with the construct named, so a
-completeness gap is a refusal to answer rather than a wrong answer
-(@sec:beyond-fragment). And by the recording principle of that section, a failure
+completeness gap is a refusal to answer rather than a wrong answer. And by the
+recording principle of @sec:principles, a failure
 here is a handover point rather than a dead end: the state at the failure is
 complete, so the arithmetic gap in particular is a procedure that has not been
 attached rather than information that has been lost.

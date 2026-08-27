@@ -13,7 +13,8 @@
 
 Everything the next two chapters do refers back to one place: a Viper program
 Prusti actually emitted. This section presents that program. Nothing in
-it is a simplification, and @sec:impl-together returns to it verifying.
+it is a simplification, and every construct it contains is given a lowering in
+@sec:implementation.
 
 The Rust is unannotated. There is no precondition, no
 postcondition, and nothing a user wrote to help a verifier along;#footnote[The
@@ -21,8 +22,8 @@ file as it is fed to Prusti carries #ru[`use prusti_contracts::*`] and one
 #ru[`body_invariant!(true)`] per loop body, because Prusti refuses a loop without
 an invariant. Both are elided from every listing in this thesis. #ru[`true`]
 claims nothing, so no obligation below depends on them — what they cost is six
-members of the encoding, a closure datatype and its predicate per loop, which
-@sec:impl-together accounts for.] every obligation in what follows comes from
+members of the encoding, a closure datatype and its predicate per
+loop.] every obligation in what follows comes from
 Prusti's encoding of Rust's own guarantees.
 
 #rust(caption: [The Rust the user wrote. Four of the eight functions; the four
@@ -102,7 +103,7 @@ different loops. The first is driven by a counter and its obligations are
 arithmetic; the second is driven by a discriminator test on a recursive datatype
 and its obligations are structural — the list is walked by unfolding, and
 #ru[`Box`] puts a generic type parameter between the node and its tail.
-@sec:impl-loops needs both, because the mechanism is the same for the two and only
+Both matter, because the mechanism is the same for the two and only
 one of them survives the arithmetic of the tiered prover.
 
 The three functions not shown — #ru[`account_over_limit`], #ru[`account_classify`]
@@ -243,7 +244,7 @@ the encoding was generated.
 #vi[`snap_Account`] is a heap-dependent function: it demands permission in its
 precondition and its body opens the predicate with an #vi[`unfolding`] to read
 what is inside. It connects the two sides — permission on one,
-a pure snapshot value on the other — and @sec:impl-functions is about doing that
+a pure snapshot value on the other — and the verifier does that
 without re-proving the function at every occurrence. Its enum sibling
 #vi[`snap_Transaction`] is the same shape with the conditional footprint showing
 through: a ternary on the discriminant with one #vi[`unfolding`] per arm, falling
@@ -338,7 +339,7 @@ if (bool_value(_tmp3) == false) {
 }
 ```]
 
-Two things there matter to @sec:impl-loops. The invariant is three permission
+Two things there matter to how a loop is verified. The invariant is three permission
 clauses and one pure clause, so cutting the back edge is an exchange of
 permission and not just a havoc of variables — what the invariant does not name
 has to survive the loop, and what it does name is re-established at the head. And
@@ -372,8 +373,7 @@ in it; @sec:prusti-needs is the argument that the constructs generalise, and
 
 The commitment, then. By the end of @sec:implementation every construct in
 @lst:example-viper, @lst:example-body and @lst:example-loop has a lowering, an
-execution rule, and a section that owns it. @sec:impl-together comes back with the
-unabridged program and checks that claim construct by construct.
+execution rule, and a section that owns it.
 
 == What Prusti Demands of a Verifier <sec:prusti-needs>
 
@@ -470,8 +470,7 @@ predicates and primitive fields, held at #vi[`write`] or at a wildcard, moved by
 #vi[`inhale`], #vi[`exhale`], #vi[`fold`] and #vi[`unfold`], read through
 heap-dependent functions and bodyless contracts, over values that are datatype
 snapshots and uninterpreted domain applications related by triggered universal
-axioms. @sec:implementation is organised against exactly that sentence, and
-@sec:beyond-fragment cites this section rather than re-arguing the point.
+axioms. @sec:implementation is organised against exactly that sentence.
 
 == Guiding Principles <sec:principles>
 
@@ -494,7 +493,7 @@ obligation costs what it takes to answer it.
 target. Constructs outside it are not approximated, not partially handled, and not
 silently ignored: they are rejected by name, by the type-checker or the
 translator. That is what makes the scoping a refusal to answer rather than a wrong
-answer, and it is the property @sec:beyond-fragment turns on.
+answer.
 
 #para[Fewer concepts, uniformly treated] Viper distinguishes fields from
 predicates, predicate bodies from method contracts from function preconditions,
@@ -513,7 +512,7 @@ represented — the chunk is in its partition with its permission as a term, the
 path condition is the exact cube, and the goal is an e-class in that same state.
 A failed obligation is therefore a failure to prove and not a loss of information,
 and it could be handed to a stronger procedure. @sec:implementation marks each
-place this applies; @sec:beyond-fragment collects them.
+place this applies.
 
 #para[Forced, and right anyway] Some of what follows is dictated by Prusti's
 encoding and some would be right for any frontend, and Future Work depends on

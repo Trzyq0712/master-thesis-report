@@ -59,7 +59,7 @@ a claim about what that part holds, and a verifier has to take and give back all
 three in the same way. VMIR therefore provides one construct general enough to
 carry all of them, which we call a _resource_: a named, parameterised pair of a
 heap delta and a boolean claimed of that delta. Predicates are lowered to
-resources, and so are the contracts of @sec:impl-calls and @sec:impl-functions.
+resources, and so are method contracts (@sec:impl-calls) and function preconditions.
 Each heap instruction treats all three alike.
 
 @lst:cell-resource shows how the #vi[`Cell`] predicate is lowered to a VMIR

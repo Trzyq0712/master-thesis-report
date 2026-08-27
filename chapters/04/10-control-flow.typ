@@ -27,9 +27,9 @@ branch structure Prusti writes into the data therefore collapses into the branch
 structure the verifier already has.
 
 Blocks are lowered and executed in topological order, with back edges cut. What
-a cut does is an exchange rather than a deletion — the loop's invariant is
-exhaled where the edge would have arrived and re-inhaled for the body, which is
-@sec:impl-loops. That order is what makes a single forward walk possible: every
+a cut does is an exchange rather than a deletion: the loop's invariant is
+exhaled where the edge would have arrived and re-inhaled for the body. That
+order is what makes a single forward walk possible: every
 predecessor of a block is executed before it, so the state a block starts from is
 always available, and no block is ever revisited. Each block is a triple — the
 cube it is reached under, a _join phase_ that reconciles its predecessors, and a
@@ -292,7 +292,7 @@ not: the occurrence of the function relating them stayed opaque, so two reads of
 an unchanged field were provably unrelated.
 
 The cause is that a function's body is captured as a recipe and replayed at each
-occurrence (@sec:impl-functions), and the replay is gated by a token marking that
+occurrence, and the replay is gated by a token marking that
 the occurrence is a genuine call. Building a recipe prunes whatever the result
 does not depend on — and the token's value is read by nothing, so it was pruned.
 An occurrence introduced by a method contract therefore arrived without its
@@ -306,6 +306,5 @@ the cube, the chunk and its guard exactly as they were. A call that cannot be
 discharged leaves its transaction half-executed by design: the exhale reports
 which location it could not take enough permission from, with the demanded and
 held amounts as terms, and the caller's heap up to that point is intact. Either
-state is a faithful description of the program point, which is what lets
-@sec:beyond-fragment claim that the incompleteness is in the decision procedure
-rather than in the record.
+state is a faithful description of the program point, so the incompleteness sits
+in the decision procedure rather than in the record.

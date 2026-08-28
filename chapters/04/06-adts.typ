@@ -47,8 +47,8 @@ A datatype is one of the few Viper constructs that survives lowering as itself.
 adt Shape { Circle(Int) | Square(Int) }
 
 e0: Int   := fresh
-e1: Shape := Circle(e0)
-e2: Int   := Circle@0(e1)
+e1: Shape := Shape::Circle(e0)
+e2: Int   := Shape::Circle.0(e1)
 e3: Bool  := e2 == e0
 assert e3
 e4: Int   := Shape@tag(e1)
@@ -60,8 +60,8 @@ There are three operations define on an ADT: a construction, a projection and a
 discriminator. In VMIR, all three look like function calls, since they essentially
 are. Field names are dropped
 along the way, since a constructor's fields are positional, and #vi[`c.r`]
-becomes #vm[`Circle@0`], written as the constructor followed by the index of the
-field. #vm[`Shape@tag`] maps a value of the datatype to the index of the
+becomes #vm[`Shape::Circle.0`], written as the constructor followed by the index
+of the field. #vm[`Shape@tag`] maps a value of the datatype to the index of the
 constructor that built it, so #vi[`c.isCircle`] becomes a comparison of that
 index against zero.
 

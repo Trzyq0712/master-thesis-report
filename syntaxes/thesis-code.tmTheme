@@ -120,8 +120,9 @@
       </dict>
     </dict>
 
-    <!-- VMIR temporaries: eN is a value, hN is a heap state. Distinguishing
-         them makes the dataflow in a VMIR listing readable at a glance. -->
+    <!-- VMIR temporaries: eN is a value, hN is a heap state, pN is a
+         permission amount. Distinguishing them makes the dataflow in a VMIR
+         listing readable at a glance. -->
     <dict>
       <key>name</key><string>SSA value temporaries</string>
       <key>scope</key><string>variable.other.ssa</string>
@@ -135,6 +136,15 @@
       <key>settings</key>
       <dict>
         <key>foreground</key><string>#a3105e</string>
+      </dict>
+    </dict>
+
+    <dict>
+      <key>name</key><string>Permission temporaries</string>
+      <key>scope</key><string>variable.other.perm</string>
+      <key>settings</key>
+      <dict>
+        <key>foreground</key><string>#1a6b4a</string>
       </dict>
     </dict>
 

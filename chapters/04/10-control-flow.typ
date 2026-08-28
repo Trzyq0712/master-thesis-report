@@ -291,8 +291,8 @@ should relate the value read to the one the postcondition established, and it di
 not: the occurrence of the function relating them stayed opaque, so two reads of
 an unchanged field were provably unrelated.
 
-The cause is that a function's body is captured as a recipe and replayed at each
-occurrence, and the replay is gated by a token marking that
+The cause is that a function's body is captured as a recipe and instantiated at
+each occurrence, and the instantiation is gated by a token marking that
 the occurrence is a genuine call. Building a recipe prunes whatever the result
 does not depend on — and the token's value is read by nothing, so it was pruned.
 An occurrence introduced by a method contract therefore arrived without its

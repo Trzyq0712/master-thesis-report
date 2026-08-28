@@ -32,7 +32,7 @@ mode is the one that would matter.
 Two constructs on the corpus's never-appears list are supported regardless, and
 they are cheap for the same reason: fractional permission literals and the
 #vi[`perm`] expression both fall out of amounts being terms
-(#pararef(<para:impl-amounts>, [Conditional permission amounts])) rather than needing a
+(@sec:impl-conditional-perms) rather than needing a
 mechanism of their own. A frontend other than Prusti would find them working.
 
 The list of things that ought to work and do not is shorter

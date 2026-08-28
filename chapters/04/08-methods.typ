@@ -63,8 +63,8 @@ resource bump#requires(e0: Ref) {
 ```]
 
 A #vi[`requires`] clause is a heap fragment together with a self-framing
-assertion, which is what a resource is, so Helium lowers a method precondition
-to one. The resource takes the method's parameters, and its body is built
+assertion, which is what a resource is, so the translator lowers a method
+precondition to one. The resource takes the method's parameters, and its body is built
 exactly as @sec:impl-predicates builds a predicate's.
 
 An #vi[`ensures`] clause becomes a resource as well. @lst:method-post is the

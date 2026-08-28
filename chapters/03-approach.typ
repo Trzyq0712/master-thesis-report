@@ -226,7 +226,7 @@ discriminator rather than by a predicate per variant.
 
 #vi[`val_i32`] is the one field declaration a Prusti program needs per
 primitive type; every heap location in the encoding bottoms out at one of these
-(@sec:impl-heap-interaction), and #vi[`Account_field_1`] is how a struct's second field is
+(@sec:impl-heap), and #vi[`Account_field_1`] is how a struct's second field is
 addressed — an uninterpreted function from the struct's reference to the field's,
 with a postcondition relating the two only at #vi[`null`].
 

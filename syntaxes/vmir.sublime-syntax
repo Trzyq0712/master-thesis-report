@@ -2,7 +2,8 @@
 ---
 # VMIR, the intermediate representation `silver-oxide` lowers Silver into (see
 # src/vmir/). It is SSA-like: every value is a numbered temporary `eN`, every
-# heap state a numbered `hN`. Grammar derived from src/vmir/display.rs.
+# heap state a numbered `hN`, and every permission amount a numbered `pN`.
+# Grammar derived from src/vmir/display.rs.
 name: VMIR
 file_extensions: [vmir, lvmir]
 scope: source.vmir
@@ -26,11 +27,14 @@ contexts:
           pop: true
 
   ssa:
-    # value temporaries e0, e1, ... and heap states h0, h1, ...
+    # value temporaries e0, e1, ..., heap states h0, h1, ...,
+    # and permission temporaries p0, p1, ...
     - match: '\be[0-9]+\b'
       scope: variable.other.ssa.vmir
     - match: '\bh[0-9]+\b'
       scope: variable.other.heap.vmir
+    - match: '\bp[0-9]+\b'
+      scope: variable.other.perm.vmir
     # basic blocks bb0, bb1, ...
     - match: '\bbb[0-9]+\b'
       scope: entity.name.label.vmir
@@ -51,6 +55,9 @@ contexts:
     - match: '\b(inhale|exhale|assign|havoc|with)\b'
       scope: keyword.control.heap.vmir
     - match: '\b(assert|assume|goto|branch|return)\b'
+      scope: keyword.control.vmir
+    # propagation mark on a value-position call
+    - match: '\bexport\b'
       scope: keyword.control.vmir
     - match: '\b(forall|result)\b'
       scope: keyword.operator.word.vmir
@@ -85,8 +92,9 @@ contexts:
       scope: keyword.operator.vmir
 
   names:
-    # member names, including contract resources like `client#requires`
-    - match: '\b([A-Za-z_$][A-Za-z0-9_$]*(#[a-z]+)?)\s*(?=\()'
+    # member names, including derived members like `client#requires`, the
+    # limited twin `f%lim` and the precondition token `f%pre`
+    - match: '\b([A-Za-z_$][A-Za-z0-9_$]*([#%][a-z]+)?)\s*(?=\()'
       scope: entity.name.function.vmir
-    - match: '\b[A-Za-z_$][A-Za-z0-9_$]*\b'
+    - match: '\b[A-Za-z_$][A-Za-z0-9_$]*([#%][a-z]+)?\b'
       scope: variable.other.vmir

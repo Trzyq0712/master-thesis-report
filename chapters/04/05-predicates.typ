@@ -311,15 +311,15 @@ resource Node(e0: Ref) {
   h1 := h0 + e2 @ 1/1 with self
   e3: Ref := *[h1] e2
   e4: Bool := e3 != null
-  e5: Real := e4 ? 1/1 : 0/1
-  e6: &[Cell] Cell@snap @ *
+  p0 := e4 ? 1/1 : 0/1
+  e5: &[Cell] Cell@snap @ *
      := Cell@loc(e3)
-  h2 := h1 + e6 @ e5 with self
+  h2 := h1 + e5 @ p0 with self
   result: (h2, true)
 }
 ```]
 
-The guard becomes the amount #vm[`e5`], and the add runs whatever that amount
+The guard becomes the amount #vm[`p0`], and the add runs whatever that amount
 turns out to be. We keep the add unconditional, which is what lets the footprint
 be read off the body syntactically at all. A guarded instruction would make the
 slot count depend on a path condition, and a snapshot type cannot depend on a
@@ -400,9 +400,9 @@ what that record looks like. Its third slot is the guarded
 #no-numbers[```vmir
 e3: Ref := *[h1] e2
 e4: Bool := e3 != null
-e5: Real := e4 ? 1/1 : 0/1
-e6: &[Node] Node@snap @ * := Node@loc(e3)
-h2 := h1 + e6 @ e5 with self
+p0 := e4 ? 1/1 : 0/1
+e5: &[Node] Node@snap @ * := Node@loc(e3)
+h2 := h1 + e5 @ p0 with self
 ```]
 
 #figure(
@@ -418,7 +418,7 @@ add binds its chunk to the slot the resource is given, so while the body is
 checked, the chunk at #vm[`next(e0)`] holds the value slot 1 contributes to the
 snapshot. The dereference resolves to that chunk and yields the value itself, so
 #vm[`e3`] is the snapshot member itself. The guard
-#vm[`e4`], the amount #vm[`e5`] and the address #vm[`e6`] are then terms over
+#vm[`e4`], the amount #vm[`p0`] and the address #vm[`e5`] are then terms over
 that member and the argument, which is what the figure draws.
 
 A recipe is consequently a pure expression built from pure operations. Its

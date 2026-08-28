@@ -314,6 +314,209 @@ Helium removes a chunk outright once its permission provably reaches zero —
 a zero-permission chunk can never be read and never usefully merges with
 another, so dropping it costs nothing.
 
-=== Wildcard permissions
+=== Conditional permissions <sec:impl-conditional-perms>
+
+Each of the four instructions names one location and one amount, and executes
+whenever control reaches it. Viper grants permission under a condition as
+readily as it grants it outright, and @lst:guarded-add is the smallest program
+that does so.
+
+#lowering(
+  caption: [A guarded access. The guard becomes the permission amount, and the
+    add stays unconditional.],
+  label: "lst:guarded-add",
+)[```viper
+method client(x: Ref, b: Bool) {
+  inhale b ==> acc(x.f, write)
+}
+```][```vmir
+method client {
+  e0: Ref := fresh
+  e1: Bool := fresh
+  e2: &[f] Int @ 1/1 := f(e0)
+  p0 := e1 ? 1/1 : 0/1
+  h0 := empty + e2 @ p0
+        with fresh
+}
+```]
+
+The add on the last line carries no trace of #vi[`b`]. What the guard produces
+is #vm[`p0`], the full amount where #vm[`e1`] holds and none where it does not,
+and the add then runs whatever that amount turns out to be.
+
+#vm[`p0`] belongs to neither namespace the section has used so far. VMIR gives
+permissions an operand namespace of their own, #vm[`p`], beside values #vm[`e`]
+and heaps #vm[`h`]. An amount is a rational literal, an ordinary value of type
+#vi[`Real`], the #vm[`wildcard`] of @sec:impl-wildcards, or a temporary produced
+by the sole instruction the namespace has,
+
+#align(center)[#vm[`p' := e ? p0 : p1`]]
+
+whose condition is drawn from the value space and whose two arms are themselves
+amounts. Separating the namespaces settles two questions by typing that would
+otherwise take a check at every use: #vm[`wildcard`] is well-formed exactly
+where an amount is expected, and an amount reaches the e-graph only when a
+prover asks for it. Guards nest by nesting the instruction, one temporary per
+condition, so the translator emits a gate for each condition standing on its
+branch stack when it reaches an #vi[`acc`].
+
+A reader would reasonably expect the condition on the add instead, selecting
+between a heap that holds the chunk and a heap that does not. We keep the add
+unconditional because the alternative makes the set of chunks a heap holds
+depend on a path condition, and @sec:impl-predicates needs that set to be
+readable from a declaration alone. The cost is that presence becomes an
+arithmetic question rather than a structural one, and every obligation the four
+instructions raise has to be answered in those terms.
+
+Helium answers them in two ways. First, addition and subtraction demand only
+that the amount is non-negative, $0 <= p$. A gated amount meets that demand by
+construction, since the arm the guard switches off is the literal #vm[`0/1`] and
+constant folding closes the goal before the guard enters it. A strict demand
+here would be wrong rather than merely stronger, because it would reject every
+guarded #vi[`acc`] on the path where its guard fails. The resource instructions
+of @sec:impl-predicates do demand strict positivity, for a reason specific to
+them: each also assumes or asserts a boolean, which at zero permission would be
+vacuous.
+
+Second, the demands that weigh an amount against something else are proven arm
+by arm. A dereference requires $p > 0$, an assignment requires the location's
+permission bound, and the permission bound and non-aliasing axioms each weigh
+an amount against that bound. For each, Helium walks the ternary structure of the amount, pushes
+the arm's condition onto the path condition, and proves the leaf beneath it.
+Flattening the same demand into one goal over $ternary(g, p, 0)$ would instead
+require reasoning by cases, which the prove ladder of @sec:impl-execution
+deliberately does not do.
+
+For the non-aliasing axiom the difference between the two readings is a
+soundness question rather than a completeness one. @lst:gate-alias takes full
+permission to one field on each branch and asks whether the two receivers
+differ.
+
+#viper(
+  caption: [Two full accesses on exclusive paths. The receivers may well be
+    equal, and Helium must not prove otherwise.],
+  label: "lst:gate-alias",
+)[```viper
+method client(x: Ref, y: Ref, b: Bool) {
+  if (b) { inhale acc(x.f, write) }
+  else   { inhale acc(y.f, write) }
+  assert x != y                       // must not verify
+}
+```]
+
+Both chunks sit on one heap, each at an amount worth #vm[`1/1`] on its own
+branch and #vm[`0/1`] on the other. Read flat, with the guards discarded, the
+two amounts are #vm[`1/1`] apiece, and the non-aliasing axiom forces
+$1 + 1 <= 1$ once $f(x) = f(y)$, which refutes the equality and proves
+#vi[`x != y`]. The program establishes only that one of the two was taken:
+whichever branch ran, nothing was ever held at both locations at once, and the
+receivers are free to be equal. Stating the axiom per arm attaches to each
+amount the condition under which it is positive, and those two conditions are
+contradictory, so the sum the axiom would bound never arises.
+
+Helium therefore holds an amount's ternary structure alongside the e-graph
+rather than as a term inside it, and builds a term only where a prover needs a
+single e-class to work with. We chose that representation because a consume can
+then line the arms of what it demands up against the arms of what is held,
+instead of discharging one goal over two opaque ternaries.
+
+=== Wildcard permissions <sec:impl-wildcards>
+
+A gated amount lets a program hold permission on some paths. A different
+weakening is what a program that only ever reads needs, and Prusti's encoding
+asks for it in 24 of its 11648 accesses (@tbl:corpus), every other one naming
+#vi[`write`]. @lst:wildcard-ops runs a location through the full cycle at that
+weaker amount.
+
+#vmir(
+  caption: [A wildcard taken, read through, given back, and given back a second
+    time under a guard. No instruction here names an amount that another could
+    be measured against.],
+  label: "lst:wildcard-ops",
+)[```vmir
+e0: Ref := fresh
+e1: Bool := fresh
+e2: &[f] Int @ 1/1 := f(e0)
+h0 := empty + e2 @ wildcard with fresh
+e3: Int := *[h0] e2      // a read needs a share, not an amount
+h1 := h0 - e2 @ wildcard // gives up an unspecified share
+p0 := e1 ? wildcard : 0/1
+h2 := h1 - e2 @ p0       // debits only where e1 holds
+```]
+
+A #vm[`wildcard`] is an amount that carries a sign and no magnitude: it states
+that the share is positive and leaves its size open. It stands in the amount
+slot with no operand of its own, because the magnitude is chosen when the
+instruction executes rather than when it is emitted. Helium mints a fresh
+symbolic real for each occurrence and assumes it positive.
+
+That the real came from a wildcard is recorded beside the e-graph rather than
+inside it. Congruence closure merges an e-class with every term it is proven
+equal to, so a share that later coincides with a literal would sit in that
+literal's class and answer to it. Helium therefore carries the wildcard mark on
+the amount's own structure, where the instructions that take a different rule
+for one read it directly, and where it survives every merge.
+
+A Viper program may write #vi[`wildcard`] itself, and those 24 accesses do.
+Nearly every wildcard Helium executes is one the translator introduced, in the
+two regions where the program is known only to read: a function's body, and the
+resource a heap-dependent function's precondition lowers to. Throughout those
+regions the translator weakens each amount as it lowers it. A literal #vm[`0/1`]
+stays #vm[`0/1`], a literal nonzero amount becomes a #vm[`wildcard`], and a
+symbolic amount $p$ becomes
+
+$ ternary(0 < p, "wildcard", "0/1") $
+
+which is the gate of @lst:guarded-add with a wildcard in one arm. That third
+case is what keeps a conditional footprint conditional, so a precondition
+#vi[`requires b ==> acc(x.f)`] demands a share where #vi[`b`] holds and exactly
+none where it does not. The rule is Silicon's default. Predicate bodies and
+method preconditions keep their amounts as written, both describing permission
+a program transfers rather than permission it reads through.
+
+Addition takes a wildcard as it takes any amount, and consolidation is where the
+missing magnitude shows. Helium builds no sum node when either side came from a
+wildcard, because the e-graph carries no order theory for the reals and a sum
+containing an unspecified share would be an opaque leaf that no later comparison
+could use. Where one of the two summands is known positive, Helium mints a fresh
+share and states that each summand is strictly smaller than it. The permission
+bound of #pararef(<para:impl-location-axioms>, [Location axioms]) then finishes
+the argument: a location already held at #vm[`1/1`] that takes a further
+wildcard bounds a strictly larger share by #vm[`1/1`], which is a contradiction,
+so that state is unreachable. Silicon returns the same verdict on it. Scaling
+behaves the same way for the same reason, since a wildcard scaled by a positive
+amount is a wildcard again, with no size to multiply. Silicon collapses
+$w dot q$ to $w$ on that observation.
+
+Subtraction is where the rule genuinely differs. The sufficiency obligation
+$p_"held" >= p_"needed"$ of #pararef(<para:impl-heap-sub>, [Heap subtraction])
+has nothing to weigh, so Helium proves instead that the location holds something
+at all, $p_"held" > 0$, and leaves a fresh remainder assumed strictly smaller
+than what was held. Line 6 of @lst:wildcard-ops raises the first and produces
+the second, and line 8 succeeds against that remainder for exactly the same
+reason.
+
+Recording the remainder as the difference $p_"held" - w$ would say less than
+this. With no order theory for the reals, a difference node supports neither
+$0 < p_"held" - w$ nor $p_"held" - w < p_"held"$, which are the two facts a
+later read and a later debit each turn on. The fresh remainder states both once,
+at the point where they are known. This is Silicon's constrainable-ARP rule, and
+it is the whole of what a wildcard has ever supported.
+
+Line 7 gates a wildcard, and the demand it builds is walked arm by arm like any
+other. Helium restricts the held amount to the arm it stands under, extends the
+path condition with that arm's guard, and applies the wildcard rule at the leaf.
+Line 8 therefore debits where #vm[`e1`] holds, and where it does not the arm is
+a provable zero, which passes the held share through untouched and raises no
+obligation at all. Because the demand's mark is read off its own structure
+rather than out of the e-graph, a wildcard sitting under a guard is still
+recognised as a wildcard demand.
+
+The cost is that nothing records how much a wildcard debit took. A program that
+gives up a wildcard and then asks for a stated fraction of the remainder cannot
+be verified, and no run of wildcard debits ever pins the share down. That is
+precisely the arithmetic a read-only region needs, which is why the translator
+introduces wildcards there and leaves every other amount as the program wrote
+it.
 
 #pagebreak()

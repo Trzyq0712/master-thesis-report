@@ -7,9 +7,10 @@ predicate body, a method contract and a domain axiom all sit at the top level.
 Helium works over that list in two steps. It fixes an order on the declarations,
 and then walks each one in turn.
 
-Three of the six kinds are verification units. A #vm[`resource`], a
-#vm[`function`] and a #vm[`method`] each carry a body to walk, and each walk
-yields one result. The other three declare the vocabulary those walks use: a
+Three of the six kinds are verification units. A #vm[`resource`] and a
+#vm[`method`] each carry a body to walk, a #vm[`function`] carries one unless it
+is left uninterpreted, and each walk yields one result. The other three declare
+the vocabulary those walks use: a
 #vm[`domain`] and an #vm[`adt`] declare a type, and an #vm[`axiom`] states a
 fact Helium assumes into the e-graph of every unit before the walk begins
 (@sec:impl-data). A contract is a declaration in its own right, so it is a unit
@@ -59,11 +60,8 @@ the clause is well defined.
     [an uninterpreted symbol, and, where the declaration links to an
      #vi[`ensures`], a guarded axiom over the result],
 
-    [#vm[`resource`] with a body], [yes],
+    vm[`resource`], [yes],
     [a record of recipes: two per footprint slot and one for the boolean],
-
-    [#vm[`resource`] with no body], [no],
-    [an opaque snapshot type, exchanged whole at a use site],
 
     vm[`method`], [yes],
     [one result],
@@ -71,12 +69,13 @@ the clause is well defined.
 ) <tbl:decl-summary>
 
 Two rows of @tbl:decl-summary carry more than one Viper construct, which is
-what the collapse of @sec:principles buys. A field and a domain function are
-both bodyless functions, so both leave an uninterpreted symbol and
-neither is walked. A predicate body and a method contract are both resources, so
-both are verified once at their declaration and both leave a record of recipes.
-A resource's location function and its snapshot type are derived from the
-declaration on demand, which is why the table gives them no row of their own.
+what the collapse of @sec:principles buys. A field, a domain function and an
+abstract predicate's location are all bodyless functions, so each leaves an
+uninterpreted symbol and none of the three is walked. A predicate body and a
+method contract are both resources, so both are verified once at their
+declaration and both leave a record of recipes. A resource derives its own
+location function and snapshot type on demand, which is why those two get no row
+of their own.
 
 The order is a topological one over a dependency graph whose nodes are the
 units. An edge runs from a dependency to its dependent, and Helium draws one for

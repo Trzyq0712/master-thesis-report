@@ -611,38 +611,48 @@ temporary an instruction reads.
 
 === Predicates without a body
 
-A predicate may be declared with no body, and Viper gives such an instance no
-relation to any footprint. @lst:pred-abstract is one, and its derived members
-differ in exactly one respect.
+A predicate declared with no body states which locations exist and leaves open
+what they hold. VMIR has a declaration for exactly that, and it is not a
+resource. @lst:pred-abstract is the pair such a predicate lowers to.
 
 #lowering(
-  caption: [An abstract predicate. With no delta to read a snapshot type off,
-    the snapshot becomes an opaque domain.],
+  caption: [An abstract predicate. The declaration becomes a location function
+    and the sort its locations store.],
   label: "lst:pred-abstract",
 )[```viper
 predicate Opaque(this: Ref)
 ```][```vmir
-resource Opaque(e0: Ref)
+function Opaque(e0: Ref)
+  : &[Opaque] Opaque#snap @ *
 
-domain Opaque@snap
-
-function Opaque@loc(e0: Ref)
-  : &[Opaque] Opaque@snap @ *
+domain Opaque#snap
 ```]
 
-There is no body, so there are no #vm[`with self`] adds, so there is nothing to
-read a member list off. The snapshot type is an opaque #vm[`domain`] instead of
-an #vm[`adt`], and values of it are only ever passed around, never constructed
-and never projected. Everything else is unchanged: a location function at the
-same arity, into a partition of the same kind, and an instance put on the heap
-and taken off it by an ordinary add and subtract.
+The function produces the location, and its return type carries the three
+components of a location type: the group #vm[`Opaque`], the sort
+#vm[`Opaque#snap`] the location stores, and the bound #vm[`*`]. The
+#vm[`domain`] declares that sort, whose values a program passes around and never
+takes apart.
 
-The relation to a footprint is what an abstract predicate gives up. A resource
-operation walks the slots of a body, so with no body there is no walk, and
-#vi[`fold`] and #vi[`unfold`] have nothing to do. A program can hold such an
-instance, give it away and take it back, which is the whole of what it may do
-with one. Helium skips the declaration during verification, since it states
-nothing to prove.
+Making a location a type is what buys this. A construct that needs somewhere to
+keep permission needs a function producing a location, so a field and an
+abstract predicate differ in two components of one type: the bound is
+#vm[`1/1`] against #vm[`*`], and the stored type is a value type against an
+opaque sort. A frontend that wants a location kind carrying unbounded permission
+declares the function producing it, which is the whole of what such a kind
+requires.
+
+Helium treats the two alike. The four heap instructions of @sec:impl-heap read
+the bound off the location type, so an instance of #vi[`Opaque`] is added,
+subtracted and framed exactly as a field chunk is, and nothing in the verifier
+asks which declaration a location came from. The declaration carries no body, so
+there is nothing to walk, as with a field.
+
+Holding such an instance, giving it away and taking it back is the whole of what
+a program may do with one. A #vi[`fold`] names a resource and there is none
+here, so folding an abstract predicate is not expressible in VMIR, and the
+translator rejects #vi[`fold`], #vi[`unfold`] and #vi[`unfolding`] on one by
+name. Viper imposes the same restriction as a side condition on the statement.
 
 === Comparison with Silicon
 

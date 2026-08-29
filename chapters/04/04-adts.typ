@@ -11,8 +11,8 @@ quantifiers appear. This section describes how each of these is encoded
 in VMIR and how Helium reasons about them.
 
 @sec:impl-predicates has already used two of them. A resource's snapshot type is
-an #vm[`adt`], and an abstract predicate's snapshot type is a #vm[`domain`]. We
-now describe how such types behave generally.
+an #vm[`adt`], and the sort an abstract predicate's locations store is a
+#vm[`domain`]. We now describe how such types behave generally.
 
 === ADTs <sec:impl-adts>
 

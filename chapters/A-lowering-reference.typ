@@ -83,7 +83,10 @@ The _support_ column is what @sec:beyond-fragment and the fragment claim of
   [full], [#sec(<sec:impl-predicates>)],
 
   vi[`predicate P(x: T)`],
-  [#vm[`resource P(..)`] with no body; the snapshot type is an opaque domain],
+  [A location function #vm[`P`] at the predicate's arity, returning
+   #vm[`&[P] P#snap @ *`], and a #vm[`domain P#snap`] declaring the opaque sort
+   it stores. There is no resource, so #vi[`fold`] and #vi[`unfold`] are
+   rejected on one],
   [full], [#sec(<sec:impl-predicates>)],
 
   vi[`function f(..): T`],

@@ -1,9 +1,10 @@
 #import "../../macros.typ": *
 #import "../../figures/egraph-assume.typ": egraph-saturate
 #import "../../figures/egraph-first.typ": egraph-first
+#import "../../figures/term-language.typ": term-language
 #import "../../figures/prove-ladder.typ": prove-ladder
 
-== Verifying Client Code with VMIR and Helium <sec:impl-execution>
+== Execution Model <sec:impl-execution>
 
 We show how Helium verifies a Viper program, starting from the simplest
 case a verifier can process, a stream of heap-independent statements, and
@@ -201,8 +202,39 @@ matching polarity ($x$ from above merged with #vm[`true`] or #vm[`false`]
 depending on $y$ 's position). If necessary, the clone is rewrite-saturated to
 check if the goal is provable.
 
-#para[Formalising the mechanism] The examples above show how one would discharge
-an obligation; we now state precisely how Helium does it. The proof strategy is
+=== Formalising the mechanism
+
+The examples above show how one would discharge an obligation. We now state
+precisely how Helium does it.
+
+#para[Terms in the e-graph] Every term the verifier builds is one of seven
+forms, given by the grammar in @fig:term-language, and the e-graph holds terms
+of that language alone.
+
+#figure(
+  term-language,
+  kind: image,
+  caption: [The language of terms an e-graph holds.],
+) <fig:term-language>
+
+Every other comparison and connective becomes a ternary: #vi[`a <= b`] reaches
+the verifier as $ternary(b < a, "false", "true")$. The later sections build
+fields, predicate instances and domain functions on the application form.
+
+A term here has one of four types: #vi[`Int`], #vi[`Bool`], #vi[`Real`] and
+#vi[`Ref`]. The types that describe a heap location, a predicate's snapshot and
+a user-declared datatype arrive with the sections that introduce those
+constructs.
+
+#para[What an e-class records] Beside the nodes it holds, an e-class carries
+what the constant-folding analysis has pinned to it, which is one of four
+things: nothing yet, a literal, the constructor that built the value, or a
+contradiction between two of those. A merge propagates it, so when two classes
+carrying different literals become one, the merged class records the
+contradiction in place of either value. The literal is what lets a rebuild
+discharge a goal, and the contradiction is what the cheapest tier below reads.
+
+The proof strategy is
 summarized by the diagram in @fig:prove-ladder: our verifier is a tiered prover,
 where each tier progressively commits more resources to discharge the
 obligation.
@@ -216,12 +248,10 @@ obligation.
 We describe in more detail what each verification tier does, before handing off
 the work to the next one.
 
-- *`inconsistent`:* This tier has not yet been shown above; it is the simplest
-  and cheapest one. It checks whether the e-graph has reached an inconsistent
-  state. This is not explicitly searched for, but recorded as it happens -- for
-  example, when an e-class holds two different constants, the simplest case
-  being #vm[`true`] equated with #vm[`false`]. It is logically sound: if the
-  premise, the e-graph's truth state, is inconsistent, any obligation follows.
+- *`inconsistent`:* The simplest and cheapest tier. It reads the contradiction
+  the analysis above records as it happens, so the check costs a lookup rather
+  than a search. It is logically sound: if the premise, the e-graph's truth
+  state, is inconsistent, any obligation follows.
 - *`goal_true`:* Here the verifier checks if the goal e-class has been unioned
   with #vm[`true`]. It also rebuilds the e-graph, which runs the
   constant-folding analysis and can discharge the goal that way.
@@ -258,8 +288,10 @@ implication decomposition, is reported unproven rather than forked on, because
 even the cheapest case split would probe the graph once per branch on every
 obligation that reaches it.
 
-#para[Performance considerations] The tiers above only help if each one
-stays cheap. A principled ordering does not save a verifier whose own rules
+=== Performance considerations
+
+The tiers above only help if each one stays cheap. A principled ordering does
+not save a verifier whose own rules
 make the e-graph blow up: it just reaches the same explosion in a more
 orderly way. Keeping the e-graph size under control has been the main
 concern throughout, and it drove two design choices. Most of what
@@ -284,8 +316,10 @@ to prove obligations that look trivial to the human eye.
 For the complete list of rewrite rules included in Helium, please refer to
 @sec:appendix-rewrites.
 
-#para[Comparison with Silicon] Silicon shows what the alternative costs. It
-also verifies by symbolic execution, but beyond a handful truly trivial
+=== Comparison with Silicon
+
+Silicon shows what the alternative costs. It also verifies by symbolic
+execution, but beyond a handful truly trivial
 cases, every obligation is discharged to Z3, a round trip to an external
 process. This is exactly the cost the tiers above are built to avoid: Helium
 checks the goal against its own e-graph first, and only reports an

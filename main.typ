@@ -17,6 +17,10 @@
 // by default. Opt every heading in; `#todo` / `#note` opt their bodies back out.
 #set heading(bookmarked: true)
 
+// Figures and listings sit tight against the surrounding text at the default
+// spacing. Give every one of them the same extra room above and below.
+#show figure: set block(above: 1.6em, below: 1.6em)
+
 #frontchapter[Abstract]
 #include "chapters/00-abstract.typ"
 

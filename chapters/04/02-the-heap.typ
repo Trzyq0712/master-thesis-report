@@ -3,7 +3,7 @@
 #import "../../figures/heap-partitions.typ": heap-partitions
 #import "../../figures/consolidation.typ": consolidation
 
-== The Heap in VMIR and Helium <sec:impl-heap>
+== The Heap <sec:impl-heap>
 
 So far, Helium has only executed streams of value-only instructions. To
 verify a real Viper program it also has to reason about the heap, as in
@@ -69,8 +69,10 @@ times here, since nothing produced a later one. Viper's heap, by contrast, is
 implicit and threaded for the program: an operation acts on whatever heap is
 current, and reaching an earlier one takes an explicit #vi[`old`] expression.
 
-#para[Location types] The example above has already introduced the idea of
-locations as values. We formalise it here.
+=== Location types
+
+The example above has already introduced the idea of locations as values. We
+formalise it here.
 
 @lst:heap-first-inhale-vmir also leaves out two parts of a location type:
 its _group_ and its _permission bound_. Both exist because a VMIR location is
@@ -98,9 +100,10 @@ Locations can also be computed over directly, since every aliasing check or
 permission-bound assumption only needs information already present at that
 point in the program.
 
-#para[Fields in VMIR] Fields are the first of the location producers.
-@lst:field-decl states what a #vi[`field f: Int`] declaration becomes in
-VMIR.
+=== Fields in VMIR
+
+Fields are the first of the location producers. @lst:field-decl states what a
+#vi[`field f: Int`] declaration becomes in VMIR.
 
 #lowering(
   caption: [Field declaration in Viper becomes an uninterpreted function that maps the receiver to a location.],
@@ -210,24 +213,6 @@ A field's bound is always #vm[`1/1`]. Take two full chunks, #vm[`f(x)`] and
 non-aliasing axiom would force $1 + 1 <= 1$, a contradiction, so they cannot
 be. #vi[`x != y`] follows — needing nothing about #vi[`f`] beyond congruence;
 no injectivity is assumed.
-
-#para[Comparison with Silicon] Silicon's heap representation reaches the same
-guarantees as partitioning, consolidation and the location axioms above, by a
-different route throughout. Silicon treats consolidation the same way Helium treats re-keying: a fallback
-that repairs the heap representation rather than something run after every
-operation. It is scheduled periodically, since a full pass repeatedly asks
-the SMT solver whether pairs of receivers are equal, which is cubic in the
-number of chunks in the worst case @silicon[Section 3.4.2]. Helium's
-re-keying instead costs one linear pass, since every location is already canonicalised inside the e-graph (#pararef(<para:impl-consolidation>, [Consolidation])), and thus can run directly on a failed lookup.
-
-The two verifiers also place the non-aliasing axiom differently. Silicon
-states it over field receivers, one instance per field:
-$x = y ==> p + p' <= b$. Helium states it over locations instead
-(#pararef(<para:impl-location-axioms>, [Location axioms])):
-$ell = ell' ==> p + p' <= b$, which covers a field and a bounded predicate in
-the same form. Stating it over receivers is exactly where Silicon's
-representation makes field mappings injective, something VMIR's location
-type does not give by default (@lst:field-inv).
 
 === Heap operations in VMIR
 
@@ -518,3 +503,22 @@ be verified, and no run of wildcard debits ever pins the share down. That is
 precisely the arithmetic a read-only region needs, which is why the translator
 introduces wildcards there and leaves every other amount as the program wrote
 it.
+
+=== Comparison with Silicon
+
+Silicon's heap representation reaches the same guarantees as partitioning,
+consolidation and the location axioms above, by a different route throughout. Silicon treats consolidation the same way Helium treats re-keying: a fallback
+that repairs the heap representation rather than something run after every
+operation. It is scheduled periodically, since a full pass repeatedly asks
+the SMT solver whether pairs of receivers are equal, which is cubic in the
+number of chunks in the worst case @silicon[Section 3.4.2]. Helium's
+re-keying instead costs one linear pass, since every location is already canonicalised inside the e-graph (#pararef(<para:impl-consolidation>, [Consolidation])), and thus can run directly on a failed lookup.
+
+The two verifiers also place the non-aliasing axiom differently. Silicon
+states it over field receivers, one instance per field:
+$x = y ==> p + p' <= b$. Helium states it over locations instead
+(#pararef(<para:impl-location-axioms>, [Location axioms])):
+$ell = ell' ==> p + p' <= b$, which covers a field and a bounded predicate in
+the same form. Stating it over receivers is exactly where Silicon's
+representation makes field mappings injective, something VMIR's location
+type does not give by default (@lst:field-inv).

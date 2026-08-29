@@ -598,42 +598,40 @@ that the surrounding code has stopped naming, so a matching fold would be
 redundant and we emit none. Scoping an effect is therefore a question of which
 temporary an instruction reads.
 
-=== Predicates without a body
+=== Abstract predicates
 
-A predicate may be declared with no body, and Viper gives such an instance no
-relation to any footprint. @lst:pred-abstract is one. Its derived members differ
-from a bodied predicate's in exactly one respect: with no delta to read a
-snapshot type off, the snapshot cannot be a datatype, so it becomes an opaque
-domain instead.
+A Viper predicate may be declared without a body, rendering it abstract. These
+predicates encapsulate assertions whose definitions must remain opaque to
+enforce information hiding; consequently, they cannot be folded or unfolded.
+While a naive translation to VMIR might represent them simply as bodiless
+resources, we instead lower abstract predicates directly into their fundamental
+conceptual components: a domain and a corresponding heap storage mechanism.
+@lst:pred-abstract illustrates the translation of an abstract predicate into
+VMIR primitives.
 
 #lowering(
-  caption: [An abstract predicate. With no delta to read a snapshot type off,
-    the snapshot becomes an opaque domain.],
+  caption: [An abstract predicate is translated to a domain and a location function
+    in VMIR.],
   label: "lst:pred-abstract",
 )[```viper
 predicate Opaque(this: Ref)
 ```][```vmir
-resource Opaque(e0: Ref)
+domain Opaque#snap
 
-domain Opaque@snap
-
-function Opaque@loc(e0: Ref)
-  : &[Opaque] Opaque@snap @ *
+function Opaque(e0: Ref):
+  &[Opaque] Opaque#snap @ *
 ```]
 
-There is no body, so there are no #vm[`with self`] adds, so there is nothing to
-read a member list off. The snapshot type is an opaque #vm[`domain`] instead of
-an #vm[`adt`], and values of it are only ever passed around, never constructed
-and never projected. Everything else is unchanged: a location function at the
-same arity, into a partition of the same kind, and an instance put on the heap
-and taken off it by an ordinary add and subtract.
+During translation, we lower the abstract predicate into a domain, which
+represents the folded value of the predicate, alongside a location function
+that enables storing and retrieving the instance from the heap. This approach
+leverages the expressiveness of VMIR location types; the location function for
+an abstract predicate differs from a standard field solely by holding an
+unbounded amount, rather than a fixed #vm[`1/1`] fraction.
 
-The relation to a footprint is what an abstract predicate gives up. A resource
-operation walks the slots of a body, so with no body there is no walk, and
-#vi[`fold`] and #vi[`unfold`] have nothing to do. A program can hold such an
-instance, give it away and take it back, which is the whole of what it may do
-with one. Helium skips the declaration during verification, since it states
-nothing to prove.
+Furthermore, this encoding structurally prevents the folding and unfolding of
+abstract predicates, as the translation does not generate a VMIR resource
+member to inhale or exhale.
 
 === Comparison with Silicon
 

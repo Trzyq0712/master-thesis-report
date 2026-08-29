@@ -6,7 +6,7 @@ Every function the preceding sections have used is uninterpreted. A field
 declaration becomes a location function, a predicate gains one for its
 instances, and a domain declares a family of them. In each case an application
 is an opaque token that does not relate to any computation or value, which is all
-those three constructs ask for. A Viper #vi[`function`]s can do more: it may have a
+those three constructs ask for. A Viper #vi[`function`] can do more: it may have a
 contract and a body that the definition should unfold to.
 
 Of everything in this chapter, this is where we stayed closest to Silicon.
@@ -19,8 +19,8 @@ is handled.
 
 === Function bodies
 
-A function declaration on its own contributes a signature, so an application of
-it builds a term of the return type and stands unrelated to anything else.
+A function declaration introduces a signature, meaning that applying it yields a
+term of the return type without establishing any other relations.
 @lst:fn-opaque declares one and applies it. Every earlier occurrence of the
 shape was derived by the translator, and this one is written in the program.
 
@@ -47,8 +47,8 @@ method client {
 }
 ```]
 
-The application builds a term and states nothing about it. Nothing relates
-#vm[`div(10, 2)`] to #vm[`5`], so the assertion stands unproven. This could
+The application merely constructs a term. Without further information relating
+#vm[`div(10, 2)`] to #vm[`5`], the assertion remains unproven. This could
 be remedied by stating an axiom (@sec:impl-domains) that relates the function
 to its interpretation. Viper, however, has a more targeted solution to express
 this relation via a function body. @lst:fn-body gives the function one.
@@ -75,9 +75,9 @@ function div(
 
 A function body lowers to the same pure instructions an expression in a method
 body does, terminated by a #vm[`result`] naming the temporary the function
-returns. Helium walks that body once, and the walk yields two things. The parameters
-enter as fresh values, so the walk knows their types and nothing else about
-them. It then takes the instructions in order. Each raises whatever obligations
+returns. We walk that body once, and the walk yields two things. The parameters
+enter as fresh values, so the walk knows only their types.
+It then takes the instructions in order. Each raises whatever obligations
 it carries, which the walk proves under that instruction's own path condition,
 and each contributes its term to the state the walk carries forward. Alongside that
 state the walk carries a second term per temporary, built from the terms of the
@@ -92,8 +92,8 @@ above are already the recipe:
 the term #vm[`e0 / e1`] over the parameters, with #vm[`result`] naming the
 temporary that carries the value.
 
-At each occurrence of #vm[`div(a, b)`] Helium instantiates the recipe with the
-parameters bound to the arguments, and equates the result with the function
+At each occurrence of #vm[`div(a, b)`] we instantiate the recipe with the
+parameters bound to the arguments, and equate the result with the function
 token. An instantiation builds terms and proves nothing, since the declaration
 already discharged the obligations. That is the definitional
 equation #vm[`div(a, b) == a / b`] driven by a rewrite rule.
@@ -160,18 +160,17 @@ so the assumed application unfolds to #vm[`e1 != 0`].
 
 The call site asserts the same application at the arguments before the actual
 call.
-Nothing in VMIR forces this: an instruction stream is free to apply
-#vi[`div`] without ever asserting #vm[`div#requires`] first, and the verifier
-raises no obligation of its own that would stop it. What makes the check
-happen is the translator's own discipline, not a rule VMIR enforces --- it
-never emits a call site without the matching assertion. Naturally, for
+VMIR itself does not enforce this check. An instruction stream can theoretically apply
+#vi[`div`] without first asserting #vm[`div#requires`], because the verifier
+raises no internal obligation to prevent it. Instead, the translator guarantees
+this check by strictly emitting a matching assertion before every call site. Naturally, for
 functions with no precondition the translator emits nothing.
 
 #para[Precondition tokens] <para:impl-fn-tokens> A call also mints a term the
-translator never writes. Helium allocates one uninterpreted symbol per
+translator never writes. We allocate one uninterpreted symbol per
 function, #vm[`div%pre`].
-At each syntactic call to #vi[`div`] in the body it is checking, the verifier
-mints the token at that call's arguments and assumes it true under the call's
+At each syntactic call to #vi[`div`] in the body we are checking, we
+mint the token at that call's arguments and assume it true under the call's
 path condition.
 @lst:pre-token calls #vi[`div`] in one arm of a conditional, so that path
 condition is the arm's guard.
@@ -189,7 +188,7 @@ e2: Int  := <e0> div(10, k)
 ...
 ```]
 
-Concretely, Helium assumes that the function #vm[`div(10, k)`] is well-defined
+Concretely, we assume that the function #vm[`div(10, k)`] is well-defined
 by assuming the precondition token holds when #vm[`e0`] holds. This gives the general
 formula for the token's truth at a call site:
 
@@ -239,7 +238,7 @@ The call to #vm[`div`] is marked because its value is what #vi[`half`] returns,
 so a client's instantiation produces that application and needs the token to
 open it. The #vm[`div#requires`] check beside it is an obligation: it unfolds to
 #vi[`2 != 0`], the verifier discharges it while checking #vi[`half`], and the
-recipe a client instantiates records none of it. A caller that applies #vi[`half(k)`] mints
+recipe a client instantiates omits it entirely. A caller that applies #vi[`half(k)`] mints
 #vm[`half%pre(k)`], the one token written at that call site. The token releases
 #vi[`half`]'s definitional equation,
 
@@ -261,14 +260,13 @@ never proved #vi[`2 != 0`] for itself.
 
 === Postconditions
 
-A function may want to attach an #vi[`ensures`] clause for a couple of reasons.
-- A function with no body
-  releases no definitional equation, so the clause is the whole of what a caller
-  reads.
-- A function might want to state a property of its return value that is not immediately
-  obvious from the body, but is a useful fact for a caller to know.
-- A (mutually) recursive function cannot unfold its own body, so the ensures clause
-  serves as the induction hypothesis to verify the function's own body.
+A function might specify an #vi[`ensures`] clause for several reasons. For a
+function lacking a body, the clause provides the only information a caller can
+rely on, as no definitional equation is available. Alternatively, a function
+with a body might use a postcondition to declare a property of its return value
+that, while true, is not immediately obvious from the body itself. Finally,
+recursive functions cannot unfold their own bodies; instead, their
+#vi[`ensures`] clauses serve as the induction hypotheses needed to verify them.
 
 An #vi[`ensures`] clause lowers to VMIR the way a #vi[`requires`] clause does,
 as a boolean function over the parameters followed by the result. The VMIR
@@ -299,9 +297,9 @@ what #vi[`result`] in the clause lowers to. Where there is a precondition the
 member assumes it first, so a clause whose well-definedness rests on the
 precondition is checked in the state that precondition describes. A function with
 a body closes it by asserting the same application at the value it returns, and
-the verifier discharges that assertion where it stands and keeps nothing from it.
+the verifier discharges that assertion locally without retaining it.
 
-Helium builds what a caller reads from the declaration's link, so the same
+We build what a caller reads from the declaration's link, so the same
 construction serves a function with a body and one without. Write $p$ for the
 member that link names, which @lst:fn-post lowers to #vm[`abs#ensures`]. At
 an occurrence the token releases the link alongside the definitional equation:
@@ -489,17 +487,17 @@ function length(e0: List): Int
 }
 ```]
 
-Helium bounds the unfolding with a _limited twin_, exactly as Silicon would.
+We bound the unfolding with a _limited twin_, exactly as Silicon would.
 Every recursive function gains a second symbol, displayed #vm[`length%lim`],
 which carries a signature and stays uninterpreted. While building the recipe,
-Helium retargets the calls that close the cycle to the twin, so an instantiation
+we retarget the calls that close the cycle to the twin, so an instantiation
 lands on #vm[`length%lim`] and stops there. One rewrite relates the twin to the
 function:
 
 $ f(overline(x)) ~> f"%lim"(overline(x)) $
 
-The rewrite above is directional. That means Helium matches on the left-hand
-side, mints the twin at the same arguments, and merges the two e-classes. Had
+The rewrite above is directional. That means we match on the left-hand
+side, mint the twin at the same arguments, and merge the two e-classes. Had
 this been a bidirectional rule, the solver would immediately run into a matching
 loop, infinitely unfolding the recursive application again. The merge carries
 every fact the caller establishes of #vm[`length`] at those arguments to the
@@ -514,12 +512,12 @@ reaches the twin by the ordinary route: the recursive call contributes
 arm. What the twin bounds is the definitional equation, which stays keyed
 on the full application and so never fires on the twin the recipe produced.
 
-Currently, Helium cannot verify the #vm[length] function shown in
-@lst:fn-recursive. This stems not from a limitation in the encoding, but from
-the verifier's restricted reasoning capabilities. Because this example
-involves a functional specification, which falls outside Helium's core objectives,
-successful verification would require case analysis, a feature Helium lacks.
-However, if the functional ensures clause is removed, the verification succeeds.
+We therefore have complete support for recursive functions in the encoding.
+However, complete support for recursion does not imply full functional support.
+For example, we cannot verify the #vm[length] function shown in
+@lst:fn-recursive. Because this example involves a functional specification,
+successful verification would require case analysis, a feature we deliberately lack.
+If the functional ensures clause is removed, the verification succeeds.
 
 === Comparison with Silicon
 

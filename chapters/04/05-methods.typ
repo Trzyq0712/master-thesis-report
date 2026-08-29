@@ -2,16 +2,17 @@
 
 == Methods <sec:impl-methods>
 
-A method is the most basic unit of verification in Viper. Its body is checked once,
-against the state its own contract describes, and every call to it uses the
-contract in place of the body enabling modular verification. This section
-describes both ends: what a method contract becomes in VMIR, how Helium
-verifies a body against one, and what a call site executes.
+A method serves as the fundamental unit of verification in Viper. Its body is
+verified exactly once against the state delineated by its own contract.
+Subsequently, every call site relies exclusively on this contract rather than
+re-evaluating the body, thereby enabling modular verification. This section
+explores both aspects: how a method contract is represented in VMIR, how Helium
+verifies a method body against it, and how a call site is executed.
 
-For the remainder of this section we only assume straight-line bodies with no
-control flow, and @sec:impl-cfg builds on top of this and describes how VMIR and
-Helium manage it later. We start from @lst:method-bare, a method that touches
-the heap and carries no contract at all.
+For the remainder of this section, we assume straight-line method bodies devoid
+of control flow; @sec:impl-cfg later expands upon this foundation to describe
+how VMIR and Helium manage branches and loops. We begin with @lst:method-bare,
+demonstrating a method that interacts with the heap while carrying no contract.
 
 #lowering(
   caption: [A method that increments a field while holding no permission to it.
@@ -36,11 +37,13 @@ method bump {
   }
 ```]
 
-A method body starts from #vm[`empty`]. Each parameter arrives as a #vm[`fresh`]
-value, unconstrained beyond its type, and the heap the first instruction reads
-is the empty one. The read into #vm[`e2`] therefore fails: a dereference demands
-positive permission at #vm[`val(c)`], and permission enters a body through its
-contract. A precondition is the clause that can supply it.
+Execution of a method body always commences from an #vm[`empty`] heap. Each
+parameter is introduced as a #vm[`fresh`] value, constrained only by its
+declared type. Consequently, the initial heap observed by the first instruction
+is completely empty. The read operation into #vm[`e2`] inevitably fails: a
+dereference strictly requires positive permission at #vm[`val(c)`], and
+permission can only enter a method body via its contract. A precondition is
+precisely the mechanism designed to supply such permission.
 
 === Method contracts
 
@@ -63,15 +66,17 @@ resource bump#requires(e0: Ref) {
 }
 ```]
 
-A #vi[`requires`] clause is a heap fragment together with a self-framing
-assertion, which is what a resource is, so the translator lowers a method
-precondition to one. The resource takes the method's parameters, and its body is built
-exactly as @sec:impl-predicates builds a predicate's.
+Fundamentally, a #vi[`requires`] clause consists of a heap fragment coupled with
+a self-framing assertion. Because this perfectly matches the definition of a
+resource, the translator naturally lowers a method precondition into one. This
+resource accepts the method's parameters, and its internal body is constructed
+using the exact same mechanisms @sec:impl-predicates employs for predicates.
 
-An #vi[`ensures`] clause becomes a resource as well, and @lst:method-post is
-that declaration. It takes one parameter the method's signature does not
-mention, because a postcondition may name the state the method was entered in
-and the resource has to be given that state from somewhere.
+An #vi[`ensures`] clause similarly lowers to a resource, as illustrated in
+@lst:method-post. Notably, this resource accepts one additional parameter absent
+from the method's original signature. Because a postcondition may reference the
+initial state present upon method entry, the resource must explicitly receive a
+snapshot of that pre-state.
 
 #lowering(
   caption: [The postcondition as a resource. Its trailing parameter is the
@@ -142,13 +147,15 @@ values, the ordinary dereference instruction executes an #vi[`old`] expression.
 A postcondition reading past the precondition's footprint fails to discharge
 at #vm[`h0`], exactly as an unframed read would.
 
-Both contract resources are verified at their declarations, on the terms
-@sec:impl-predicates gives any resource. The precondition is verified first,
-since the postcondition is verified with the pre-state that the precondition's
-inhale rebuilds already in hand. Each leaves behind a record of recipes
-(#pararef(<para:impl-slot-recipes>, [Slots and recipes])), so a use of a
-contract rebuilds its footprint from that record instead of walking the clause,
-and well-definedness is settled once, at the declaration.
+Both contract resources undergo verification at their respective declarations,
+following the standard resource verification rules outlined in
+@sec:impl-predicates. The precondition is verified first; the postcondition is
+subsequently verified using the pre-state explicitly reconstructed by the
+precondition's inhale. Each verification yields a permanent record of recipes
+(#pararef(<para:impl-slot-recipes>, [Slots and recipes])). Consequently, any
+subsequent use of the contract merely reconstructs its footprint from this
+record rather than repeatedly traversing the clause, ensuring that
+well-definedness is definitively settled exactly once during declaration.
 
 === Verifying a method
 
@@ -199,11 +206,10 @@ The prologue mints a fresh value for each parameter and for each return
 variable, then a fresh handle for the precondition's snapshot, and inhales the
 precondition against #vm[`empty`]. Binding the inhale to that handle, rather
 than writing #vm[`with fresh`], is what carries the pre-state to the
-postcondition at the exit.
-
-The body is made up of the usual VMIR instructions, each treating #vm[`h0`] as
-it would any other heap. The read into #vm[`e4`] finds the chunk the inhale put
-at #vm[`val(c)`], the permission the same read ran without in @lst:method-bare.
+postcondition at the exit. The body is made up of the usual VMIR instructions,
+each treating #vm[`h0`] as it would any other heap. The read into #vm[`e4`]
+finds the chunk the inhale put at #vm[`val(c)`], the permission the same read
+ran without in @lst:method-bare.
 
 The exit exhales the postcondition. Its arguments are the method's parameters,
 the final values of the return variables, and the precondition's snapshot. It

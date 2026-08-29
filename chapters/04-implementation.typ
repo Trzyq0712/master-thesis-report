@@ -6,7 +6,7 @@
 In this chapter we present the design of VMIR and its verification in Helium.
 The presentation is incremental: each section admits one further class of Viper
 construct, gives its VMIR encoding, and then the strategy Helium uses to verify
-it. Each section closes with a comparison to Silicon, naming where the two
+it. Most sections close with a comparison to Silicon, naming where the two
 designs diverge and what the divergence costs.
 
 @sec:impl-execution starts from the smallest program a verifier can process, a

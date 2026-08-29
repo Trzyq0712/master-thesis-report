@@ -60,16 +60,16 @@ e5: Bool  := e4 == 0
 assert e5
 ```]
 
-There are three operations defined on an ADT: a construction, a projection and a
-discriminator. In VMIR, all three look like function calls, since they essentially
-are. Field names are dropped
-along the way, since a constructor's fields are positional, and #vi[`c.r`]
-becomes #vm[`Shape::Circle.0`], written as the constructor followed by the index
-of the field. #vm[`Shape@tag`] maps a value of the datatype to the index of the
-constructor that built it, so #vi[`c.isCircle`] becomes a comparison of that
-index against zero.
+An ADT exposes three fundamental operations: construction, projection, and
+discrimination. Within VMIR, all three manifest as function calls, directly
+reflecting their underlying semantics. Because a constructor's fields are
+positional, explicit field names are discarded during lowering; consequently,
+#vi[`c.r`] translates to #vm[`Shape::Circle.0`], denoting the constructor
+followed by the field index. The #vm[`Shape@tag`] function maps a datatype
+value to the index of its originating constructor, reducing the variant test
+#vi[`c.isCircle`] to a simple comparison of this index against zero.
 
-A ADT declaration reaches Helium directly. From it the verifier mints, once
+An ADT declaration reaches Helium directly. From it we mint, once
 per datatype, one e-graph function per
 constructor, one per field of each constructor, and one for the discriminator, together
 with rewrite rules relating them. In what follows $D$ is a datatype with
@@ -103,14 +103,15 @@ A datatype may take type parameters, and VMIR declares one for itself:
 #vm[`unwrap`] is its projection at the one field of #vm[`Some`], spelled short
 because it is spelled often. Being builtin is why @sec:impl-heap could hand back
 an #vm[`Option[Int]`] and @sec:impl-predicates could build snapshot members out
-of #vm[`Some`] and #vm[`None`] before this section named either. Helium does not
-monomorphise a generic datatype: it mints one function per concept and carries
+of #vm[`Some`] and #vm[`None`] before this section named either. We do not
+monomorphise a generic datatype: we mint one function per concept and carry
 the ground type arguments on the e-node, so #vm[`Some[Int]`] and
 #vm[`Some[Bool]`] are distinct terms sharing one rule.
 
-@lst:adt-gap is what the two rules above do not reach. Both of its assertions
-are about the discriminator of a value no constructor built, so no left-hand
-side matches and the rules never fire.
+@lst:adt-gap illustrates the limitations of the aforementioned rules. Both
+assertions query the discriminator of an unconstructed symbolic value. Since no
+explicit constructor invocation exists, the left-hand side pattern fails to
+match, and the rewrite rules are never triggered.
 
 #viper(
   caption: [Two assertions Helium does not prove. Both are about the
@@ -125,20 +126,23 @@ var t: Shape
 assert t.isCircle || t.isSquare // fails
 ```]
 
-Nothing constrains the discriminator's range, so a value ruled out of every
-variant but one is not thereby known to be the last. Behind that sits the
-broader limit: an e-graph stores equalities and has no place to put a
-disequality, so what Helium can refute it reconstructs by equality refutation
-over the constructor labels a class carries. We left both
-open deliberately, since verifying a specification-free program turns on neither,
-and both remain future work.
+Because nothing structurally constrains the discriminator's range, ruling a
+value out of every variant but one does not automatically prove it belongs to
+the remaining variant. This reflects a broader systemic limitation: an e-graph
+inherently stores equalities and provides no natural representation for
+disequalities. Consequently, refutations must be reconstructed via equality
+refutation over the constructor labels associated with an e-class. We
+deliberately left both these gaps open, as verifying specification-free programs
+typically relies on neither capability, deferring their implementation to future
+work.
 
 === Domains <sec:impl-domains>
 
-A domain declares a type together with uninterpreted functions over it, and
-@lst:domain-fails declares two of them that are meant to be inverse. Nothing in
-the declaration says so, which is the point: a domain function is a name and a
-signature, and what relates it to anything else has to be stated separately.
+A domain declares a new type alongside uninterpreted functions operating over it.
+While @lst:domain-fails defines two functions intended to be mutual inverses,
+the declaration itself encodes no such relationship. This is by design: a domain
+function merely introduces a signature, and any semantic relationships must be
+explicitly established elsewhere via axioms.
 
 #viper(
   caption: [Two functions and no axiom. Nothing relates a round trip through
@@ -330,7 +334,7 @@ the e-graph.
 
 A single rewrite rule is responsible for instantiating every quantifier in the program. It finds the
 e-classes holding a #vm[`forall`] node, matches the triggers of each one against
-the e-graph, and replays its recipe at every new binding a match supplies. The same
+the e-graph, and replays its recipe at every new binding a match supplies. Because Viper mandates that all quantifiers have triggers, we do not need a fallback mechanism for triggerless quantifiers; the rewrite rule assumes triggers are always present. The same
 rule covers nesting: an inner quantifier is a step of the outer recipe, so an
 instance builds it as an ordinary node with the outer binding in its children,
 and the rule picks it up as soon as it is in the graph. This is why a quantifier

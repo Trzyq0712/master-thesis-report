@@ -2,21 +2,26 @@
 
 == Verification Pipeline <sec:impl-pipeline>
 
-A VMIR program is a flat list of declarations of six kinds. Nothing nests: a
-predicate body, a method contract and a domain axiom all sit at the top level.
-Helium works over that list in two steps. It fixes an order on the declarations,
-and then walks each one in turn.
+A VMIR program comprises a flat sequence of declarations falling into six
+distinct categories. Importantly, these declarations never nest: predicate
+bodies, method contracts, and domain axioms all exist exclusively at the top
+level. Helium processes this flat list in two consecutive phases. First, it
+computes a dependency-based execution order over the declarations; subsequently,
+it verifies each unit in that established sequence.
 
-Three of the six kinds are verification units. A #vm[`resource`], a
-#vm[`function`] and a #vm[`method`] each carry a body to walk, and each walk
-yields one result. The other three declare the vocabulary those walks use: a
-#vm[`domain`] and an #vm[`adt`] declare a type, and an #vm[`axiom`] states a
-fact Helium assumes into the e-graph of every unit before the walk begins
-(@sec:impl-data). A contract is a declaration in its own right, so it is a unit
-in its own right. A method's precondition and postcondition are verified as
-separately as the method is (@sec:impl-methods), a function's clauses the same
-way (@sec:impl-functions), and verifying a clause on its own is what confirms
-the clause is well defined.
+Of these six declaration types, exactly three constitute active verification
+units. Specifically, a #vm[`resource`], a #vm[`function`], and a #vm[`method`]
+each encapsulate a body requiring traversal, yielding a distinct verification
+result. Conversely, the remaining three declaration types establish the
+vocabulary utilized during these traverses: a #vm[`domain`] and an #vm[`adt`]
+introduce novel types, while an #vm[`axiom`] asserts a universal fact that Helium
+assumes into the e-graph prior to verifying any unit (@sec:impl-data). Notably,
+a method contract constitutes an independent declaration, making it a
+verification unit in its own right. Consequently, a method's precondition and
+postcondition are verified entirely separately from the method body itself
+(@sec:impl-methods). The same isolation applies to a function's clauses
+(@sec:impl-functions). Verifying these clauses independently intrinsically
+confirms their well-definedness.
 
 // A three-column summary. The house style of the lowering reference: a rule
 // under the header, a hairline between rows, and a ragged prose column, since

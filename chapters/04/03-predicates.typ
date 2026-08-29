@@ -3,16 +3,12 @@
 
 == Predicates <sec:impl-predicates>
 
-Predicates are what lets a Viper program express anything of size. They are the
-mechanism by which a program packages up some part of the heap and the claims
-about it, and passes it around as a single unit without exposing its internal
-structure. They are also the tool for describing memory structures of
-potentially unbounded size, such as linked lists or trees.
-
-Helium therefore has to support programming with predicates. This section
-describes how VMIR represents them, and how Helium implements the concepts that
-representation introduces. It works up from @lst:cell-pred, about the simplest
-predicate one could define in Viper: a cell that holds a single integer field.
+Predicates are Viper's mechanism for encapsulating a portion of the heap, along
+with claims about its contents, into a single opaque unit. This encapsulation is
+essential for describing unbounded memory structures, such as linked lists or
+trees. This section details how VMIR represents predicates and implements their
+associated concepts, starting from @lst:cell-pred, the simplest predicate
+holding a single integer field.
 
 #viper(
   caption: [A predicate packaging a single integer field behind a name. It is
@@ -26,11 +22,13 @@ predicate Cell(this: Ref) {
 }
 ```]
 
-Hiding the contents of a predicate is what makes it useful, and it is also what
-makes it awkward to work with. @lst:pred-fails holds an instance of #vi[`Cell`]
-and asks for the field inside it. The permission to that field is in the
-instance rather than in the method's own state, so the read fails, and getting
-at it is what the rest of the section is about.
+While hiding the internal contents of a predicate provides modularity, it
+simultaneously complicates direct access. @lst:pred-fails illustrates a method
+holding an instance of #vi[`Cell`] attempting to access its encapsulated field.
+The precondition places a single chunk on the heap representing the predicate
+instance itself, not the underlying #vm[`val(c)`] location. Consequently, the
+exhale fails due to insufficient permission. Recovering the field requires
+explicitly unfolding the predicate (@sec:impl-fold).
 
 #viper(
   caption: [Holding a predicate instance says nothing about the field inside it.],
@@ -43,24 +41,17 @@ method use(c: Ref)
 }
 ```]
 
-Each of the four heap instructions of @sec:impl-heap acts at a single location
-it is given. The precondition places one chunk on the heap, at the location that
-stands for the instance, and that chunk does not sit at #vm[`val(c)`]. The
-exhale on the last line therefore finds no permission there, and fails its
-sufficiency obligation. Recovering the field costs an #vi[`unfold`], which we
-describe in @sec:impl-fold.
-
 === VMIR resources
 
-VMIR has no direct "predicate" primitive, and the reason is that a predicate is
-not the only thing in Viper with a predicate's shape. A method contract and a
-function precondition are also permission to some part of the heap together with
-a claim about what that part holds, and a verifier has to take and give back all
-three in the same way. VMIR therefore provides one construct general enough to
-carry all of them, which we call a _resource_: a named, parameterised pair of a
-heap delta and a boolean claimed of that delta. Predicates are lowered to
-resources, and so are method contracts (@sec:impl-calls) and function preconditions.
-Each heap instruction treats all three alike. @lst:cell-resource is the
+VMIR provides no direct primitive for a "predicate", because predicates are
+not the sole Viper construct exhibiting this shape. Method contracts and
+function preconditions similarly bundle heap permissions with logical claims,
+and a verifier must handle exchanging all three uniformly. Therefore, VMIR
+introduces a single, general construct capable of subsuming them: a _resource_.
+A resource is a named, parameterised pair comprising a heap delta and a boolean
+claim over that delta. Predicates, method contracts (@sec:impl-calls), and
+function preconditions all lower to resources, allowing each heap instruction
+to treat them uniformly. @lst:cell-resource is the
 #vi[`Cell`] predicate lowered to one.
 
 #vmir(
@@ -77,16 +68,12 @@ resource Cell(e0: Ref) {
 }
 ```]
 
-The body of a resource is a sequence of instructions, almost exactly like the
-ones a method body is made of. Every instruction in @lst:cell-resource has
-appeared in @sec:impl-heap. #vm[`e1`] builds the address, #vm[`h0`] adds a chunk
-for it, and #vm[`result`] delivers the pair the declaration yields. The delta of
-#vi[`Cell`] is therefore a single chunk holding an integer at full permission,
-and its boolean is #vm[`true`], because a body of permissions alone claims
-nothing. The add carries one piece of syntax that no method body uses,
-#vm[`with self`]. It marks the chunk as one the resource itself contributes. The
-chunks a body marks this way are its _footprint_, and
-#pararef(<para:impl-snapshots>, [Snapshots]) makes the marking precise.
+A resource's body is a sequence of instructions akin to a method body. In
+@lst:cell-resource, #vm[`e1`] builds the address, #vm[`h0`] adds a chunk for it,
+and #vm[`result`] delivers the resulting heap and boolean claim (here #vm[`true`],
+as the body asserts no pure conditions). The addition introduces #vm[`with self`],
+a construct unique to resources that explicitly marks the chunk as part of the
+resource's contributed _footprint_ (#pararef(<para:impl-snapshots>, [Snapshots])).
 
 #para[Associated members] <para:impl-derived> Every VMIR resource implicitly
 defines two associated members. The first is a snapshot type, which records the
@@ -117,40 +104,26 @@ type, so a chunk in that partition holds a whole instance. Its bound is
 #vm[`*`], because Viper lets a program hold any amount of a folded predicate at
 once and we match that.
 
-The bound is the one component of the three that we would rather not fix. A
-partition of unbounded kind receives neither axiom of
-#pararef(<para:impl-location-axioms>, [Location axioms]), so two instances of
-one resource stay possibly equal where two full field chunks would be proven
-distinct. Some resources admit a tighter bound than #vm[`*`]. A bound is a
-component of a location type like any other, and the machinery treats each
-partition on its own, so a frontend that knew which resources those are would
-recover both axioms for them. VMIR does not currently offer that choice: the
-bound of a resource's location function is unbounded by construction rather than
-by declaration, and we leave making it declarable to future work.
+Because unbounded partitions receive neither injectivity axiom
+(#pararef(<para:impl-location-axioms>, [Location axioms])), two instances of a
+resource may remain possibly equal where full field chunks would be proven
+distinct. While some resources theoretically admit a tighter bound than #vm[`*`],
+VMIR currently forces all resource location functions to be unbounded by
+construction. Making this bound declarable by frontends is left to future work.
 
 === Lowering a predicate body
 
-Deriving the snapshot type, and later running a resource operation, both need
-the footprint: which of a body's adds are the chunks the resource contributes.
-We read that list off the body syntactically. This subsection describes the
-reading, and the shapes of body it has to cope with.
+Deriving the snapshot type and executing resource operations both require the
+footprint: the specific chunks the resource contributes. We extract this list
+syntactically from the body.
 
-#para[Snapshots] <para:impl-snapshots> The snapshot is what an instance
-remembers of the delta it folded away. It is built out of the adds the body
-marks with #vm[`with self`], which is the third way an add can name the value of
-the chunk it produces. An addition names the other two,
-#vm[`fresh`] and an already computed temporary (@sec:impl-heap-ops). #vm[`with self`]
-defers the choice of value to whatever context uses the resource.
-
-Each such add contributes one _slot_ of the footprint, and each slot contributes
-one member of the snapshot type, typed by what is stored at the location added.
-The members are ordered as the adds are. #vm[`with self`] therefore carries no
-slot index, because the slot an add fills is already determined by where the add
-stands. The order of the slots is the order of the body, and a body declares
-exactly the slots it adds. #vi[`Cell`] has one such add, so #vm[`Cell@snap`] has
-one member at the type #vi[`val`] stores. We leave #vi[`Cell`] as it is and grow
-a second predicate beside it, #vi[`Node`], one conjunct at a time. In
-@lst:pred-two-slots the first conjunct we add is a second field.
+#para[Snapshots] <para:impl-snapshots> A snapshot records the delta an instance
+folded away. It is constructed from additions marked #vm[`with self`], which
+defers the choice of the chunk's value to the calling context. Each such
+addition contributes one sequentially ordered _slot_ to the footprint, producing
+a corresponding member in the snapshot type. For instance, #vi[`Cell`] has one
+slot, yielding a single-member snapshot. To illustrate more complex shapes,
+@lst:pred-two-slots builds a #vi[`Node`] predicate with multiple fields.
 
 #lowering(
   caption: [A second conjunct becomes a second add, and a second member of the
@@ -176,13 +149,12 @@ resource Node(e0: Ref) {
 }
 ```]
 
-Marking is what determines the footprint, not counting. The snapshot has one
-member per #vm[`with self`] add, in the order the adds appear, and any other
-instruction in the body leaves the snapshot type alone. Each member is an
-#vm[`Option`] of what its slot stores, for the reason
-#pararef(<para:impl-gate-split>, [Conditional footprints]) gives below. Every
-body so far has claimed #vm[`true`], and a pure conjunct is what puts something
-else there. @lst:pred-bool adds one to @lst:pred-two-slots.
+Only instructions marked #vm[`with self`] contribute to the snapshot; all other
+operations leave it unaffected. Every snapshot member is wrapped in an
+#vm[`Option`] to support conditional footprints
+(#pararef(<para:impl-gate-split>, [Conditional footprints])). Additionally, while
+previous examples claimed #vm[`true`], adding a pure conjunct incorporates a
+substantive boolean claim (@lst:pred-bool).
 
 #lowering(
   caption: [A pure conjunct contributes no chunk. It becomes the resource's
@@ -235,13 +207,10 @@ resource Node(e0: Ref) {
 }
 ```]
 
-The violation is visible in the VMIR without running anything. The read into
-#vm[`e2`] consults #vm[`empty`], because nothing has been added yet, and a
-dereference of an empty heap cannot succeed. Helium reports it through the
-positivity obligation a dereference raises
-(@sec:impl-heap-ops), as insufficient permission, exactly as it would report the same read in a method body.
-Self-framing is therefore the ordinary obligation a read carries, raised in a
-body rather than in a method, and Helium runs no separate pass for it.
+The violation is explicitly captured in VMIR: reading from #vm[`empty`] triggers
+the standard positivity obligation, failing due to insufficient permission.
+Helium evaluates self-framing naturally through these standard read obligations,
+requiring no separate verification pass.
 
 The address of a slot may depend on the value of an earlier slot.
 @lst:pred-nested replaces the pure conjunct of @lst:pred-bool with an
@@ -308,26 +277,23 @@ resource Node(e0: Ref) {
   p0 := e4 ? 1/1 : 0/1
   e5: &[Cell] Cell@snap @ *
      := Cell@loc(e3)
-  h2 := h1 + e5 @ p0 with self
+  h2 := <e4> h1 + e5 @ p0 with self
   result: (h2, true)
 }
 ```]
 
-The guard becomes the amount #vm[`p0`], and the add runs whatever that amount
-turns out to be. We keep the add unconditional, which is what lets the footprint
-be read off the body syntactically at all. A guarded instruction would make the
-slot count depend on a path condition, and a snapshot type cannot depend on a
-path condition. The cost is that presence becomes an arithmetic question rather
-than a structural one.
+To support linked structures, slots may be guarded by conditions
+(@lst:pred-conditional). Rather than gating the instruction itself --- which would
+dynamically alter the slot count based on path conditions --- VMIR pushes the
+guard into the permission amount (#vm[`p0`]), keeping the addition
+unconditional. This shifts presence from a structural question to an arithmetic
+one.
 
-This is where the snapshot's #vm[`Option`] members come from. Whether the third
-slot is present depends on the reference the use site supplies, which is known
-at verification time, whereas the snapshot type is fixed when the resource is
-declared. Optional members are the choice that is safe at declaration time, so we
-make every member one. A fold packs slot $i$ as #vm[`0 < p ? Some(v) : None`],
-present exactly where positive permission was contributed. Where the add was
-unconditional that condition folds to #vm[`true`], so the wrapper reduces away
-and an unconditional footprint pays for it only in the type.
+Consequently, snapshot members are uniformly wrapped in #vm[`Option`] types,
+ensuring safety at declaration time when runtime values are unknown. A fold
+dynamically packs a slot's value as #vm[`0 < p ? Some(v) : None`]. For
+unconditional adds, this trivially reduces to #vm[`Some(v)`], imposing only a
+superficial type-level cost.
 
 #para[Recursion] <para:impl-recursion> One further change makes the predicate
 recursive, and it is a change of a single name. @lst:pred-recursive is
@@ -355,46 +321,40 @@ machinery it already has, because the body still describes one level. The third 
 Helium records no dependency of #vi[`Node`] on itself. A recursive predicate is
 therefore verified in one ordinary pass, like any other, with no depth limit.
 
-One shape is rejected. A body that unfolds a resource inside that resource's own
-definition, directly or around a cycle of several, is refused by Helium before
-verification starts. Unfolding a resource rebuilds it from the record its own
-verification produced (#pararef(<para:impl-slot-recipes>, [Slots and recipes])),
-so Helium schedules a resource after everything it unfolds, and a cycle admits
-no such order. Silicon accepts these programs, since it re-executes the
-assertion against the state at each use. We have not found the restriction
-binding in practice, as a predicate body that unfolds a predicate is rare.
+We intentionally reject one specific shape. A body that unfolds a resource within
+its own definition---whether directly or through a cycle---is refused prior to
+verification. Unfolding a resource fundamentally reconstructs it from the record
+produced during its own verification (#pararef(<para:impl-slot-recipes>, [Slots and recipes])).
+We must therefore schedule a resource after everything it unfolds, and a cyclic
+dependency admits no such topological order. While Silicon accepts such programs
+by re-executing assertions against the current state at every use, we have found
+this restriction poses no issue in practice, as self-unfolding predicates are
+exceedingly rare.
 
 === Verifying a resource
 
-A resource is checked once, at its declaration, under fresh symbolic parameters.
-Helium walks the body instruction by instruction, and every obligation it raises
-goes to @sec:impl-execution with no special handling. A dereference in a body
-demands its permission on the same terms a dereference in a method body does.
+A resource is verified once at declaration using fresh symbolic parameters,
+raising standard obligations handled uniformly by @sec:impl-execution.
+Assertions contain no statements, so assignments and havocs naturally never
+appear. Additionally, additions binding #vm[`fresh`] are strictly prohibited; a
+resource must not invent values unsupplied by the use site, as this would assign
+inconsistent semantics to repeated uses of the same resource. Freshness is
+strictly the responsibility of the calling instruction.
 
-Two kinds of instruction are absent from every body. A body is lowered from an
-assertion, and an assertion contains no statements, so there is no assignment
-and no havoc to lower. An add binding #vm[`fresh`] is absent because a body that
-minted a value of its own would claim something about a value the use site never
-supplied, and the same resource used twice would then mean two different things.
-Freshness belongs to the instruction that uses a resource.
-
-#para[Slots and recipes] <para:impl-slot-recipes> None of the body survives
-verification as a body. What Helium keeps is a record of _recipes_: two per
-footprint slot, one building the slot's address and one building its permission
-amount, plus one for the boolean. Each is stored alongside the location kind and
-element type of its slot. A function body leaves behind the same construct.
-
-The recursive #vi[`Node`] of #pararef(<para:impl-recursion>, [Recursion]) shows
-what that record looks like. Its third slot is the guarded
-#vi[`acc(Node(this.next), write)`], produced by the instructions below, which
-@fig:node-recipes reduces to recipes:
+#para[Slots and recipes] <para:impl-slot-recipes> During verification, the resource
+body is compiled away entirely, leaving only a record of _recipes_: two pure
+terms per footprint slot (computing address and permission) plus one for the
+boolean claim. A recipe may only reference the resource's arguments and preceding
+snapshot members. For instance, in @fig:node-recipes, the initial dereference is
+eliminated entirely; #vm[`e3`] simply refers directly to the snapshot member
+provided by slot 1.
 
 #no-numbers[```vmir
 e3: Ref := *[h1] e2
 e4: Bool := e3 != null
 p0 := e4 ? 1/1 : 0/1
 e5: &[Node] Node@snap @ * := Node@loc(e3)
-h2 := h1 + e5 @ p0 with self
+h2 := <e4> h1 + e5 @ p0 with self
 ```]
 
 #figure(
@@ -405,25 +365,9 @@ h2 := h1 + e5 @ p0 with self
   resource-recipes,
 ) <fig:node-recipes>
 
-The dereference on the first line is absent from the record. A #vm[`with self`]
-add binds its chunk to the slot the resource is given, so while the body is
-checked, the chunk at #vm[`next(e0)`] holds the value slot 1 contributes to the
-snapshot. The dereference resolves to that chunk and yields the value itself, so
-#vm[`e3`] is the snapshot member itself. The guard
-#vm[`e4`], the amount #vm[`p0`] and the address #vm[`e5`] are then terms over
-that member and the argument, which is what the figure draws.
-
-A recipe is consequently a pure expression built from pure operations. Its
-obligations were discharged when the resource was verified, so a use site
-rebuilds the terms without re-running any of them. A division in a body has its
-divisor proven non-zero once, and a call in a body has its precondition proven
-once, at the declaration. Rebuilding is term construction.
-
-A recipe is seeded by an argument or by the value of an earlier slot, so slots
-are ordered and a slot may look only backwards. And a value the body invented would belong to neither seed, so no
-recipe could name it: an add binding #vm[`fresh`] on the path to any recipe
-would have to be rejected. The lowering never emits one, because it writes
-#vm[`with self`] for every #vi[`acc`] it meets inside a resource.
+Because recipes consist exclusively of pure operations verified during
+declaration, a use site simply reconstructs the resulting terms without
+re-raising any obligations or inventing new values.
 
 A use site supplies each slot value from what it already holds. Giving a
 resource up reads the value out of the heap as the walk passes the slot. Taking
@@ -435,47 +379,32 @@ these walks are the subject of @sec:impl-fold.
 
 === Folding and unfolding <sec:impl-fold>
 
-So far a resource has been a declaration: something Helium checks on its own and
-compiles to a record. A program has to interact with one, and the two Viper
-statements that do are #vi[`fold`] and #vi[`unfold`]. This subsection covers the
-instructions they are built from and the statements themselves. VMIR has two
-heap instructions beyond the four of @sec:impl-heap-ops, and both take a whole
-resource rather than one location.
+To interact with resources, VMIR introduces two dedicated heap operations
+operating over entire resources rather than individual locations:
 
 #align(center)[#vm[`h', s := h exhale R(args) @ p`]]
 
-An exhale gives up a resource. Given a heap #vm[`h`], a resource #vm[`R`] at
-arguments #vm[`args`] and a permission amount #vm[`p`], it produces a new heap
-#vm[`h'`] and the snapshot #vm[`s`] of what it took away. It walks the slots in
-the body's order, rebuilds each address and each amount from the recipes at
-#vm[`args`], and subtracts that much permission at each, raising the sufficiency
-obligation of a subtraction slot by slot. It reads the value the heap held at
-each slot as it passes, and yields those values assembled into #vm[`s`]. The
-boolean of the body is asserted, because giving up a resource claims that what is
-being given up satisfies it. The amount must be strictly positive, $p > 0$.
+An exhale relinquishes a resource. It traverses the slots in order, evaluating
+recipes to subtract permissions and asserting the resource's boolean claim. It
+dynamically extracts the stored values from the heap, yielding them collectively
+as the snapshot #vm[`s`]. The permission #vm[`p`] must be strictly positive.
 
 #align(center)[#vm[`h' := h inhale R(args) @ p with s`]]
 
-An inhale takes a resource on. It runs the same walk in the other direction,
-adding permission at each slot instead of subtracting it, and produces the heap
-#vm[`h'`] that walk builds. It reads no values out of the heap, so the values it
-adds come from the #vm[`with`] clause: a snapshot #vm[`s`], whose member $i$
-becomes the value of slot $i$. That is what #vm[`with self`] in the body named.
-The boolean of the body is assumed, because holding the resource is what entitles
-a program to the claim. The amount must be strictly positive here too.
+An inhale acquires a resource by reversing this traversal. It adds permissions
+sequentially and assumes the resource's boolean claim. Instead of reading from
+the heap, it populates the new chunks using the provided snapshot #vm[`s`],
+fulfilling the #vm[`with self`] bindings from the resource's declaration. Like
+exhale, it requires strictly positive permission.
 
-The strictness is what separates the two from the slot-level pair, which asks
-only for non-negativity, and the reason is the boolean. At zero permission the
-walk transfers no chunks, so the claim it would assert or assume is about a
-footprint the operation neither received nor gave. Viper rejects the same
-programs. An addition and a subtraction carry no claim of their own, and a
-guarded #vi[`acc`] is exactly zero on the path its guard excludes, so those two
-keep $p >= 0$.
+This strict positivity requirement prevents asserting or assuming claims about
+footprints that were neither given nor received. In contrast, primitive
+slot-level additions and subtractions carry no boolean claims and thus safely
+admit zero permissions, a property essential for unconditionally processing
+guarded slots.
 
-The two Viper statements are built from these. A #vi[`fold`] exchanges the
-chunks of the body for the instance itself, and the instance remembers what
-those chunks held. An #vi[`unfold`] runs the exchange the other way. Each is a
-pair of instructions, as @lst:fold-unfold shows.
+The #vi[`fold`] and #vi[`unfold`] statements are built upon these operations
+(@lst:fold-unfold).
 
 #lowering(
   caption: [Each statement is a resource operation paired with a slot-level add
@@ -498,37 +427,26 @@ h2 := h1 inhale Cell(e0) @ 1/1
       with e2
 ```]
 
-Each direction is the resource operation and the slot-level instruction that
-mirrors it, sharing one temporary. The fold exhales the resource and adds the
-predicate chunk bound to the snapshot the exhale yielded. The unfold subtracts
-that chunk and inhales the resource bound to what it held, through an
-#vm[`unwrap`], since a subtract reports its value as an #vm[`Option`].
+Each statement pairs a resource operation with its corresponding slot-level
+counterpart, linked by a shared temporary. A fold exhales the internal footprint
+and stores the yielded snapshot into a newly added predicate chunk. An unfold
+subtracts the predicate chunk and inhales the footprint using the unwrapped
+snapshot. This specific instruction ordering prevents overlapping permissions when
+unfolding recursive instances, ensuring outer and inner instances never
+simultaneously occupy the heap.
 
-The order is forced by permission accounting rather than by the binding. The
-recursive #vi[`Node`] mentions its own instance in its body, so the outer and
-inner instances sit at the same location kind, and producing either before the
-other is gone would put both on the heap at once. And the boolean can only ride
-on the resource half, because an add and a subtract carry no claim. It is
-therefore asserted by the fold and assumed by the unfold, at the right polarity
-in each direction by construction.
+By constructing these as pairs of fundamental instructions rather than
+introducing dedicated #vm[`fold`]/#vm[`unfold`] primitives, VMIR simplifies the
+IR while elegantly preserving the identity between an instance and its footprint.
+Because the snapshot temporary seamlessly threads between the two operations, the
+structural round-trip remains exact.
 
-VMIR used to have a dedicated #vm[`fold`] instruction doing both halves at once,
-and it worked. We removed it for one fewer instruction in the IR, at the cost of
-the #vm[`unwrap`]. What made the trade worth taking is the equation between an
-instance and its footprint, which the dedicated instruction had to maintain: the
-snapshot an unfold reproduces the body from is the same value the chunk held.
-Written as a pair, that equation is the same temporary named twice, #vm[`e1`]
-threaded into #vm[`e2`] and then into the inhale.
-
-The round trip is therefore exact. A fold packs the value #vm[`v`] of slot $i$
-as #vm[`Some(v)`], and the matching unfold recovers it as an unwrap of a member
-of that same construction. Both steps are rewrite rules of the core
-(@sec:impl-adts), so the recovered term lands in #vm[`v`]'s own e-class rather
-than merely being provably equal to it. A field read before a fold and the same
-read after the unfold are the same term, and an assertion relating the two is
-discharged by comparing class identifiers. @lst:pred-succeeds is
-@lst:pred-fails with the unfold in place, beside the VMIR that now makes the
-lookup succeed.
+This exactness ensures that folding a value #vm[`v`] as #vm[`Some(v)`] and
+subsequently unfolding it via #vm[`unwrap`] lands precisely in #vm[`v`]'s
+original e-class via core rewrite rules (@sec:impl-adts). Consequently,
+equivalent reads before a fold and after an unfold resolve to the identical term,
+allowing assertions to discharge instantly via e-class identity
+(@lst:pred-succeeds).
 
 #lowering(
   caption: [The opening failure repaired. The pair puts a chunk at
@@ -588,15 +506,15 @@ e5: Bool := e4 > 0
 assert e5
 ```]
 
-We translate an #vi[`unfolding`] exactly as we translate an #vi[`unfold`],
-through the same pair of instructions. What differs is which heap the
-instructions after it read. The sub-expression is lowered against #vm[`h2`], the
-heap the pair produced, so the read into #vm[`e4`] finds the field. Once the
-sub-expression is finished, #vm[`h2`] goes unmentioned and the enclosing
-statement carries on from #vm[`h0`]. The instance stays open in a heap value
-that the surrounding code has stopped naming, so a matching fold would be
-redundant and we emit none. Scoping an effect is therefore a question of which
-temporary an instruction reads.
+We translate an #vi[`unfolding`] expression precisely as we translate an
+#vi[`unfold`] statement, utilizing the same instruction pair. The distinction
+lies strictly in which heap subsequent instructions read. The sub-expression is
+lowered against #vm[`h2`], the explicitly produced heap, enabling the read into
+#vm[`e4`] to successfully locate the field. Upon concluding the sub-expression,
+#vm[`h2`] is no longer referenced, and the enclosing statement seamlessly resumes
+from #vm[`h0`]. The instance remains open in a now-unreferenced heap value; thus,
+emitting a matching fold is redundant, and we omit it. Consequently, scoping an
+effect merely involves manipulating which temporary an instruction targets.
 
 === Abstract predicates
 

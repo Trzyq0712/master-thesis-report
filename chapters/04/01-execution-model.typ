@@ -28,15 +28,16 @@ e2: Bool := e0 == 42
 assert e2
 ```]
 
-The variable #vi[a] becomes the temporary #vm[e0]. Its declaration has no
-initialiser, so it lowers to a #vm[`fresh`] instruction, and executing that
-instruction creates a new e-class for #vm[e0] to name.
+The variable #vi[a] corresponds to the temporary #vm[e0]. Since its declaration
+lacks an initialiser, it translates to a #vm[`fresh`] instruction. Executing
+this instruction establishes a new e-class for #vm[e0].
 
-The #vi[`assume`] becomes two instructions: the equality #vm[e1] over #vm[e0]
-and the literal #vm[`42`], and then the #vm[`assume`] itself. Executing the
-equality inserts an #vm[==] node with those two e-classes as its children, and
-the #vm[`assume`] merges #vm[e1] with #vm[`true`], which is what makes
-#vi[a == 42] hold. @fig:egraph-first draws the graph either side of that merge.
+The #vi[`assume`] translates to two instructions: the equality #vm[e1] over
+#vm[e0] and the literal #vm[`42`], and then the #vm[`assume`] itself. Executing
+the equality introduces an #vm[==] node with those two e-classes as its
+children, and the #vm[`assume`] merges #vm[e1] with #vm[`true`], which
+consequently enforces #vi[a == 42]. We draw the graph either side of that merge
+in @fig:egraph-first.
 
 #figure(
   egraph-first,
@@ -48,16 +49,16 @@ the #vm[`assume`] merges #vm[e1] with #vm[`true`], which is what makes
     node already in the graph, so #vm[e1] and #vm[e2] name the same class.],
 ) <fig:egraph-first>
 
-The #vi[`assert`] lowers to two instructions the same way. Restating the
-equality as #vm[e2] finds the #vm[==] node already in the graph, so #vm[e1] and
-#vm[e2] name one e-class. The #vm[`assert e2`] then compares the e-classes of
-#vm[e2] and #vm[`true`], which the #vm[`assume`] has already merged.
+The #vi[`assert`] similarly translates to two instructions. Restating the
+equality as #vm[e2] locates the existing #vm[==] node in the graph, ensuring
+#vm[e1] and #vm[e2] denote the same e-class. The #vm[`assert e2`] then compares
+the e-classes of #vm[e2] and #vm[`true`], which the #vm[`assume`] previously merged.
 
 We alter the program slightly to make the assertion non-trivial. @lst:ex-v2
 declares #vi[a] to be #vi[10], adds #vi[32] to it, and then asserts that the
-result is #vi[42]. No instruction ever states the asserted equality, so the
-verifier cannot discharge it by finding a node it already holds, as it did
-above.
+result is #vi[42]. Because the asserted equality is never explicitly stated
+prior, the verifier cannot discharge it merely by finding a pre-existing node,
+as it did in the previous example.
 
 #lowering(
   caption: [A program expressing an obligation that `10 + 32 = 42`, and the
@@ -74,18 +75,18 @@ e2: Bool := e1 == 42
 assert e2
 ```]
 
-The #vm[assert e2] cannot prove #vm[e2] equivalent to #vm[true] by comparing
-e-classes, so it needs some lightweight reasoning. Helium constant-folds, using
-an _egg_ analysis over the e-graph. When #vm[e1] is built, the two
-children of the #vm[+] node are e-classes with constant values, #vm[10] and
-#vm[32], which constant-fold to #vm[42]. Afterwards, when #vm[e2] is built, the
-two children of #vm[==] carry the same constant value, which folds to #vm[true],
-allowing the verifier to discharge the obligation.
+The assertion #vm[assert e2] cannot establish equivalence to #vm[true] strictly
+by comparing e-classes; it requires lightweight reasoning. We rely on Helium to
+perform constant-folding via an _egg_ analysis over the e-graph. When #vm[e1] is
+constructed, the children of the #vm[+] node are constant e-classes, #vm[10] and
+#vm[32], which fold into #vm[42]. Consequently, when #vm[e2] is formed, both
+children of the #vm[==] node share the same constant value, folding to #vm[true]
+and successfully discharging the obligation.
 
 @lst:ex-v3 needs more than structure and constant folding. It declares #vi[a]
 and #vi[b], states the #vi[goal] #vi[`a * 2 == b * 2`], and then assumes
-#vi[`a == b`], which is what makes the goal hold. Neither side of the goal is a
-constant, so nothing folds.
+#vi[`a == b`], which effectively satisfies the goal. However, since neither side
+of the goal is a constant, constant-folding alone is insufficient.
 
 #lowering(
   caption: [A program whose obligation needs an assumed equality carried through
@@ -126,8 +127,8 @@ $ x = x -> "true" $
 left the assumed equality sits in the class of #vm[`true`] and every other class
 holds a single node. On the right the two #vm[`fresh`] share a class, the two
 multiplications share another, and the goal has joined #vm[`true`]. Every node
-on the right is one the instructions had already inserted: the rewriting merged
-classes and built nothing.
+on the right is one the instructions had already inserted: the rewriting merely merged
+classes without constructing new nodes.
 
 #figure(
   egraph-saturate,
@@ -149,10 +150,10 @@ var a: Int
 var b: Int := a != 0 ? 1 / a : 0
 ```]
 
-The division raises an obligation that #vi[a] is non-zero, and nothing in the
-global fact-base rules that out: the guard that does is part of the expression
-rather than a statement before it. Helium would therefore reject the program.
-VMIR answers with path conditions (PC for short), and @lst:safe-div-vmir is the
+The division introduces an obligation requiring #vi[a] to be non-zero. Since the
+global fact-base lacks this guarantee---because the guard resides within the
+expression itself rather than preceding it---Helium would normally reject the
+program. VMIR addresses this with path conditions (PC for short). @lst:safe-div-vmir
 lowering when an obligation is raised under a guard.
 
 #vmir(
@@ -171,11 +172,11 @@ By default, Helium attempts to discharge obligations directly, by the
 mechanisms described above. When unable to do so, it retries under the path
 condition: when the obligation raised by #vm[e3] fails, Helium tries to prove
 the implication $"e0" != 0 => "e0" != 0$ ($"PC" => "goal"$) instead. The
-implication enters the e-graph as the ternary $ternary(c, c, "true")$ with
-$"e0" != 0$ for $c$, and the rewrite rule for that shape closes it to
-#vm[`true`]. The graph is not saturated as soon as the implication is added: an
-earlier obligation may already have recorded the same implication true, in which
-case the proof is over.
+the implication enters the e-graph as the ternary $ternary(c, c, "true")$ with
+$"e0" != 0$ for $c$, and the rewrite rule for that shape resolves it to
+#vm[`true`]. The graph is not saturated immediately when the implication is added: an
+earlier obligation might already have recorded the same implication as true, in which
+case the proof succeeds instantly.
 
 Finally, sometimes facts that are required to discharge the obligation are not
 immediately available. Looking at @lst:ex-ite-decompose, the fact that
@@ -252,9 +253,9 @@ does before handing the work to the next.
 
 - *`inconsistent`:* The cheapest tier. The analysis has already recorded whether
   the e-graph is inconsistent, so the check costs a lookup rather than a search.
-- *`goal_true`:* The verifier rebuilds the e-graph, which runs the
-  constant-folding analysis to a fixpoint, and then checks whether the goal
-  e-class has been merged with #vm[`true`].
+- *`goal_true`:* The verifier rebuilds the e-graph, which runs congruence
+  closure over it and propagates the constant-folding analysis to a fixpoint,
+  and then checks whether the goal e-class has been merged with #vm[`true`].
 - *`implication_true`:* A tier that fires only for goals carrying a path
   condition. It replaces the obligation with the weakened
   $"PC" => "goal"$ and checks that instead.
@@ -270,8 +271,8 @@ does before handing the work to the next.
   @sec:impl-cfg describes.
 
 That is the whole of the mechanism. When no tier discharges the obligation,
-Helium reports it as unproven. Stopping at this point, rather than searching
-harder, is a deliberate design choice: Helium is a lightweight verifier for
+Helium reports it as unproven. We chose to stop at this point, rather than
+search harder, as a deliberate design choice: Helium is a lightweight verifier for
 highly structured proof obligations, such as the ones raised by Prusti, rather
 than a complete theorem prover.
 

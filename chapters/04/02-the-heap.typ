@@ -5,11 +5,11 @@
 
 == The Heap <sec:impl-heap>
 
-So far, Helium has only executed streams of value-only instructions. To
-verify a real Viper program it also has to reason about the heap.
-@lst:heap-first-inhale is the smallest program that asks for that: it takes
-permission to a field, assumes a fact about the value behind it, and then
-checks a consequence of that fact.
+Up to this point, we have only executed streams of value-only instructions. To
+verify an actual Viper program, the execution model must also reason about the
+heap. @lst:heap-first-inhale presents the simplest program requiring heap
+manipulation: it acquires permission to a field, assumes a fact about the
+underlying value, and subsequently asserts a consequence of that fact.
 
 #viper(
   caption: [Taking permission to a field, assuming a fact about it, and checking one.],
@@ -23,13 +23,14 @@ method client(x: Ref) {
 }
 ```]
 
-VMIR makes a location a value of its own. #vi[`x.f`] becomes #vm[`f(x)`], a
-location that permission can be taken to, read from and written to,
-whichever the instruction asks for. Viper's #vi[`x.f`] instead plays two
-roles above: once inside #vi[`acc`], naming what permission is taken to, and
-once as an ordinary expression, naming the value stored there.
-@lst:heap-first-inhale-vmir shows more precisely how the above Viper code is
-lowered to VMIR, where that dual use is gone.
+VMIR explicitly treats a location as an independent value. Consequently,
+#vi[`x.f`] translates to #vm[`f(x)`]---a location that permits granting
+permission, reading, or writing, depending on the instruction. In contrast,
+Viper's #vi[`x.f`] plays a dual role in the example above: first within
+#vi[`acc`] to denote the target of the permission, and later as an ordinary
+expression denoting the stored value. @lst:heap-first-inhale-vmir demonstrates
+precisely how this Viper code lowers to VMIR, entirely eliminating this dual
+usage.
 
 #vmir(
   caption: [Field access becomes a location dereference, and the heap is threaded explicitly through every operation on it.],
@@ -64,12 +65,13 @@ a location and a heap to consult, #vm[`e1`] and #vm[`h0`]. The #vi[`assume`]
 then states the fact promised by the #vi[`inhale`]. The rest of the method
 repeats the read against the same #vm[`h0`] and checks the assertion.
 
-@lst:heap-first-inhale-vmir shows one more thing worth naming: heaps are
-explicit and immutable. Every heap operation produces a new one, and a
-heap-dependent instruction has to name which heap it means, #vm[`h0`] both
-times here, since nothing produced a later one. Viper's heap, by contrast, is
-implicit and threaded for the program: an operation acts on whatever heap is
-current, and reaching an earlier one takes an explicit #vi[`old`] expression.
+@lst:heap-first-inhale-vmir highlights an additional architectural choice: heaps
+are explicit and immutable. Each heap operation yields a new heap, requiring any
+heap-dependent instruction to explicitly specify its target heap---#vm[`h0`] in
+both instances here, as no subsequent heap was produced. Conversely, Viper
+maintains an implicit, globally threaded heap where operations implicitly modify
+the current state, and accessing prior states requires an explicit #vi[`old`]
+expression.
 
 === Location types <sec:impl-locations>
 
@@ -78,29 +80,31 @@ named in @fig:location-anatomy. #vi[`Int`] is the type stored at the location.
 The #vm[`f`] in brackets is the location's _group_, and the #vm[`1/1`] after the
 #vm[`@`] is its _permission bound_.
 
-Both of those exist because a VMIR location is just a value. Viper's heap
-already knows which object and which declaration a chunk belongs to, whereas
-VMIR keeps no bookkeeping outside the type, so the type has to carry that
-information. Two fields from two distinct field declarations may never alias
-even when they store the same type, so the group records which declaration the
-location came from. The permission bound caps how much permission the location
-may hold at once, and it is either a rational literal or #vm[`*`], which is no
-cap at all. A field's bound is #vm[`1/1`], since Viper allows no more than
-#vi[`write`] to a field, and a predicate's is #vm[`*`], since Viper lets a
-program hold an arbitrary permission amount of a folded predicate. Those two are
-all a Viper program produces, though the type admits any literal.
+These components are necessary because a VMIR location is fundamentally just a
+value. While Viper's internal heap representation inherently tracks the object
+and declaration a chunk belongs to, VMIR maintains no such external bookkeeping;
+consequently, the type itself must carry this information. Two fields from two
+distinct field declarations may never alias even when they store the same type,
+so the group records which declaration the location came from. The permission
+bound caps how much permission the location may hold at once, and it is either a
+rational literal or #vm[`*`], which is no cap at all. A field's bound is
+#vm[`1/1`], since Viper allows no more than #vi[`write`] to a field, and a
+predicate's is #vm[`*`], since Viper lets a program hold an arbitrary permission
+amount of a folded predicate. Although the type system technically admits any
+rational literal, these two bounds represent the entirety of what a Viper
+program practically produces.
 
 #figure(
   location-anatomy,
   caption: [A location belonging to group #vm[`f`], storing an integer, with at most #vm[`1/1`] permission amount.],
 ) <fig:location-anatomy>
 
-Because a location type is fully self-defining, it can stand for a field or a
-predicate alike: to the verifier, a folded predicate is just another location
-type, one that stores the predicate's footprint instead of a plain value.
-Locations can also be computed over directly, since every aliasing check or
-permission-bound assumption only needs information already present at that
-point in the program.
+Since a location type is fully self-contained, it can uniformly represent either
+a field or a predicate. To the verifier, a folded predicate is simply another
+location type that stores the predicate's footprint rather than a primitive
+value. Furthermore, locations can be computed over directly, given that any
+aliasing check or permission-bound assumption relies exclusively on information
+already present at that execution point.
 
 === Fields in VMIR
 
@@ -117,16 +121,17 @@ field f: Int
 function f(e0: Ref): &[f] Int @ 1/1
 ```]
 
-VMIR diverges from verifiers like Silicon in one respect: it does not assume
-field mappings are injective. In Silicon, injectivity is simply a consequence of how
-a field chunk is represented, not a fact the reasoning would heavily depend on.
-VMIR represents a field as an uninterpreted function instead, so injectivity
-does not come for free. For instance, learning that two
-locations are equal ($f(x) = f(y)$) does not by itself imply that the
-receivers are ($x = y$). A frontend that wants injectivity can still declare
-it, by exposing an inverse function alongside a postcondition stating the
-round trip (@lst:field-inv). This means that VMIR's representation is
-more expressive and flexible compared to what is assumed of Viper by Silicon.
+VMIR diverges from verifiers such as Silicon in one key respect: it does not
+implicitly assume that field mappings are injective. In Silicon, injectivity
+arises merely as a structural consequence of how field chunks are represented,
+rather than a foundational premise of the reasoning. Because VMIR represents a
+field as an uninterpreted function, injectivity must be explicitly established.
+For instance, deducing that two locations are equal ($f(x) = f(y)$) does not
+automatically imply that their receivers are equal ($x = y$). A frontend
+requiring injectivity can still explicitly encode it by providing an inverse
+function accompanied by a postcondition asserting the round-trip identity
+(@lst:field-inv). Consequently, VMIR offers a more flexible and expressive
+representation than Silicon's implicit assumptions.
 
 #vmir(
   caption: [Injectivity of location functions can be encoded if required (pseudo-VMIR).],
@@ -141,15 +146,15 @@ function f_inv(e0: &[f] Int @ 1/1): Ref
 === Heap representation in Helium
 
 A field becomes a mapping to location type; a program can take permission to
-locations. Helium represents each permission a program holds to a location as
+locations. We represent each permission a program holds to a location as
 a _chunk_: a triple of symbolic values, a location, a permission amount and a
-value. What remains is how Helium organises chunks into a heap.
+value. What remains is how we organise chunks into a heap.
 
-#para[Partitioning] <para:impl-heap-part> Helium does not keep chunks in one
-flat set. It splits them into _partitions_, one per location kind — group, stored type
+#para[Partitioning] <para:impl-heap-part> We do not keep chunks in one
+flat set. We split them into _partitions_, one per location kind — group, stored type
 and permission bound taken together (@fig:location-anatomy). A chunk lives in
-exactly the partition its location's type names. Within a partition, Helium
-indexes chunks by location: the e-class the location resolves to in the
+exactly the partition its location's type names. Within a partition, we
+index chunks by location: the e-class the location resolves to in the
 e-graph.
 
 A lookup goes in two steps, shown in @fig:heap-partitions: pick the partition
@@ -165,19 +170,19 @@ scans it for a match.
     #vm[`*`]-bounded one, dashed.],
 ) <fig:heap-partitions>
 
-#para[Consolidation] <para:impl-consolidation> Adding a chunk first checks
+#para[Consolidation] <para:impl-consolidation> When adding a chunk, we first check
 whether its partition already holds one at the same location. If it does,
-Helium creates no new chunk: it merges the two into one, summing their
-permission amounts. It takes the value from whichever side holds positive
+we create no new chunk: we merge the two into one, summing their
+permission amounts. We take the value from whichever side holds positive
 permission;
-if both do, it assumes them equal rather than asserting it. For two chunks
+if both do, we assume them equal rather than asserting it. For two chunks
 with permission amounts and values $p_0, v_0$ and $p_1, v_1$, merging produces
 
 $ p' := p_0 + p_1, quad v' := ternary(p_0 > 0, v_0, v_1) $
 
 $ p_0 > 0 and p_1 > 0 ==> v_0 = v_1 " (assumed)" $
 
-Sometimes Helium learns two locations are equal only after their chunks are
+Sometimes we learn two locations are equal only after their chunks are
 already on the heap. @lst:heap-consolidate takes half permission to
 #vi[`x.f`] and half to #vi[`y.f`], learns #vi[`x == y`], then exhales the
 combined whole.
@@ -193,16 +198,16 @@ exhale acc(x.f, 1/1)
 
 The greedy lookup for the #vi[`exhale`] fails: it finds only the #vm[`1/2`]
 chunk at #vm[`f(x)`]'s own e-class, since the #vi[`assume`] merged #vi[`x`]
-and #vi[`y`]'s e-classes without touching the heap. On failure, Helium
-re-keys the partition. It asks the e-graph for each chunk's canonical
-e-class and rebuilds the partition around those, merging the two chunks by
+and #vi[`y`]'s e-classes without touching the heap. On failure, we
+re-key the partition. We ask the e-graph for each chunk's canonical
+e-class and rebuild the partition around those, merging the two chunks by
 the same rule as an ordinary add. The retried lookup then finds one chunk
 holding #vm[`1/1`], as required. Re-keying costs one linear pass over the
 partition, and congruence, an invariant of the e-graph, had already closed the
 equality before it ran, so nothing outside the heap needs to track it.
 
 #para[Location axioms] <para:impl-location-axioms> To match Viper's memory
-semantics, Helium emits two axioms for a location kind bounded by $b$
+semantics, we emit two axioms for a location kind bounded by $b$
 whenever a chunk is added or re-keyed:
 
 - *Permission bound:* a chunk's own permission amount does not exceed the bound.
@@ -246,11 +251,11 @@ An addition takes permission to a location. Given a heap #vm[`h`], a location
 #vm[`l`], a permission amount #vm[`p`] and a value #vm[`v`], it produces a new
 heap #vm[`h'`] holding one more chunk at #vm[`l`]. #vm[`p`] is a #vm[`Real`]
 amount, or the #vm[`wildcard`] permission amount introduced below. Before
-adding the chunk, Helium confirms the amount is non-negative, $p >= 0$,
+adding the chunk, we confirm the amount is non-negative, $p >= 0$,
 discharged by the usual mechanisms (@sec:impl-execution).
 
 For #vm[`v`], a program writes one of two things. #vm[`fresh`] leaves the value
-unconstrained: Helium picks an arbitrary symbolic value for the chunk,
+unconstrained: we pick an arbitrary symbolic value for the chunk,
 restricted only by #vm[`l`]'s stored type. Otherwise the program supplies a
 concrete value, an earlier temporary #vm[`e`]#sub[`n`] or a literal constant,
 which must itself share that type. Either way, if the partition already holds a
@@ -286,13 +291,13 @@ produces a new heap #vm[`h'`] together with a snapshot of the removed chunk's
 value, #vm[`v: Option[Int]`], which is #vm[`Some(...)`] if the removed
 permission amount was positive and #vm[`None`] otherwise. It fails if #vm[`p`]
 cannot be proven non-negative, or if the found chunk holds less than #vm[`p`].
-If the chunk is missing or insufficient, Helium re-keys the partition and
-retries once (#pararef(<para:impl-consolidation>, [Consolidation])), in case two
+If the chunk is missing or insufficient, we re-key the partition and
+retry once (#pararef(<para:impl-consolidation>, [Consolidation])), in case two
 locations merged since the chunk was added.
 
 Line 5 subtracts the full #vm[`1/1`] and leaves #vm[`e1`] with nothing behind it
 in #vm[`h2`]. Line 6 dereferences #vm[`e1`] again and fails: the held permission
-is zero, not strictly positive, so no value can be produced. Helium removes a
+is zero, not strictly positive, so no value can be produced. We remove a
 chunk outright once its permission provably reaches zero, since a
 zero-permission chunk can never be read and never usefully merges with another.
 
@@ -338,7 +343,7 @@ amounts. What the separate namespace buys is the subject of @sec:impl-wildcards.
 
 A chunk's permission is therefore not a single amount but a tree of conditions
 with amounts at the leaves, in the shape the instructions that built it had.
-Helium holds that tree beside the e-graph, building a term only where a prover
+We hold that tree beside the e-graph, building a term only where a prover
 needs one e-class.
 
 Obligations over an amount are answered arm by arm. Addition and subtraction
@@ -377,7 +382,7 @@ h2 := h1 - e2 @ wildcard       // needs p > 0, leaves 0 < r < p
 Adding a wildcard to a location already holding $p$ produces a fresh share $p'$
 assumed strictly larger, $p < p'$, which settles $0 < p'$ too, since $p$ was at
 least zero. Where the location held nothing, the share is a fresh positive real.
-Helium builds no sum node in either case: the e-graph carries no order theory
+We build no sum node in either case: the e-graph carries no order theory
 for the reals, so $p + w$ would be an opaque leaf no comparison could use. The
 permission bound of #pararef(<para:impl-location-axioms>, [Location axioms])
 finishes the argument: a location held at #vm[`1/1`] that takes a further
@@ -391,9 +396,9 @@ later debit turn on, and a difference node $p_"held" - w$ would support neither,
 for want of an order theory.
 
 Line 3 is what earns the permission namespace its place: a wildcard under a
-guard. Helium could resolve the share where the instruction is emitted, by
+guard. We could resolve the share where the instruction is emitted, by
 reading what the heap holds at the location under that guard and picking a
-larger value there. It builds the gate instead and lets the add resolve it arm
+larger value there. We build the gate instead and let the add resolve it arm
 by arm, so a location held at $p$ under a guard $g$ comes out at
 $ternary(g, p', p)$ with $p < p'$, which is line 4. A
 wildcard on its own denotes nothing that can be computed over, and the namespace

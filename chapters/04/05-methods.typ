@@ -318,5 +318,3 @@ applied. Helium discharges those once, when the resource is verified and compile
 to recipes (#pararef(<para:impl-slot-recipes>, [Slots and recipes])), so a method
 with $n$ call sites raises them once rather than $n + 1$ times. The footprint
 walk itself costs the same in both, since each use touches every slot either way.
-
-#pagebreak()

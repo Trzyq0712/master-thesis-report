@@ -518,5 +518,3 @@ be verified, and no run of wildcard debits ever pins the share down. That is
 precisely the arithmetic a read-only region needs, which is why the translator
 introduces wildcards there and leaves every other amount as the program wrote
 it.
-
-#pagebreak()

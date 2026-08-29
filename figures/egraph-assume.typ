@@ -1,5 +1,6 @@
 #import "../macros.typ": *
 #import "@preview/cetz:0.4.2"
+#import "egraph-draw.typ": *
 
 /// The state of @sec:impl-execution's fragment either side of its `assume`,
 /// drawn as an e-graph: solid boxes are e-nodes, dashed boxes are e-classes,
@@ -13,65 +14,8 @@
   set par(justify: false)
   set text(hyphenate: false)
 
-  let base = rgb("#0f766e")
-  let hot = rgb("#b45309")
-
-  let nw = 1
-  let nh = 0.6
-  let clsp = 0.22
-  let mono(s, size: 0.8em, fill: base.darken(35%)) = text(
-    size: size,
-    font: "DejaVu Sans Mono",
-    fill: fill,
-    s,
-  )
-
   cetz.canvas({
     import cetz.draw: *
-
-    // One e-node: a filled, rounded box centred on `pos`.
-    let node(pos, label, hue) = {
-      rect(
-        (pos.at(0) - nw / 2, pos.at(1) - nh / 2),
-        (pos.at(0) + nw / 2, pos.at(1) + nh / 2),
-        fill: hue.lighten(90%),
-        stroke: 0.5pt + hue.darken(5%),
-        radius: 1.5pt,
-      )
-      content(pos, mono(label, fill: hue.darken(35%)))
-    }
-
-    // The dashed box around a run of e-nodes, plus the handles naming it.
-    let cls(x0, x1, y, hue, tag) = {
-      let p = clsp
-      rect(
-        (x0 - nw / 2 - p, y - nh / 2 - p),
-        (x1 + nw / 2 + p, y + nh / 2 + p),
-        stroke: (paint: hue, thickness: 0.55pt, dash: "dashed"),
-        radius: 3pt,
-      )
-      if tag != none {
-        content(
-          (x0 - nw / 2 - p, y + nh / 2 + p + 0.04),
-          anchor: "south-west",
-          mono(tag, size: 0.8em, fill: hue.darken(10%)),
-        )
-      }
-    }
-
-    // A node-to-class edge, leaving the parent's bottom and arriving at the top
-    // of the child's class box. `dx` shifts the departure point, so a node with
-    // two arguments in the same class draws two arrows into it; `sag` bends the
-    // edge below the row between the two, clearing the boxes sitting there.
-    let edge(from, to, hue: luma(55%), dx: 0.0, sag: none) = {
-      let p0 = (from.at(0) + dx, from.at(1) - nh / 2)
-      let p1 = (to.at(0), to.at(1) + nh / 2 + clsp)
-      let s = 0.5pt + hue
-      let m = (end: ">", scale: 0.6)
-      if sag == none { line(p0, p1, mark: m, stroke: s) } else {
-        bezier(p0, p1, sag, mark: m, stroke: s)
-      }
-    }
 
     let panel(x, after) = {
       let y0 = 0.0 // a, b, 2
@@ -112,7 +56,7 @@
         }
 
         // `e4` already merged with `true`, so the assume on the right only
-        // has to account for `e0, e1` and `e2, e3`.
+        // has to account for `e0` with `e1` and `e2` with `e3`.
         cls(goal.at(0), tt.at(0), y2, base, "e4")
         node(goal, "==", base)
         node(tt, "true", base)
@@ -136,17 +80,17 @@
           edge(eq, ab, hue: hot.lighten(10%), dx: d, sag: (x + 2.6 + d, y1 - 0.3))
         }
 
-        cls(a.at(0), b.at(0), y0, hot, "e0, e1")
+        cls(a.at(0), b.at(0), y0, hot, ("e0", "e1"))
         node(a, "a", hot)
         node(b, "b", hot)
 
         cls(two.at(0), two.at(0), y0, base, none)
         node(two, "2", base)
 
-        cls(m.at(0), m.at(0), y1, hot, "e2, e3")
+        cls(m.at(0), m.at(0), y1, hot, ("e2", "e3"))
         node(m, "*", hot)
 
-        cls(goal.at(0), tt.at(0), y2, hot, "e4, e5")
+        cls(goal.at(0), tt.at(0), y2, hot, ("e4", "e5"))
         node(goal, "==", hot)
         node(eq, "==", hot)
         node(tt, "true", hot)

@@ -1,16 +1,15 @@
 #import "../../macros.typ": *
 #import "../../figures/egraph-assume.typ": egraph-saturate
+#import "../../figures/egraph-first.typ": egraph-first
 #import "../../figures/prove-ladder.typ": prove-ladder
 
 == Verifying Client Code with VMIR and Helium <sec:impl-execution>
 
-We will show how Helium verifies a Viper program, starting from the simplest
+We show how Helium verifies a Viper program, starting from the simplest
 case a verifier can process, a stream of heap-independent statements, and
 building up, through a single running example, to the full mechanism by which
-obligations are discharged.
-
-The program in @lst:ex_v1 assumes a fact about an integer and then trivially
-asserts it.
+obligations are discharged. The program in @lst:ex_v1 assumes a fact about an
+integer and then trivially asserts it.
 
 #lowering(
   caption: [Viper program that assumes a fact, asserts it; and the VMIR
@@ -39,6 +38,17 @@ the equality check #vm[e1], using the #vm[e0] temporary and a constant
 executed by inserting a new #vm[==] node into the e-graph with the #vm[e0] and
 #vm[42] e-classes as its children. The #vm[assume] instruction then merges
 #vm[e1] with #vm[true], which means that #vi[a == 42] now holds.
+@fig:egraph-first draws the graph before and after that merge.
+
+#figure(
+  egraph-first,
+  caption: [The e-graph of @lst:ex_v1 either side of the #vm[`assume`]
+    instruction. A solid box is an e-node, a dashed box is the e-class holding
+    it, and an arrow runs from a node to the class of each of its arguments. The
+    #vm[`assume`] merges the class of the #vm[==] node with the class of
+    #vm[`true`], drawn in orange. Re-stating the equality as #vm[e2] finds that
+    node already in the graph, so #vm[e1] and #vm[e2] name the same class.],
+) <fig:egraph-first>
 
 Finally, #vi[assert a == 42] is lowered to two instructions. First the equality
 #vm[e0 == 42] is restated as #vm[e2]. The verifier executes it the same way as
@@ -47,7 +57,7 @@ e-node, making the #vm[e1] and #vm[e2] handles point to the same e-class.
 Second, the #vm[assert e2] is executed by checking whether the e-classes of
 #vm[e2] and #vm[true] match, which they do due to #vm[assume e1] above.
 
-We will slightly alter the program to make the assertion non-trivial. @lst:ex_v2
+We alter the program slightly to make the assertion non-trivial. @lst:ex_v2
 lists a program that declares #vi[a] to be equal to #vi[10], and then asserts
 that #vi[a + 32] is equal to #vi[42].
 
@@ -162,8 +172,8 @@ mechanisms described above. When unable to do so, it retries under the path
 condition: when the obligation raised by the division on line 3 fails, Helium
 tries to prove the implication $"e0" != 0 => "e0" != 0$ ($"PC" => "goal"$)
 instead. The implication is thus added to the e-graph (via a ternary chain). The
-implication will collapse to $x ? x : "false"$ with $"e0" != 0$ for $x$, which
-will then simply identity-rewrite to $"true"$. Notably, after adding the
+implication collapses to $x ? x : "false"$ with $"e0" != 0$ for $x$, which then
+identity-rewrites to $"true"$. Notably, after adding the
 implication to the e-graph, it is not saturated immediately. It might happen
 that the implication has already been proven and recorded true in the e-graph,
 short-circuiting the proof.
@@ -229,7 +239,9 @@ the work to the next one.
   inconsistency, checking if the goal is true, and finally saturating the
   representation. Any work that has been done in the clone e-graph is then
   thrown away, and in the original e-graph we only record successfully
-  discharging the original obligation by assuming it true.
+  discharging the original obligation by assuming it true. Inside a method body
+  this tier clones once per basic block rather than once per obligation, which
+  @sec:impl-cfg describes.
 
 This concludes the mechanism by which Helium attempts to discharge obligations.
 If unsuccessful, the verifier reports the obligation as unproven. Stopping at
@@ -291,12 +303,10 @@ first clone, which is why cloning, at the #vm[`implication_decompose`]
 tier, is reserved for the one case that actually needs it, rather than how
 every path condition is handled.
 
-The cost does not disappear, it moves. If two obligations need the same
-case split, each still starts from a fresh clone: nothing carries what an
-earlier clone derived into the next one. Silicon pays for a push once and
-builds on it; Helium pays again each time an obligation needs the same
-ground revisited. In practice this is a narrow cost: obligations nested
-deep enough for it to matter are rare.
-
-#pagebreak()
-
+The cost does not disappear, it moves. Two obligations that need the same
+case split start from separate clones, so nothing one clone derives reaches
+the next. Silicon pays for a push once and builds on it, while Helium pays
+again each time an obligation needs the same ground revisited. A method body
+recovers part of that, because the clone a block makes is reused by every
+obligation of that block (@sec:impl-cfg). What is left is a narrow cost:
+obligations nested deep enough for it to matter are rare.

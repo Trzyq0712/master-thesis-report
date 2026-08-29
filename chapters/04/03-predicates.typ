@@ -682,5 +682,3 @@ location stores. What this buys concretely is the exactness of the round trip of
 @sec:impl-fold. Silicon relates a fold to its unfold by assuming snapshot
 equalities into the prover and letting it do the work, where we hand back the
 same e-class.
-
-#pagebreak()

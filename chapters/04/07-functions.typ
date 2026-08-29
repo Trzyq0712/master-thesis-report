@@ -191,7 +191,7 @@ e2: Int  := <e0> div(10, k)
 ...
 ```]
 
-Concretely, Helium will assume that the function #vm[`div(10, k)`] is well-defined
+Concretely, Helium assumes that the function #vm[`div(10, k)`] is well-defined
 by assuming the precondition token holds when #vm[`e0`] holds. This gives the general
 formula for the token's truth at a call site:
 
@@ -537,4 +537,3 @@ Second, while Silicon applies propagation uniformly across all nested calls with
 Third, Silicon translates function contracts directly into stated axioms. In the proposed encoding, however, each clause is an independent declaration, such as #vm[`f#requires`] or #vm[`f#ensures`], to which the function links. An axiom subsequently identifies a single opaque application, and the caller opens it using that member's specific token. Consequently, the facts of a contract are introduced through the same mechanism as any ordinary function call.
 
 Finally, Silicon does not distinguish heap-independent functions; every function accepts a snapshot parameter, and every precondition is evaluated against the heap state. Conversely, the translator differentiates the two based on the syntactic presence of an #vi[acc] expression. Therefore, a heap-free function omits the snapshot parameter, and its precondition is treated as a boolean function.
-#pagebreak()

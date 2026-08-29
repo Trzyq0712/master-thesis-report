@@ -16,15 +16,15 @@ Afterwards, we introduce the symbolic heap and explain how we handle heap
 constructs from Viper like fields and predicates. We then proceed
 with how user-defined ADTs and domains are encoded and reasoned about.
 
-The later sections are dedicated to methods and functions. These explain what a
-contract becomes, how a body is verified against one, and what a call site
-executes, what a function exports to its callers, and then how the verifier
-handles bodies with control flow.
+The later sections are dedicated to methods, control flow, and functions. These
+explain what a contract becomes, how a body is verified against one, and what a
+call site executes, how a branching body is divided into basic blocks and its
+heaps reconciled at a join, and what a function exports to its callers.
 
 #include "04/01-execution-model.typ"
 #include "04/02-the-heap.typ"
 #include "04/03-predicates.typ"
 #include "04/04-adts.typ"
 #include "04/05-methods.typ"
-#include "04/06-functions.typ"
-#include "04/07-control-flow.typ"
+#include "04/06-control-flow.typ"
+#include "04/07-functions.typ"

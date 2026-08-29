@@ -11,7 +11,7 @@ quantifiers appear. This section describes how each of these is encoded
 in VMIR and how Helium reasons about them.
 
 @sec:impl-predicates has already used two of them. A resource's snapshot type is
-an #vm[`adt`], and an abstract predicate's snapshot type is a #vm[`domain`]. We will
+an #vm[`adt`], and an abstract predicate's snapshot type is a #vm[`domain`]. We
 now describe how such types behave generally.
 
 === ADTs <sec:impl-adts>
@@ -377,5 +377,3 @@ Proving a quantifier is where Helium stops. There is no skolemisation, so an
 #vm[`true`] in the state, from an earlier assumption.
 Existential quantifiers are rejected by the verifier, and their implementation
 remains future work.
-
-#pagebreak()

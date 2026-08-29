@@ -377,3 +377,8 @@ Proving a quantifier is where Helium stops. There is no skolemisation, so an
 #vm[`true`] in the state, from an earlier assumption.
 Existential quantifiers are rejected by the verifier, and their implementation
 remains future work.
+
+#todo[Close this section with a `=== Comparison with Silicon`, so that every
+section of the chapter ends the same way. The comparison covers how the two
+backends treat domain axioms and how each decides when to instantiate a
+quantifier; check the claim about Silicon against the source before writing it.]

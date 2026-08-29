@@ -3,33 +3,28 @@
 // The chapter is split one file per section, under `chapters/04/`.
 
 = VMIR and Helium <sec:implementation>
-We present the design and implementation of Viper Mid-Level Intermediate
-Representation (VMIR) and the Helium verifier in this chapter.
-Sections increase in complexity, each building on the ones before it, and each
-introduces only the VMIR constructs it needs rather than assuming the
-representation up front. They share a shape. A section states the Viper
-constructs it covers and what VMIR makes of them, works through how Helium
-executes the result, and, where Silicon does the same job by another route,
-closes with a subsection comparing the two.
+In this chapter we present the design of VMIR and its verification in Helium.
+The presentation is incremental: each section admits one further class of Viper
+construct, gives its VMIR encoding, and then the strategy Helium uses to verify
+it. Each section closes with a comparison to Silicon, naming where the two
+designs diverge and what the divergence costs.
 
-@sec:impl-execution executes the simplest programs a verifier can process, a
-stream of value-only instructions, and states the mechanism by which Helium
-discharges the obligations they raise. In @sec:impl-heap we add the heap, where
-a field access becomes a location, a value like any other.
+@sec:impl-execution starts from the smallest program a verifier can process, a
+stream of value-only instructions, and defines the mechanism by which Helium
+discharges an obligation. In @sec:impl-heap we admit the heap, giving the
+location types that represent fields, the heap representation Helium executes
+against, and the instructions that manipulate it. @sec:impl-predicates
+generalises self-framing assertions into VMIR resources, from which the
+predicate operations follow. We then cover user-defined data in @sec:impl-data:
+ADTs, domains and their axioms, and the quantifiers those axioms need.
 
-@sec:impl-predicates covers predicates, and with them the resource: VMIR's
-generalisation of the self-framing assertion a predicate is. A method contract
-and a function precondition have the same shape, so one construct carries all
-three. @sec:impl-data turns to user-defined data, where an #vi[`adt`] and a
-#vi[`domain`] declare new types and a #vm[`forall`] instruction carries a
-quantified axiom.
-
-The last three sections are about the units a program is written in. In
-@sec:impl-methods we describe what a method contract becomes and what a call
-site executes in place of a body. @sec:impl-cfg lifts the restriction to
-straight-line bodies, dividing a body into basic blocks and reconciling their
-heaps at a join. @sec:impl-functions covers functions and what one exports to
-its callers.
+The last three sections concern Viper's two callable constructs. In
+@sec:impl-methods we verify straight-line method bodies, covering contract
+translation, body verification and calls. @sec:impl-cfg lifts the straight-line
+restriction by partitioning bodies into basic blocks, and gives the
+consequences for verification. Finally, @sec:impl-functions encodes functions
+and their contracts, and separates the verification paths for the recursive
+and heap-dependent cases.
 
 #include "04/01-execution-model.typ"
 #include "04/02-the-heap.typ"

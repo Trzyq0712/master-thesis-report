@@ -22,9 +22,13 @@ The last three sections concern Viper's two callable constructs. In
 @sec:impl-methods we verify straight-line method bodies, covering contract
 translation, body verification and calls. @sec:impl-cfg lifts the straight-line
 restriction by partitioning bodies into basic blocks, and gives the
-consequences for verification. Finally, @sec:impl-functions encodes functions
+consequences for verification. @sec:impl-functions then encodes functions
 and their contracts, and separates the verification paths for the recursive
 and heap-dependent cases.
+
+Finally, @sec:impl-pipeline turns from the individual construct to the whole
+VMIR program, and states which of its declarations Helium verifies, in what
+order, and what each one leaves for the units that follow.
 
 #include "04/01-execution-model.typ"
 #include "04/02-the-heap.typ"
@@ -33,3 +37,4 @@ and heap-dependent cases.
 #include "04/05-methods.typ"
 #include "04/06-control-flow.typ"
 #include "04/07-functions.typ"
+#include "04/08-pipeline.typ"

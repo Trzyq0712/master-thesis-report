@@ -21,7 +21,9 @@ loops.
 
 @lst:cfg-branch writes a field on one path and leaves it alone on the other,
 which is the smallest program with a join in it, and @fig:cfg-blocks draws the
-block graph it lowers to.
+block graph it lowers to. Everything the rest of the section adds is a
+consequence of that one join: the two arms reach it holding different
+permission, and the exit demands a single answer.
 
 #lowering(
   caption: [A branch and a join. Both arms read #vm[`h0`], each leaves its own
@@ -170,11 +172,9 @@ ternary on the branch condition. #vm[`e6`] is one, and it gives #vi[`d`] the val
 #vm[`1`] where the then arm ran and #vm[`0`] where the else arm did. A variable
 both arms agree on passes through untouched, and one assigned on a single arm
 inherits from that arm. The value ternary and the heap merge beside it select on
-the same condition.
-
-Permissions never cross a block boundary. The #vm[`p`] namespace of
-@sec:impl-heap is block-local, because a permission has no join of its own, and the
-joins that do exist belong to heaps and to values.
+the same condition. Permissions themselves never cross a block boundary: the
+#vm[`p`] namespace of @sec:impl-heap is block-local, because a permission has no
+join of its own, and the joins that do exist belong to heaps and to values.
 
 === Merging heaps
 
@@ -286,9 +286,10 @@ assumed, and its heap never reaches a join.
 
 === Nested and repeated branches
 
-@lst:cfg-nested nests one branch inside another. Its VMIR side elides the
-prologue and the arguments of the exit exhale, both of which @lst:cfg-branch
-already gives in full.
+@lst:cfg-nested nests one branch inside another, which is the shape that tells
+whether the machinery above composes: the inner join runs inside an arm that
+already carries a cube. Its VMIR side elides the prologue and the arguments of
+the exit exhale, both of which @lst:cfg-branch already gives in full.
 
 #lowering(
   caption: [Nested branches. The inner join keeps the cube #vm[`<e1>`] of the arm

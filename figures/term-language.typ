@@ -2,7 +2,10 @@
 
 /// The language of terms an e-graph holds, as a grammar with one alternative
 /// per line and what that alternative is beside it, so a reader can count the
-/// seven forms off the page without reading a paragraph for them.
+/// seven forms off the page without reading a paragraph for them. The binary
+/// operators get a production of their own rather than a gloss on the `t ⊕ t`
+/// line: there are seven of those too, and burying them in prose beside the
+/// form they belong to made the line the widest on the page.
 #let term-language = {
   // The glosses are short enough that justification only stretches them.
   set par(justify: false)
@@ -14,26 +17,27 @@
     row-gutter: 0.7em,
     align: (right + top, center + top, left + top, left + top),
 
-    $t$, $::=$, $"fresh"_n$,
-    gloss[an unconstrained value, one per instruction that mints it],
+    $t$, $::=$, $"fresh"_n$, gloss[an unconstrained value],
 
-    [], $|$, $c$,
-    gloss[a literal: a boolean, an integer, a rational, or #vm[`null`]],
+    [], $|$, $c$, gloss[a literal: boolean, integer, rational, or #vm[`null`]],
 
-    [], $|$, $t plus.o t$,
-    gloss[arithmetic, the remainder, and #vm[`<`], each over the integers or
-      over the rationals, and an equality at any type],
+    [], $|$, $t plus.o t$, gloss[a binary operation],
 
-    [], $|$, $ternary(t, t, t)$,
-    gloss[the ternary, the only boolean connective],
+    [], $|$, $ternary(t, t, t)$, gloss[the sole boolean connective],
 
-    [], $|$, $f(t, ..., t)$,
-    gloss[a function applied to its arguments],
+    [], $|$, $f(t, ..., t)$, gloss[a function application],
 
-    [], $|$, $"real"(t)$,
-    gloss[an integer used where a rational is expected],
+    [], $|$, $"real"(t)$, gloss[an integer to real cast],
 
-    [], $|$, $forall_r (t, ..., t)$,
-    gloss[a quantifier, carrying a compiled body $r$ over the terms it captures],
+    [], $|$, $forall_r (t, ..., t)$, gloss[a quantifier with compiled body $r$ over its inputs],
+
+    // The operator production, set off from the term production above it.
+    v(0.45em), [], [], [],
+
+    $plus.o$, $::=$, $+ #h(0.4em) | #h(0.4em) - #h(0.4em) | #h(0.4em) *$, gloss[arithmetic, over integers or rationals],
+
+    [], $|$, $\/ #h(0.4em) | #h(0.4em) "mod"$, gloss[division and remainder],
+
+    [], $|$, $< #h(0.4em) | #h(0.4em) =$, gloss[comparison and equality],
   )
 }

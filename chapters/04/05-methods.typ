@@ -8,11 +8,10 @@ contract in place of the body enabling modular verification. This section
 describes both ends: what a method contract becomes in VMIR, how Helium
 verifies a body against one, and what a call site executes.
 
-For the remainder of this subsection we only assume straight-line bodies with
-no control flow. @sec:impl-cfg builds on top of this and describes how VMIR
-and Helium manage it later.
-
-We start with a simple example of a method that touches the heap in @lst:method-bare.
+For the remainder of this section we only assume straight-line bodies with no
+control flow, and @sec:impl-cfg builds on top of this and describes how VMIR and
+Helium manage it later. We start from @lst:method-bare, a method that touches
+the heap and carries no contract at all.
 
 #lowering(
   caption: [A method that increments a field while holding no permission to it.
@@ -45,7 +44,9 @@ contract. A precondition is the clause that can supply it.
 
 === Method contracts
 
-@lst:method-pre gives #vi[`bump`] permission to the field it reads through.
+@lst:method-pre gives #vi[`bump`] permission to the field it reads through. The
+clause is a heap fragment together with an assertion about it, which is the pair
+@sec:impl-predicates already has a construct for.
 
 #lowering(
   caption: [A Viper method precondition becomes a resource in VMIR.],
@@ -67,9 +68,10 @@ assertion, which is what a resource is, so the translator lowers a method
 precondition to one. The resource takes the method's parameters, and its body is built
 exactly as @sec:impl-predicates builds a predicate's.
 
-An #vi[`ensures`] clause becomes a resource as well. @lst:method-post is the
-declaration, and it takes one parameter the method's signature does not
-mention.
+An #vi[`ensures`] clause becomes a resource as well, and @lst:method-post is
+that declaration. It takes one parameter the method's signature does not
+mention, because a postcondition may name the state the method was entered in
+and the resource has to be given that state from somewhere.
 
 #lowering(
   caption: [The postcondition as a resource. Its trailing parameter is the
@@ -97,9 +99,7 @@ A postcondition's parameters are the method's parameters, then its return
 variables, and last the precondition's snapshot. It takes that last one whenever
 the method has a precondition. From that snapshot the postcondition rebuilds
 the pre-state of the method, and its own well-definedness is established against
-that state.
-
-@lst:method-old adds the clause the pre-state exists for.
+that state. @lst:method-old adds the clause that pre-state exists for.
 
 // Short enough never to need splitting, and the global `breakable: true` on
 // listing figures otherwise strands the caption on the following page.
@@ -153,7 +153,9 @@ and well-definedness is settled once, at the declaration.
 === Verifying a method
 
 @lst:method-full is the method with a return variable and both contracts, which
-is every piece of the frame Helium puts around a body.
+is every piece of the frame Helium puts around a body. The frame is three
+phases: a prologue that builds the entry heap out of the precondition, the body
+itself, and an exit that checks the postcondition against what the body left.
 
 #lowering(
   caption: [A complete method: the prologue builds the entry heap, the body
@@ -205,9 +207,8 @@ at #vm[`val(c)`], the permission the same read ran without in @lst:method-bare.
 
 The exit exhales the postcondition. Its arguments are the method's parameters,
 the final values of the return variables, and the precondition's snapshot. It
-raises the sufficiency obligation of
-#pararef(<para:impl-heap-sub>, [Heap subtraction]) at each slot of the
-postcondition's footprint and asserts its boolean. Both of its results are
+raises the sufficiency obligation of a subtraction
+(@sec:impl-heap-ops) at each slot of the postcondition's footprint and asserts its boolean. Both of its results are
 discarded, which is why the listing blanks the pair: the exit is the last
 instruction of the method.
 
@@ -253,7 +254,9 @@ reads #vm[`h0`], the heap the prologue's inhale produced.
 === Calling a method <sec:impl-calls>
 
 A call lowers to a pair of resource operations on the caller's heap, the
-callee's contract standing in for its body. @lst:method-call calls the method of
+callee's contract standing in for its body. Nothing of the callee is executed at
+the call site, and nothing about it is needed beyond the two resources its
+declaration already produced. @lst:method-call calls the method of
 @lst:method-full.
 
 #lowering(
@@ -289,11 +292,10 @@ method client {
 The exhale takes the precondition's footprint out of the caller's heap, on the
 same terms as the exit of a body. It also yields #vm[`e3`], the precondition's
 snapshot, recording what the caller's heap held at each of the precondition's
-slots. That is the trailing argument the postcondition takes.
-
-The call mints a fresh value for each return variable between the two
-instructions, which is what lets the postcondition name them: #vm[`e4`] is what
-#vi[`b`] names after the call.
+slots. That is the trailing argument the postcondition takes. Between the two
+instructions the call mints a fresh value for each return variable, which is
+what lets the postcondition name them: #vm[`e4`] is what #vi[`b`] names after
+the call.
 
 The inhale adds the postcondition's footprint to the caller's heap, bound
 #vm[`with fresh`], so each slot comes back as a value of its own, constrained by

@@ -23,16 +23,17 @@
       let y2 = 3.4 // the equalities and `true`
 
       if not after {
-        // Six classes, one node each: nothing in the graph is equal to anything
-        // else yet, and `e4` is an `==` over two classes that differ.
+        // The state after `assume e5`: the assumed equality `a == b` sits in
+        // the class of `true`, and the goal `e4` is an `==` over two classes
+        // that are still distinct. Six classes, one node each, plus that pair.
         let a = (x + 0.6, y0)
         let two = (x + 2.15, y0)
         let b = (x + 3.7, y0)
         let m0 = (x + 1.4, y1)
         let m1 = (x + 3.05, y1)
         let goal = (x + 2.2, y2)
-        let eq = (x + 4.9, y1)
-        let tt = (x + 3.25, y2)
+        let eq = (x + 3.95, y2)
+        let tt = (x + 5.0, y2)
 
         edge(m0, a, dx: -0.1)
         edge(m0, two, dx: 0.1)
@@ -40,8 +41,9 @@
         edge(m1, two, dx: 0.1)
         edge(goal, m0, dx: -0.1)
         edge(goal, m1, dx: 0.1)
-        edge(eq, a, dx: -0.1)
-        edge(eq, b, dx: 0.1)
+        // Curved out to the right of the `*` classes rather than through them.
+        edge(eq, a, dx: -0.1, sag: (x + 4.55, y1 - 0.3))
+        edge(eq, b, dx: 0.1, sag: (x + 4.75, y1 - 0.3))
 
         for (p, l, t) in (
           (a, "a", "e0"),
@@ -49,16 +51,17 @@
           (b, "b", "e1"),
           (m0, "*", "e2"),
           (m1, "*", "e3"),
-          (eq, "==", "e5"),
+          (goal, "==", "e4"),
         ) {
           cls(p.at(0), p.at(0), p.at(1), base, t)
           node(p, l, base)
         }
 
-        // `e4` already merged with `true`, so the assume on the right only
-        // has to account for `e0` with `e1` and `e2` with `e3`.
-        cls(goal.at(0), tt.at(0), y2, base, "e4")
-        node(goal, "==", base)
+        // `assume e5` has already merged the assumed equality with `true`, so
+        // the saturation on the right only has to account for `e0` with `e1`,
+        // `e2` with `e3`, and the goal with `true`.
+        cls(eq.at(0), tt.at(0), y2, base, "e5")
+        node(eq, "==", base)
         node(tt, "true", base)
       } else {
         // `a ~ b` by the assumed equality, `a * 2 ~ b * 2` by congruence over

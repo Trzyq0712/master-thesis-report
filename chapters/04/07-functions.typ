@@ -12,11 +12,10 @@ contract and a body that the definition should unfold to.
 Of everything in this chapter, this is where we stayed closest to Silicon.
 Silicon axiomatises a function with a small family of symbols, among them the
 function itself, an uninterpreted precondition token, and a limited twin for
-the recursive case @silicon.
-
-We start from a function with a body and no contract, add a precondition and
-then a postcondition, and then let the function read the heap. The section
-closes with how recursion is handled.
+the recursive case @silicon. The section reaches those symbols one at a time: it
+starts from a function with a body and no contract, adds a precondition and then
+a postcondition, lets the function read the heap, and closes with how recursion
+is handled.
 
 === Function bodies
 
@@ -76,9 +75,7 @@ function div(
 
 A function body lowers to the same pure instructions an expression in a method
 body does, terminated by a #vm[`result`] naming the temporary the function
-returns.
-
-Helium walks that body once, and the walk yields two things. The parameters
+returns. Helium walks that body once, and the walk yields two things. The parameters
 enter as fresh values, so the walk knows their types and nothing else about
 them. It then takes the instructions in order. Each raises whatever obligations
 it carries, which the walk proves under that instruction's own path condition,
@@ -108,9 +105,10 @@ it needs to have an appropriate precondition.
 
 === Preconditions
 
-A precondition is the clause that constrains the parameters of a function.
-For a heap-free function the translator lowers it to a boolean
-#vm[`#requires`] function (@lst:fn-pre).
+A precondition is the clause that constrains the parameters of a function. What
+it lowers to depends on whether it reads the heap. For a heap-free function the
+translator lowers it to a boolean #vm[`#requires`] function (@lst:fn-pre), and
+the heap-dependent case waits until the section admits the heap.
 
 #lowering(
   caption: [A heap-free precondition becomes a boolean function. The body
@@ -198,9 +196,7 @@ formula for the token's truth at a call site:
 $ "PC" => f"%pre"(overline(x)) $
 
 That guard is what keeps a fact released at one call from reaching a sibling
-branch that never made it.
-
-The token plays two roles. Its presence triggers the rule that equates the body
+branch that never made it. The token plays two roles. Its presence triggers the rule that equates the body
 instantiation to the opaque function node, which keeps a function from unfolding
 where that would not be sound. Below gives the actual definitional axiom:
 
@@ -216,7 +212,6 @@ $ f"%pre"(overline(x)) and "PC"_g(overline(y)) => g"%pre"(overline(y)) $
 
 Here $g(overline(y))$ is the call the body makes, and $overline(y)$ its
 arguments, built from $overline(x)$ by the steps of the recipe that precede it.
-
 Setting the mark is the translator's decision, recorded on the instruction,
 because the translator is what knows why it emitted the call. @lst:fn-half
 lowers a caller for #vi[`div`] whose one expression makes both kinds of call.
@@ -260,7 +255,9 @@ arguments,
 
 $ "div%pre"(s, 2) => "div"(s, 2) = s \/ 2, $
 
-so the caller eventually gets #vm[`half(k) == k / 2`].
+so the caller eventually gets #vm[`half(k) == k / 2`]. Three rules fired in
+sequence, each licensed by a token the one before it minted, and the caller
+never proved #vi[`2 != 0`] for itself.
 
 === Postconditions
 
@@ -316,11 +313,9 @@ parameters $overline(x)$ and carrying the application $f(overline(x))$ in the
 result position.
 The first conjunct states that `p` holds when the precondition token is present.
 The second is what enables the caller to release `p`'s body, which is how
-the caller receives the actual information.
-
-A contract definition is an ordinary function body, so the calls in it are value
-positions and carry the #vm[export] mark. @lst:fn-post-callee names a second function in its
-clause.
+the caller receives the actual information. A contract definition is an ordinary
+function body, so the calls in it are value positions and carry the
+#vm[export] mark. @lst:fn-post-callee names a second function in its clause.
 
 #lowering(
   caption: [A clause that names a second function. The call to #vi[`g`] inside

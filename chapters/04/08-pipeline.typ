@@ -64,11 +64,8 @@ confirms their well-definedness.
     [an uninterpreted symbol, and, where the declaration links to an
      #vi[`ensures`], a guarded axiom over the result],
 
-    [#vm[`resource`] with a body], [yes],
+    vm[`resource`], [yes],
     [a record of recipes: two per footprint slot and one for the boolean],
-
-    [#vm[`resource`] with no body], [no],
-    [an opaque snapshot type, exchanged whole at a use site],
 
     vm[`method`], [yes],
     [one result],
@@ -76,7 +73,7 @@ confirms their well-definedness.
 ) <tbl:decl-summary>
 
 Two rows of @tbl:decl-summary carry more than one Viper construct, which is
-what the collapse of @sec:principles buys. A field and a domain function are
+what our unified design buys. A field and a domain function are
 both bodyless functions, so both leave an uninterpreted symbol and
 neither is walked. A predicate body and a method contract are both resources, so
 both are verified once at their declaration and both leave a record of recipes.
@@ -99,7 +96,7 @@ dependency-first order. A component of more than one member is a recursion
 cycle, and we admit one only where every member is a function, which is what the
 limited twins of @sec:impl-functions handle. A recursive resource, a recursive
 method, or a function cycle that draws in a resource is rejected by name, so the
-scoping principle of @sec:principles reaches the schedule as a refusal rather
+strict scoping principle of our design reaches the schedule as a refusal rather
 than a wrong answer. One refinement then applies to the component order: every
 function and resource component runs ahead of every method component. That holds
 the dependency order, because nothing depends on a method, and it splits no

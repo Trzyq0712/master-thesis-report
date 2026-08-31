@@ -197,9 +197,9 @@ $ "PC" => f"%pre"(overline(x)) $
 That guard is what keeps a fact released at one call from reaching a sibling
 branch that never made it. The token plays two roles. Its presence triggers the rule that equates the body
 instantiation to the opaque function node, which keeps a function from unfolding
-where that would not be sound. Below gives the actual definitional axiom:
+where that would not be sound. Below gives the actual definitional axiom, with the term in curly braces explicitly marking what triggers the rewrite:
 
-$ f"%pre"(overline(x)) => f(overline(x)) = "body"_f (overline(x)) $
+$ {f"%pre"(overline(x))} f"%pre"(overline(x)) => f(overline(x)) = "body"_f (overline(x)) $
 
 The same mechanism governs the unfolding of the functions called indirectly.
 Every call in a body carries a mark, written #vm[`export`], that says whether
@@ -207,7 +207,7 @@ instantiating the body at a client re-releases that callee's token there. A
 marked call releases its token under two guards, the token that licensed the
 instantiation and the path condition the call sits under inside the body:
 
-$ f"%pre"(overline(x)) and "PC"_g(overline(y)) => g"%pre"(overline(y)) $
+$ {f"%pre"(overline(x))} f"%pre"(overline(x)) and "PC"_g(overline(y)) => g"%pre"(overline(y)) $
 
 Here $g(overline(y))$ is the call the body makes, and $overline(y)$ its
 arguments, built from $overline(x)$ by the steps of the recipe that precede it.
@@ -304,7 +304,7 @@ construction serves a function with a body and one without. Write $p$ for the
 member that link names, which @lst:fn-post lowers to #vm[`abs#ensures`]. At
 an occurrence the token releases the link alongside the definitional equation:
 
-$ f"%pre"(overline(x)) => p(overline(y)) and p"%pre"(overline(y)) $
+$ {f"%pre"(overline(x))} f"%pre"(overline(x)) => p(overline(y)) and p"%pre"(overline(y)) $
 
 Here $overline(y)$ is the argument list the link records, built from the
 parameters $overline(x)$ and carrying the application $f(overline(x))$ in the
@@ -494,11 +494,9 @@ we retarget the calls that close the cycle to the twin, so an instantiation
 lands on #vm[`length%lim`] and stops there. One rewrite relates the twin to the
 function:
 
-$ f(overline(x)) ~> f"%lim"(overline(x)) $
+$ {f(overline(x))} f(overline(x)) = f"%lim"(overline(x)) $
 
-The rewrite above is directional. That means we match on the left-hand
-side, mint the twin at the same arguments, and merge the two e-classes. Had
-this been a bidirectional rule, the solver would immediately run into a matching
+The rewrite above is triggered by the full application on the left-hand side. That means we match on it, mint the twin at the same arguments, and merge the two e-classes. Had this been an untriggered bidirectional equality, the solver would immediately run into a matching
 loop, infinitely unfolding the recursive application again. The merge carries
 every fact the caller establishes of #vm[`length`] at those arguments to the
 #vm[`length%lim`] a sibling unfold produced.

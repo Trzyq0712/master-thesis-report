@@ -104,7 +104,12 @@ which the current rewrite engine does not support. Even with reasoning by cases,
 the above would still require Helium to discharge the arithmetic obligation, and
 thus fail.
 
-*Algebraic datatypes.* Helium assigns an integer tag to each constructor based on its declaration order. When queried, a concrete constructor application reduces directly to this tag literal. For example, given the datatype in @lst:incomplete-shape, the assertion #vi[`circle(n).iscircle`] successfully verifies on its own.
+*Algebraic datatypes.* Exhaustiveness of discriminants is currently unsupported.
+While Helium can evaluate discriminants for *concrete* constructor applications
+(e.g., #vi[`circle(n).iscircle`] successfully verifies given the datatype in
+@lst:incomplete-shape), it cannot discharge a disjunction over all possible
+discriminants for an arbitrary value, such as
+#vi[`s.iscircle || s.issquare || s.isrect`] for an opaque #vi[`s: Shape`].
 
 #viper(
   caption: [A datatype whose constructors are tagged by declaration order.],
@@ -117,7 +122,11 @@ adt Shape {
 }
 ```]
 
-However, this tag information is not automatically carried in the state for values the program only knows indirectly. For instance, @lst:incomplete-shape-branch builds #vi[`s`] from a known constructor on each branch of a conditional (#vi[`circle`] or #vi[`square`]). Once the branches join, the disjunction of discriminants fails to verify.
+What is missing is propagating that fact to values the program only knows
+indirectly. @lst:incomplete-shape-branch builds #vi[`s`] from a known
+constructor on each side of a conditional, #vi[`circle`] or #vi[`square`], and
+still fails to close the disjunction of discriminants once the two branches
+have joined.
 
 #viper(
   caption: [A value built from a known constructor on each branch, whose tag
@@ -129,12 +138,23 @@ if (b) { s := circle(n) } else { s := square(m) }
 assert s.iscircle || s.issquare
 ```]
 
-Verifying this assertion requires pushing the tag reduction through the join's #vi[`ite`] expression. This demands the same reasoning by cases that is currently missing from the rewrite engine. 
+Closing this needs the tag reduction pushed through the join's #vi[`ite`], the
+same reasoning by cases the previous gap is missing.
 
-An even more difficult scenario involves a value the program never constructs at all, such as an arbitrary #vi[`s: Shape`] taken as a parameter. In this case, #vi[`s.iscircle || s.issquare || s.isrect`] fails to verify, and case splitting would not help because there is no constructor application for a rewrite rule to reduce. Discharging this obligation requires a background axiom restricting every value of the type to the declared constructors' tags, a fact that Helium's rewrite engine does not currently assert.
+One potential solution is to assign each constructor an integer tag
+($"circle" arrow.r.double 0$, $"square" arrow.r.double 1$,
+$"rect" arrow.r.double 2$) and restrict the discriminant function's range to
+that finite set. However, this encoding alone would not discharge the obligation.
+For an opaque #vi[`s`], this reduces exhaustiveness to:
+$ "tag"(s) = 0 or "tag"(s) = 1 or "tag"(s) = 2 , $
+This is a disjunction of equalities that still requires either bounded-range
+arithmetic or a case split to verify—both of which represent existing gaps in
+Helium's capabilities. While such an encoding is worth adding to give
+discriminants a concrete representation, it does not bypass the need for a more
+comprehensive decision procedure.
 
-*The field/receiver relation.* VMIR represents every heap entity, whether a field
-or a predicate, uniformly as an abstract *location*. However, this uniformity
+*The field/receiver relation.* VMIR represents every heap entity—whether a field
+or a predicate—uniformly as an abstract *location*. However, this uniformity
 discards a structural guarantee that Silicon enforces: possessing positive
 permission to a field implies its receiver is non-null. Because VMIR maps both
 fields and single-argument predicates to the same mathematical representation,

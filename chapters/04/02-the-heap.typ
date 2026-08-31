@@ -305,11 +305,11 @@ zero-permission chunk can never be read and never usefully merges with another.
 
 A Viper assertion may put an #vi[`acc`] under a condition, so the permission is
 granted only where that condition holds. @lst:guarded-add does so at a symbolic
-amount, which is what shows where the condition has to reach.
+amount.
 
 #lowering(
   caption: [A guarded access at a symbolic amount, #vm[`e0`] the receiver and
-    #vm[`e1`] the amount. The guard becomes both the permission and the add's
+    #vm[`e1`] the amount. The guard becomes a conditional permission amount and the add's
     path condition.],
   label: "lst:guarded-add",
 )[```viper
@@ -322,104 +322,60 @@ p0 := e3 ? e1 : 0/1
 h0 := <e3> empty + e4 @ p0 with fresh
 ```]
 
-The add carries no trace of the implication. What the guard produces is
-#vm[`p0`], the amount #vm[`e1`] where #vm[`e3`] holds and #vm[`0/1`] where it
-does not. The condition reaches the add a second way, as the path condition
-#vm[`<e3>`]: an add owes $p >= 0$ before it places its chunk, and with a
-symbolic amount that condition alone proves it. The inhale
-is equivalent to #vi[`inhale acc(x.f, p >= none ? p : none)`], which is what
-Helium executes.
-
-#vm[`p0`] belongs to neither namespace the section has used so far. VMIR gives
-amounts one of their own, #vm[`p`], beside values #vm[`e`] and heaps #vm[`h`].
-An amount is a rational literal, a value of type #vi[`Real`], the
-#vm[`wildcard`] of @sec:impl-wildcards, or a temporary produced by the sole
-instruction the namespace has,
+The addition operation itself carries no trace of the implication. Instead, the guard produces #vm[`p0`],
+evaluating to the permission amount #vm[`e1`] where #vm[`e3`] holds and to #vm[`0/1`] otherwise.
+VMIR gives permission amounts their own namespace, #vm[`p`], distinct from values #vm[`e`] and heaps #vm[`h`].
+An amount can be a rational literal, a symbolic value of type #vi[`Real`], the #vm[`wildcard`] of @sec:impl-wildcards, or a ternary conditional expression:
 
 #align(center)[#vm[`p' := e ? p0 : p1`]]
 
-whose condition is drawn from the value space and whose arms are themselves
-amounts. What the separate namespace buys is the subject of @sec:impl-wildcards.
+Crucially, when processing these #vm[`p`] expressions, Helium keeps them structural. When a conditional permission is used by a heap operation, it is added to the e-graph, yielding a single symbolic e-class for the whole expression. In parallel, Helium also remembers the original ternary structure, a tree of conditions with amounts at the leaves, instead of only keeping the symbolic value.
 
-A chunk's permission is therefore not a single amount but a tree of conditions
-with amounts at the leaves, in the shape the instructions that built it had.
-We hold that tree beside the e-graph, building a term only where a prover
-needs one e-class.
+This dual representation is especially useful for proving sufficiency during permission subtractions. If permissions were previously added as guarded amounts, Helium first performs an initial sufficiency check using the single e-class that represents the entire ternary expression. If this check cannot immediately prove that enough permission is held, Helium falls back to the structural representation. It descends the ternary permission tree to check if there is sufficient permission on every branch independently.
 
-Obligations over an amount are answered arm by arm. Addition and subtraction
-demand only
-$0 <= p$, which a gated amount meets on both: the arm the guard switches off is
-the literal #vm[`0/1`] and folds away, and the other stands under the guard. A
-dereference's $p > 0$, an assignment's demand for the location's
-permission bound, and the permission bound axiom are discharged leaf
-by leaf, each under the conditions that reach it. The non-aliasing axiom weighs
-a sum of two amounts, which Helium forms only where both are unbranched, so a
-branch-structured amount states no disequality. The resource instructions of
-@sec:impl-predicates demand strict positivity instead, each carrying a boolean
-that at zero permission would be vacuous.
+The alternative would require distributive rewrite rules to push operations down the ternary branches before discharging them. Without these rules, checking sufficiency directly over the whole symbolic expression would fail. By keeping the tree structure and checking branches independently, Helium avoids needing these complex rewrite rules. Consequently, this fallback mechanism makes permission checking one of the few cases where Helium's verification explicitly case-splits.
 
 === Wildcard permissions <sec:impl-wildcards>
 
-A #vm[`wildcard`] is an amount that carries a sign and no magnitude: the share
-is positive and its size stays open. It stands in the amount slot with no
-operand of its own. What it denotes depends on what the heap already holds at
-the location, so the instruction executing it resolves it.
-@lst:wildcard-ops takes one onto a location held at a fraction, and gives it
-back.
+In Viper, wildcards are used when a programmer wants to denote some positive amount of permission without specifying an exact value. In VMIR, a #vm[`wildcard`] can be used wherever a heap operation expects a permission amount (#vi[`Real`]). However, a wildcard is not a normal value and has no concrete numerical meaning by itself. It only gains meaning when executed by a heap operation, at which point it resolves to an unspecified positive amount of permission. @lst:wildcard-add illustrates this basic translation.
 
-#vmir(
+#lowering(
+  caption: [Adding an unspecified positive amount of permission to a field.],
+  label: "lst:wildcard-add",
+)[```viper
+inhale acc(x.f, wildcard)
+```][```vmir
+e1: &[f] Int @ 1/1 := f(e0)
+h0 := empty + e1 @ wildcard with fresh
+```]
+
+When a wildcard is added to a location, the new permission amount is defined to be a fresh permission symbolic assumed to be strictly more than the symbolic stored there previously. If a location held permission amount $p$, adding a wildcard produces a new fresh share $p'$ with the assumption $p' > p$. This settles $p' > 0$ since $p$ was at least zero. Where the location held nothing, the share is simply a fresh positive real.
+
+Conversely, when a wildcard is subtracted, the obligation is that the location holds some positive permission ($p_"held" > 0$). The new permission amount is defined to be a fresh remainder $r$ that is strictly less than what was held before, but still greater than zero ($0 < r < p_"held"$).
+
+Wildcards can appear under conditions, such as when a programmer conditionally inhales a wildcard. This delayed interpretation is precisely why structurally distinct #vm[`p`]-kinded expressions are necessary. When adding or subtracting a wildcard under a #vm[`p`]-ternary tree, Helium has to pick a concrete symbolic value for the wildcard branch. For example, assume we held $p$ permission before. If we now add the amount #vm[`c ? wildcard : 1/2`], Helium resolves this during the heap operation. The resulting permission amount becomes #vm[`c ? p' : p + 1/2`], where $p'$ is a fresh symbolic assumed to be larger than $p$ ($p' > p$). Building this ternary structure in the #vm[`p`] namespace allows the wildcard to remain uninterpreted until the heap operation can correctly resolve it against the currently held permission.
+
+@lst:wildcard-ops demonstrates this full interaction in practice, where a wildcard is added under a guard to a location and then subsequently subtracted.
+
+#lowering(
   caption: [A wildcard added under a guard to a location held at #vm[`1/2`],
     then given back.],
   label: "lst:wildcard-ops",
-)[```vmir
+)[```viper
+inhale acc(x.f, 1/2)
+inhale b ==> acc(x.f, wildcard)
+exhale acc(x.f, wildcard)
+```][```vmir
 e2: &[f] Int @ 1/1 := f(e0)
 h0 := empty + e2 @ 1/2 with fresh
 p0 := e1 ? wildcard : 0/1
-h1 := h0 + e2 @ p0 with fresh  // holds e1 ? p' : 1/2, with 1/2 < p'
-h2 := h1 - e2 @ wildcard       // needs p > 0, leaves 0 < r < p
+h1 := <e1> h0 + e2 @ p0 with fresh
+h2 := h1 - e2 @ wildcard
 ```]
 
-Adding a wildcard to a location already holding $p$ produces a fresh share $p'$
-assumed strictly larger, $p < p'$, which settles $0 < p'$ too, since $p$ was at
-least zero. Where the location held nothing, the share is a fresh positive real.
-We build no sum node in either case: the e-graph carries no order theory
-for the reals, so $p + w$ would be an opaque leaf no comparison could use. The
-permission bound of #pararef(<para:impl-location-axioms>, [Location axioms])
-finishes the argument: a location held at #vm[`1/1`] that takes a further
-wildcard bounds a strictly larger share by #vm[`1/1`], so that state is
-unreachable.
+In @lst:wildcard-ops, the program first acquires half permission to #vi[`x.f`], reflected in heap #vm[`h0`]. It then conditionally adds a wildcard permission under guard #vm[`e1`] (representing #vi[`b`]). In the #vm[`p`] namespace, this conditional amount becomes #vm[`p0 := e1 ? wildcard : 0/1`]. When #vm[`p0`] is added to the heap to produce #vm[`h1`], Helium resolves it against the existing #vm[`1/2`] permission. The resulting permission stored in #vm[`h1`] becomes #vm[`e1 ? p' : 1/2`], where $p'$ is a fresh symbolic guaranteed to be strictly greater than #vm[`1/2`]. Finally, when a wildcard is subtracted from #vm[`h1`] to produce #vm[`h2`], Helium asserts that the held permission is strictly positive, which holds true on both branches, and leaves behind a fresh remainder $r$ satisfying $0 < r < p_"held"$.
 
-Subtraction has nothing to weigh a wildcard against. The obligation is instead
-that the location holds something at all, $p_"held" > 0$, and what remains is a
-fresh remainder, $0 < r < p_"held"$. Those are the two facts a later read and a
-later debit turn on, and a difference node $p_"held" - w$ would support neither,
-for want of an order theory.
-
-Line 3 is what earns the permission namespace its place: a wildcard under a
-guard. We could resolve the share where the instruction is emitted, by
-reading what the heap holds at the location under that guard and picking a
-larger value there. We build the gate instead and let the add resolve it arm
-by arm, so a location held at $p$ under a guard $g$ comes out at
-$ternary(g, p', p)$ with $p < p'$, which is line 4. A
-wildcard on its own denotes nothing that can be computed over, and the namespace
-guarantees it never is: heap instructions and further permission instructions
-are its only consumers, settled by typing rather than a check at every use. Its
-provenance rides on that structure too, since congruence would put a share
-coinciding with a literal into that class.
-
-A Viper program may write #vi[`wildcard`] itself, and the translator introduces
-one wherever the program only reads: a function's body, and the resource a
-heap-dependent function's precondition lowers to. There a literal #vm[`0/1`]
-stays, a literal nonzero amount becomes a #vm[`wildcard`], and a symbolic amount
-$p$ becomes
-
-$ ternary(0 < p, "wildcard", "0/1") $
-
-which keeps a conditional footprint conditional: #vi[`requires b ==> acc(x.f)`]
-demands a share only where #vi[`b`] holds, while predicate bodies and method
-preconditions keep their amounts as written. The cost is that nothing records
-how much a wildcard debit took, which is the arithmetic a read-only region
-needs.
+Beyond explicit use by the programmer, wildcards are heavily relied upon internally during translation. When lowering heap-dependent functions to VMIR, Helium follows the default semantics of Silicon and changes every permission amount to be either a #vm[`wildcard`] or #vm[`0/1`]. If it is not decidable at translation time whether a symbolic amount $p$ is positive, the translator emits a ternary expression: #vm(`0/1 < p ? wildcard : 0/1`).
 
 
 === Comparison with Silicon

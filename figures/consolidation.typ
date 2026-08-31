@@ -1,8 +1,8 @@
 #import "../macros.typ": *
 #import "@preview/cetz:0.4.2"
 
-/// Consolidation, @sec:impl-heap's #pararef(<para:impl-consolidation>,
-/// [Consolidation]), before and after. Left: one partition, two chunks at
+/// Consolidation (@sec:impl-heap-repr),
+/// before and after. Left: one partition, two chunks at
 /// distinct location e-classes. Middle: the e-classes merge — this is the
 /// step that *triggers* the fold, drawn as its own arrow rather than folded
 /// into the merge itself. Right: one chunk, holding the summed permission and

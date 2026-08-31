@@ -152,7 +152,7 @@ following the standard resource verification rules outlined in
 @sec:impl-predicates. The precondition is verified first; the postcondition is
 subsequently verified using the pre-state explicitly reconstructed by the
 precondition's inhale. Each verification yields a permanent record of recipes
-(#pararef(<para:impl-slot-recipes>, [Slots and recipes])). Consequently, any
+(@sec:impl-verify-resource). Consequently, any
 subsequent use of the contract merely reconstructs its footprint from this
 record rather than repeatedly traversing the clause, ensuring that
 well-definedness is definitively settled exactly once during declaration.
@@ -307,7 +307,7 @@ The inhale adds the postcondition's footprint to the caller's heap, bound
 #vm[`with fresh`], so each slot comes back as a value of its own, constrained by
 the boolean the inhale then assumes. It relates to what the caller's heap held
 before the call exactly where consolidation merges the two chunks
-(#pararef(<para:impl-consolidation>, [Consolidation])).
+(@sec:impl-heap-repr).
 
 The order of the two instructions matters. Because the exhale runs first,
 permission the callee demands leaves the caller's heap before the postcondition
@@ -323,6 +323,6 @@ effect of evaluating an expression rather than a pass of its own
 declaration's well-definedness check already settled: positive permission for
 each heap read, a non-zero divisor, and the precondition of each function
 applied. Helium discharges those once, when the resource is verified and compiled
-to recipes (#pararef(<para:impl-slot-recipes>, [Slots and recipes])), so a method
+to recipes (@sec:impl-verify-resource), so a method
 with $n$ call sites raises them once rather than $n + 1$ times. The footprint
 walk itself costs the same in both, since each use touches every slot either way.

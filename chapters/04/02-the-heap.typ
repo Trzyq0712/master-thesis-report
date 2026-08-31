@@ -143,7 +143,7 @@ function f(e0: Ref): &[f] Int @ 1/1
 function f_inv(e0: &[f] Int @ 1/1): Ref
 ```]
 
-=== Heap representation in Helium
+=== Heap representation in Helium <sec:impl-heap-repr>
 
 A field becomes a mapping to location type; a program can take permission to
 locations. We represent each permission a program holds to a location as
@@ -260,7 +260,7 @@ restricted only by #vm[`l`]'s stored type. Otherwise the program supplies a
 concrete value, an earlier temporary #vm[`e`]#sub[`n`] or a literal constant,
 which must itself share that type. Either way, if the partition already holds a
 chunk at #vm[`l`], the two are merged by consolidation rather than kept apart
-(#pararef(<para:impl-consolidation>, [Consolidation])). Line 2 of
+(@sec:impl-heap-repr). Line 2 of
 @lst:heap-ops-instructions takes #vm[`1/1`] at #vm[`e1`] with a fresh value.
 
 #align(center)[#vm[`v := *[h] l`]]
@@ -292,7 +292,7 @@ value, #vm[`v: Option[Int]`], which is #vm[`Some(...)`] if the removed
 permission amount was positive and #vm[`None`] otherwise. It fails if #vm[`p`]
 cannot be proven non-negative, or if the found chunk holds less than #vm[`p`].
 If the chunk is missing or insufficient, we re-key the partition and
-retry once (#pararef(<para:impl-consolidation>, [Consolidation])), in case two
+retry once (@sec:impl-heap-repr), in case two
 locations merged since the chunk was added.
 
 Line 5 subtracts the full #vm[`1/1`] and leaves #vm[`e1`] with nothing behind it
@@ -386,12 +386,12 @@ that repairs the heap representation rather than something run after every
 operation. It is scheduled periodically, since a full pass repeatedly asks
 the SMT solver whether pairs of receivers are equal, which is cubic in the
 number of chunks in the worst case @silicon[Section 3.4.2]. Helium's
-re-keying instead costs one linear pass, since every location is already canonicalised inside the e-graph (#pararef(<para:impl-consolidation>, [Consolidation])), and thus can run directly on a failed lookup.
+re-keying instead costs one linear pass, since every location is already canonicalised inside the e-graph (@sec:impl-heap-repr), and thus can run directly on a failed lookup.
 
 The two verifiers also place the non-aliasing axiom differently. Silicon
 states it over field receivers, one instance per field:
 $x = y ==> p + p' <= b$. Helium states it over locations instead
-(#pararef(<para:impl-location-axioms>, [Location axioms])):
+(@sec:impl-heap-repr):
 $ell = ell' ==> p + p' <= b$, which covers a field and a bounded predicate in
 the same form. Stating it over receivers is exactly where Silicon's
 representation makes field mappings injective, something VMIR's location

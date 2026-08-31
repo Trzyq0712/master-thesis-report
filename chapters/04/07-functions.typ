@@ -85,7 +85,7 @@ instruction's operands, and that is the _recipe_. The verdict and the
 certificate come out of one pass over the body.
 
 The recipe is the construct of
-#pararef(<para:impl-slot-recipes>, [Slots and recipes]), seeded here by the
+@sec:impl-verify-resource, seeded here by the
 parameters rather than by footprint slots. The parameters take the first
 temporaries and a step names only earlier ones, so the two lines of the listing
 above are already the recipe:

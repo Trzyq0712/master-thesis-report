@@ -107,7 +107,7 @@ is reported.
 Each unit runs in a fresh e-graph over a fresh space of identifiers, so a merge
 an earlier unit made does not reach a later one. What crosses is the
 certificate. A verified resource leaves its record of recipes
-(#pararef(<para:impl-slot-recipes>, [Slots and recipes])), from which a use site
+(@sec:impl-verify-resource), from which a use site
 rebuilds its footprint. A verified function leaves its definitional equation,
 installed as a rewrite rule the first time a later unit's saturation meets an
 application of it. A recursive group is verified against limited twins and

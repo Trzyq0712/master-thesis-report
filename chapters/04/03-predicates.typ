@@ -73,7 +73,7 @@ A resource's body is a sequence of instructions akin to a method body. In
 and #vm[`result`] delivers the resulting heap and boolean claim (here #vm[`true`],
 as the body asserts no pure conditions). The addition introduces #vm[`with self`],
 a construct unique to resources that explicitly marks the chunk as part of the
-resource's contributed _footprint_ (#pararef(<para:impl-snapshots>, [Snapshots])).
+resource's contributed _footprint_ (@sec:impl-pred-body).
 
 #para[Associated members] <para:impl-derived> Every VMIR resource implicitly
 defines two associated members. The first is a snapshot type, which records the
@@ -94,7 +94,7 @@ function Cell@loc(e0: Ref): &[Cell] Cell@snap @ *
 
 The snapshot type is an #vm[`adt`] with a single constructor, one member per
 chunk of the footprint. #vi[`Cell`] contributes one chunk, so #vm[`Cell@snap`]
-has one member. #pararef(<para:impl-snapshots>, [Snapshots]) derives the member
+has one member. @sec:impl-pred-body derives the member
 list and the types on it.
 
 The location function maps the resource's arguments to a location, exactly as a
@@ -105,13 +105,13 @@ type, so a chunk in that partition holds a whole instance. Its bound is
 once and we match that.
 
 Because unbounded partitions receive neither injectivity axiom
-(#pararef(<para:impl-location-axioms>, [Location axioms])), two instances of a
+(@sec:impl-heap-repr), two instances of a
 resource may remain possibly equal where full field chunks would be proven
 distinct. While some resources theoretically admit a tighter bound than #vm[`*`],
 VMIR currently forces all resource location functions to be unbounded by
 construction. Making this bound declarable by frontends is left to future work.
 
-=== Lowering a predicate body
+=== Lowering a predicate body <sec:impl-pred-body>
 
 Deriving the snapshot type and executing resource operations both require the
 footprint: the specific chunks the resource contributes. We extract this list
@@ -324,14 +324,14 @@ therefore verified in one ordinary pass, like any other, with no depth limit.
 We intentionally reject one specific shape. A body that unfolds a resource within
 its own definition---whether directly or through a cycle---is refused prior to
 verification. Unfolding a resource fundamentally reconstructs it from the record
-produced during its own verification (#pararef(<para:impl-slot-recipes>, [Slots and recipes])).
+produced during its own verification (@sec:impl-verify-resource).
 We must therefore schedule a resource after everything it unfolds, and a cyclic
 dependency admits no such topological order. While Silicon accepts such programs
 by re-executing assertions against the current state at every use, we have found
 this restriction poses no issue in practice, as self-unfolding predicates are
 exceedingly rare.
 
-=== Verifying a resource
+=== Verifying a resource <sec:impl-verify-resource>
 
 A resource is verified once at declaration using fresh symbolic parameters,
 raising standard obligations handled uniformly by @sec:impl-execution.
@@ -567,7 +567,7 @@ through the heap, as the #vm[`Node@loc(this.next)`] of @fig:node-recipes does,
 costs Silicon a heap lookup on every traversal, at every level of a nested
 structure and in both directions of every fold. Our recipes have that
 dereference compiled away, and the value it produced is handed to the walk
-instead (#pararef(<para:impl-slot-recipes>, [Slots and recipes])). A use site
+instead (@sec:impl-verify-resource). A use site
 builds a term for a slot address and goes on.
 
 Precompiling costs us one class of program that Silicon accepts, which is the

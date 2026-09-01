@@ -14,7 +14,7 @@
 // The chapter heading `= Results <sec:results>` lives in `main.typ`, as it does
 // for every chapter but 4.
 
-= Results and Evaluation <sec:results>
+= Results and Analysis <sec:results>
 
 In this chapter we report what Helium verifies, how fast it is, and where it
 fails. Four questions, in order, with the measurement protocol stated between the
@@ -37,10 +37,6 @@ Prusti's encoder on spec-less Rust, which is the input class Helium is aimed at.
 Both halves open with validity, since a verifier that has managed to assume
 #vi[`false`] is fast and worthless.
 
-@sec:results-case-study takes one published Rust crate through the whole
-pipeline, from source to Prusti encoding to both verifiers, and accounts for
-every declaration that had to be removed before Helium would accept the program.
-
 @sec:results-attribution then explains the pattern in the timings. It relates
 each result to the counters Helium records for itself, and it states the shapes
 on which Helium loses to Silicon as plainly as the shapes on which it wins.
@@ -48,5 +44,4 @@ on which Helium loses to Silicon as plainly as the shapes on which it wins.
 #include "05/01-features.typ"
 #include "05/02-setup.typ"
 #include "05/03-performance.typ"
-#include "05/04-case-study.typ"
-#include "05/05-attribution.typ"
+#include "05/04-attribution.typ"

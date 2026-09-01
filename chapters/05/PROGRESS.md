@@ -7,9 +7,9 @@ Not part of the thesis. Delete when the chapter is finished.
 | 0 | toolchain: `env/lock.json`, explicit Z3, selftest green | **done** |
 | 1 | §5.1 Experimental Setup | **done** (one `#todo`: the Z3 spot check) |
 | 2 | §5.2 Feature Completeness | §5.2.1 **done**; §5.2.2 next |
-| 3 | §5.3 Performance Evaluation | not started |
-| 4 | §5.4 Case Study | not started |
-| 5 | §5.5 Where Helium Wins and Where It Struggles | not started |
+| 3 | §5.3 Performance Evaluation | **done** |
+| 4 | Case Study | **dropped**, not enough time; file removed, `04-attribution.typ` renumbered to §5.4 |
+| 5 | §5.4 Where Helium Wins and Where It Struggles | **done** |
 
 ## Done
 
@@ -127,3 +127,55 @@ submodule and records the channel: Helium builds with **1.95.0-nightly**.
 §5.2.2 is now framed as the user asked: it assumes the supported fragment and
 explains which patterns fail inside it. Still a `#todo` — it needs the arithmetic
 count, the datatype-inverse count, and a populated `suites/viper/fail/`.
+
+
+## §5.4 done, 01 September
+
+Written from `results/2026-09-01-0147de4/raw.jsonl`, the same sweep §5.3
+quotes. New generator: `experiments/11_report_attribution.py`, writes
+`report/generated/attribution-{tiers-rust,tiers-viper-perf,scalars}.typ`.
+
+**Found and fixed on the way, all in `heval/`:**
+
+- `report.tier_table` never filtered by suite, so `tiers-rust.typ` and
+  `tiers-viper-perf.typ` were identical and shared a Typst label — a hard
+  compile error had they ever been `#include`d together. Now takes
+  `suite_name` and filters on it.
+- `report.tier_table` also summed every kept repetition instead of one row
+  per case, overcounting obligations by however many reps a case had lying
+  around (harmless while every case had exactly 3, fatal once some had 5-6 —
+  see next item). Now dedups by case first.
+- `06_tier_breakdown.py` had a second, dead `def main()` above the live one
+  (unreachable, and itself broken — referenced undefined `path`/`suite_name`).
+  Deleted.
+- Neither `06_tier_breakdown.py` nor `07_rule_costs.py` supported `--only`/
+  `--exclude` on their live-verification path, so `--suite rust` always loaded
+  every `.vpr` under `suites/rust/vpr/`, not just the 11-file performance
+  corpus — silently mixing in the `enum_v*`/`depth_*` scaling-grid files that
+  live in the same directory for an unrelated experiment. **This bit twice**:
+  once profiling (added ~5835 spurious rows to the pinned sweep, since
+  cleaned out by filtering on case name), and once ablating (a `SILVER_OXIDE_
+  DROP_RULES` run over the full 35-file directory, killed once noticed). Both
+  scripts now take `--only`/`--exclude` like `02_rust_corpus.py` already does.
+  **Lesson for next time: run a case-count sanity check before trusting any
+  `--suite` live-verification path in this repo — `suite.load` never filters
+  to a curated subset on its own.**
+
+**The rule ablation is hand-recorded, not regenerated.** Ablating a rule means
+re-verifying the corpus twice per rule, and one of the three ablated here
+(`ite-reduce`) times out on 10 of 11 files when dropped — not something to
+re-run inside a table generator on every sweep. The numbers live in
+`ABLATION` at the top of `11_report_attribution.py`, with the exact command
+that reproduces them.
+
+**Open, not blocking:** chapter 4's execution-model prose (`04/01-execution-
+model.typ`) still describes the prover ladder with five tiers named
+`inconsistent`/`goal_true`/`implication_true`/`saturate`/`implication_decompose`.
+The current code (and everything §5.4 quotes) has seven:
+`prove_inconsistent`, `prove_dead_block`, `prove_goal_true`, `prove_memo`,
+`prove_saturate`, `prove_probe`, `prove_ite_decompose` — the tiers were
+renamed and `dead_block`/`memo`/`ite_decompose` added after that chapter-4
+prose was written (per `helium-eval/CLAUDE.md`: renamed and case-split
+deleted 2026-08-13). §5.4 uses the current names and cross-references
+`sec:impl-execution` for the mechanism, but the two chapters now disagree on
+vocabulary. Worth a pass over chapter 4 before submission.

@@ -47,3 +47,4 @@
 
 // #include "chapters/A-lowering-reference.typ"
 #include "chapters/B-rewrite-rules.typ"
+#include "chapters/C-benchmarks.typ"

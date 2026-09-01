@@ -1,5 +1,6 @@
 #import "../macros.typ": *
 
+= Background <sec:background>
 == Automated Program Verification with _Viper_
 === Symbolic Execution
 

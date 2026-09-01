@@ -1,5 +1,6 @@
 #import "../macros.typ": *
 
+
 // The chapter is split one file per section, under `chapters/05/`, following
 // the layout of chapter 4.
 //
@@ -12,6 +13,8 @@
 
 // The chapter heading `= Results <sec:results>` lives in `main.typ`, as it does
 // for every chapter but 4.
+
+= Results and Evaluation <sec:results>
 
 In this chapter we report what Helium verifies, how fast it is, and where it
 fails. Four questions, in order, with the measurement protocol stated between the

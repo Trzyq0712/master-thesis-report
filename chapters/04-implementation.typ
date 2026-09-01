@@ -3,11 +3,10 @@
 // The chapter is split one file per section, under `chapters/04/`.
 
 = VMIR and Helium <sec:implementation>
-In this chapter we present the design of VMIR and its verification in Helium.
-The presentation is incremental: each section admits one further class of Viper
-construct, gives its VMIR encoding, and then the strategy Helium uses to verify
-it. Most sections close with a comparison to Silicon, naming where the two
-designs diverge and what the divergence costs.
+
+Guided by the minimal feature set established in the previous chapter, we now present the concrete design of VMIR and its verification pipeline within Helium.
+
+The presentation is incremental: each section admits one further class of Viper construct from our target fragment, details its VMIR encoding, and explains the strategy Helium uses to verify it. Most sections close with a comparison to Silicon, highlighting where the two designs diverge and what trade-offs those divergences introduce.
 
 @sec:impl-execution starts from the smallest program a verifier can process, a
 stream of value-only instructions, and defines the mechanism by which Helium

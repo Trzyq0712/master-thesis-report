@@ -28,22 +28,18 @@
 
 #show: mainmatter
 
-= Introduction
 #include "chapters/01-introduction.typ"
 
-= Background <sec:background>
 #include "chapters/02-background.typ"
 
-= Approach <sec:approach>
 #include "chapters/03-approach.typ"
 
 #include "chapters/04-implementation.typ"
 
-= Results <sec:results>
 #include "chapters/05-results.typ"
 
-= Future Work <sec:future-work>
-#include "chapters/06-future_work.typ"
+#include "chapters/06-conclusions-future-work.typ"
+
 
 #show: appendix
 

@@ -51,3 +51,48 @@ generated names map to the same short name in example.clean.vpr). The scheme:
     m_<f>                   -> <f>
     mir_binop_Lt_Int_i32_Int_i32 -> lt_i32_i32, likewise le, and
     AddWithOverflow/SubWithOverflow -> add_ovf/sub_ovf
+
+## The §3.4 feature-set example
+
+`chapters/03-approach.typ` no longer quotes the files above. The program in
+`@lst:example-rust` and the encoding §3.4's two Viper listings come from are kept
+here instead:
+
+    feature-set.rs      the Rust of @lst:example-rust, 1 struct, 2 enums,
+                        3 functions, no specifications
+    feature-set.vpr     Prusti's encoding of it, 1774 lines, identifiers *not*
+                        shortened -- see below
+
+Regenerate with
+
+    PRUSTI_CHECK_OVERFLOWS=false PRUSTI_DUMP_VIPER_PROGRAM=true \
+        prusti-rustc --crate-type=lib --edition=2021 feature-set.rs
+
+which writes `log/viper_program/program-check.vpr`. Do **not** set
+`PRUSTI_NO_VERIFY=true`: Prusti then exits before the encoding is dumped and
+produces no `.vpr` at all.
+
+The counts §3.4 quotes come straight out of that file:
+
+    grep -oE '^(domain|field|function|predicate|method|adt)\b' feature-set.vpr \
+        | sort | uniq -c
+
+### Why this one is not shortened
+
+`shorten-names.py` is injective on `example.clean.vpr` but **not** on this file.
+Silicon verifies `feature-set.vpr` as it stands and rejects the shortened copy
+before it starts, with
+
+    invalid sort declaration, sort already declared/defined
+
+so two distinct names collide at the SMT sort level even though no two Viper
+declarations end up sharing a name. Until that is tracked down, this file is
+archived unshortened.
+
+The two listings §3.4 quotes were shortened by hand to the same scheme, and each
+was simplified for the page: the repeated discriminant read is bound with a
+Viper `let`, and the discriminant is compared as an `Int` through
+`s_Int_isize_value` rather than against `s_Int_isize_cons(n)`. Both rewrites are
+real Viper. Substituting them back into `feature-set.vpr` for the members they
+replace (`p_Transaction` and `p_Transaction_snap`) still verifies under Silicon,
+which is how they were checked.

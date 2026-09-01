@@ -104,40 +104,50 @@ is worth exploring. The performance advantages of the lightweight underlying
 e-graph would still apply and help maintaining a performance edge over Silicon.
 
 === Contextual Resources
-Currently, Helium's resources are only allowed to be global definitions. This
-restricts their usefulness. Concretely, a loop invariant is essentially a resource
-that is only valid within the context of the method it is defined in. Currently,
-Helium simply inlines the invariant into the method body in multiple places, which
-means that well-formedness of the invariant has to be re-checked in each of those places.
+Currently, Helium's resources are restricted to being global definitions, which
+limits their utility. For example, a loop invariant is essentially a resource
+that remains valid only within the context of its enclosing method. Presently,
+Helium simply inlines the invariant into the method body at multiple locations,
+requiring the well-formedness of the invariant to be repeatedly verified at each
+instantiation.
 
-Adding the support for contextual resources would allow Helium to verify well-formedness
-of the invariant once, compiling it into a recipe and then using it for cheaper at
-every place it needs to be used.
+Adding support for contextual resources would enable Helium to verify the
+well-formedness of an invariant exactly once. The invariant could then be
+compiled into a recipe, allowing it to be applied much more efficiently wherever
+it is needed throughout the method.
 
 === Improving the Reasoning Capabilities of Helium
-Helium's reasoning capabilities are currently limited by the rewrite rules it uses.
-Instead of trying to force the e-graph to prove more complex obligations, we might
-want instead to integrate an SMT solver into Helium. The idea would be to use the
-e-graph as a preprocessor to discharge as many obligations as possible, and only
-ever query the SMT solver when the e-graph is insufficient. One way to do this
-would be to maintain the solver's state consistent with the e-graph, but only
-actually query it when needed.
+Helium's reasoning capabilities are currently constrained by its reliance on a
+fixed set of rewrite rules. Rather than forcing the e-graph to handle more
+complex proof obligations, a promising direction would be to integrate an SMT
+solver into Helium. Under this hybrid approach, the e-graph would serve as an
+efficient preprocessor, discharging the majority of structural obligations,
+while the SMT solver would only be queried as a fallback when the e-graph proves
+insufficient. One potential implementation strategy involves continuously syncing
+the solver's state with the e-graph, ensuring that queries are both precise and
+efficient when they inevitably arise.
 
 === Improving the Rewrite Rule Set and Scheduling
-The current rewrite rule set Helium employs is very basic. It always runs the
-exact same set of rules, no matter the reason they are being applied. We believe
-there might be some performance gains to be had by both adjusting the rewrite
-rules present, as well as, picking which ones are relevant to run at the current goal.
+The current set of rewrite rules employed by Helium is relatively rudimentary.
+The verifier uniformly applies the exact same set of rules regardless of the
+context or the specific obligation being discharged. We anticipate significant
+performance gains could be achieved by carefully refining the available rewrite
+rules and dynamically selecting only those relevant to the current proof goal.
 
-Second, when the rules are run, they are run in a round-robin schedule, until the
-fix-point is reached. We believe there might be some performance gains, if instead
-we gave priority to some rules over others.
+Furthermore, these rules are currently executed using a naive round-robin
+scheduling strategy until a fix-point is reached. Prioritizing the execution
+of certain high-impact rules over others could reduce unnecessary matching
+overhead and further optimize the saturation process.
 
 === Boolean Permission Model for Functions
-In heap-dependent functions, the default semantics of Viper is to use only wildcard
-and none permissions. We could simplify the reasoning even further by introducing a
-boolean permission model for verifying heap-dependent function. In this model, the
-permission would be either present or absent. Additionally this simplifies the
-unfolding expressions, to simply add the unfolded predicate body, without removing a
-wildcard amount of permission. All in all, this would simplify the reasoning required,
-and possibly make verifying functions a tiny amount faster.
+For heap-dependent functions, the default semantics in Viper rely solely on
+wildcard and none permissions. We propose simplifying this reasoning further by
+introducing a boolean permission model specifically for verifying
+heap-dependent functions. Under this model, permissions would be strictly
+binary, representing either the presence or absence of access.
+
+This approach would also streamline unfolding operations. Instead of removing a
+wildcard amount of permission, the verifier could simply add the unfolded
+predicate body to the state. Overall, adopting a boolean permission model would
+reduce the reasoning overhead and potentially yield minor performance
+improvements when verifying functions.

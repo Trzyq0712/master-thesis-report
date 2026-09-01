@@ -325,7 +325,7 @@ the same base rather than a clone built on the first.
 
 A clone costs far more than a push, which is why Helium reserves it for the
 #vm[`implication_decompose`] tier instead of handling every path condition that
-way. A push also buys reuse that a clone does not: what Silicon derives under
+way. A push also enables reuse that a clone does not: what Silicon derives under
 one stays there for the obligations that follow, while each of Helium's clones
 starts from the same state and nothing it derives outlives it. A method body
 recovers part of that, since one clone per block serves every obligation of the

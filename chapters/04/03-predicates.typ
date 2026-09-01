@@ -585,7 +585,7 @@ is then a composition of functions the solver reasons about axiomatically.
 We give each resource its own #vm[`adt`] instead, which puts that structure in
 the type. A slot is a member at a known type, so the type system admits exactly
 the projections that correspond to slots, and a member already has the sort its
-location stores. What this buys concretely is the exactness of the round trip of
+location stores. The concrete advantage of this approach is the exactness of the round trip of
 @sec:impl-fold. Silicon relates a fold to its unfold by assuming snapshot
-equalities into the prover and letting it do the work, where we hand back the
+equalities into the prover and letting it do the work, whereas Helium returns the
 same e-class.

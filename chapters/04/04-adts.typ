@@ -86,8 +86,10 @@ two constructions rather than a single construction, the projection is pushed
 into both arms, which requires both to be built by the same constructor, since
 the projection has to yield a value on each:
 
-$ C@i (ternary(b, C(a_0, ..., a_n), C(a'_0, ..., a'_n)))
-    => ternary(b, a_i, a'_i) $
+$
+  C@i (ternary(b, C(a_0, ..., a_n), C(a'_0, ..., a'_n)))
+  => ternary(b, a_i, a'_i)
+$
 
 The second is the discriminator reduction, one per constructor,
 
@@ -100,8 +102,8 @@ the program there builds #vi[`c`] with a constructor the verifier can see.
 
 A datatype may take type parameters, and VMIR declares one for itself:
 #vm[`adt Option[T] { Some(T) | None() }`].
-#vm[`unwrap`] is its projection at the one field of #vm[`Some`], spelled short
-because it is spelled often. Being builtin is why @sec:impl-heap could hand back
+#vm[`unwrap`] is its projection at the one field of #vm[`Some`], abbreviated for
+brevity. Being builtin is why @sec:impl-heap could return
 an #vm[`Option[Int]`] and @sec:impl-predicates could build snapshot members out
 of #vm[`Some`] and #vm[`None`] before this section named either. We do not
 monomorphise a generic datatype: we mint one function per concept and carry
@@ -374,12 +376,12 @@ puts #vi[`b`] at #vm[`true`] and $q$ with it, and the instance already in the
 graph closes the second assertion. Matching a quantifier whose truth is open is
 therefore sound, and the verifier is free to match one on a path it is still
 exploring, or one it is checking rather than using. A precondition token the
-body carries rides the same guard, so a callee's facts arrive with the
+body carries is subject to the same guard, so a callee's facts arrive with the
 quantifier's truth.
 
 Well-definedness is confirmed where the quantifier is stated. An axiom is
 trusted, so this concerns a quantifier in a method or a function body. The
-check runs in a throwaway copy of the live state with the binders replaced by
+check runs in an ephemeral copy of the live state with the binders replaced by
 fresh values.
 
 Proving a quantifier is where Helium stops. There is no skolemisation, so an
@@ -388,7 +390,8 @@ Proving a quantifier is where Helium stops. There is no skolemisation, so an
 Existential quantifiers are rejected by the verifier, and their implementation
 remains future work.
 
-#todo[Close this section with a `=== Comparison with Silicon`, so that every
-section of the chapter ends the same way. The comparison covers how the two
-backends treat domain axioms and how each decides when to instantiate a
-quantifier; check the claim about Silicon against the source before writing it.]
+=== Comparison with Silicon
+
+The two verifiers differ mainly in their handling of quantifiers. Silicon relies on the underlying SMT solver to handle instantiation, whereas Helium manages this process internally using the rewrite engine. This design grants Helium more granular control over when and how quantifiers are instantiated, but consequently places a greater burden on the verifier to perform these instantiations correctly and efficiently.
+
+The ultimate goal is for Helium to handle quantifiers robustly enough that, should an SMT solver be integrated in the future, the encoding could rely on a fully instantiated, quantifier-free state, eliminating the need for solver-side instantiation entirely.

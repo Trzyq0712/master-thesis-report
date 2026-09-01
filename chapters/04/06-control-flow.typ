@@ -1,390 +1,309 @@
 #import "../../macros.typ": *
-#import "../../figures/cfg-blocks.typ": cfg-blocks
 
 == Control Flow <sec:impl-cfg>
 
-While the method bodies discussed in @sec:impl-methods execute linearly, this
-section details the representation and verification of branching control flow. Our
-foundational aim is to enforce structured control flow: an #vi[`if`] statement
-reaches the verifier explicitly as a single branch paired with a corresponding
-join. This ensures that diverging execution paths remain isolated exactly where
-they differ and cleanly reconcile where they intersect. Unfortunately, Viper
-inherently lacks this explicit structure; a Prusti method is essentially a
-#vi[`goto`] graph defined over labelled blocks. The condition under which a block
-is reached is embedded within the program's data as a _reach flag_---an ordinary
-boolean variable assigned by the encoder along the taken edge. Helium actively
-reconstructs this structured control flow via a dedicated analysis over the typed
-body prior to lowering. This section outlines the decomposition into basic
-blocks, the role of a block's path condition (cube) during proving, the
-propagation and reconciliation of heaps across joins, the handling of nested
-branches, and the underlying support for loops within VMIR.
+So far, in @sec:impl-methods the system verified only control flow-free method
+bodies. This section covers what changes when a body branches. Viper's surface
+syntax offers several ways to do this: an #vi[`if`] statement, a #vi[`while`]
+loop, and a #vi[`goto`] to a labelled block. In VMIR, all are reduces to a single
+representation before verification begins, shifting the burden of control flow
+analysis to the lowering phase.
+
+This representation is an ordered set of basic blocks forming a directed acyclic
+graph (DAG), ensuring the verifier never encounters back edges. Instead of
+deleting back edges, the reduction exchanges them for a appropriately placed loop
+invariant constructions, which @sec:impl-loops describes later. The result is a
+simplified representation that a verifier can evaluate directly.
+
+A DAG of blocks does not dictate how a verifier proves a branch. It could still
+be explored one path at a time, treating each arm as a separate execution fork
+(as Silicon does). Helium instead verifies each arm in place and reconciles
+them at their merge block. The remainder of this section details how VMIR represents
+control flow, and how Helium verifies them in various situations.
 
 === Basic blocks
 
-@lst:cfg-branch writes a field on one path and leaves it alone on the other,
-which is the smallest program with a join in it, and @fig:cfg-blocks draws the
-block graph it lowers to. Everything the rest of the section adds is a
-consequence of that one join: the two arms reach it holding different
-permission, and the exit demands a single answer.
+@lst:cfg-assume shows the smallest program that branches and rejoins. Its two arms
+diverge in two distinct ways: #vi[`v`] retains a single identity but each arm
+assumes a different fact about it, whereas #vi[`w`] is assigned a genuinely
+different value in each arm. The join must handle the two differently, keeping
+#vi[`v`]'s facts separate while selecting a single value for #vi[`w`].
 
 #lowering(
-  caption: [A branch and a join. Both arms read #vm[`h0`], each leaves its own
-    heap behind, and #vm[`bb3`] reconciles the two before the exit exhale demands
-    the full permission back.],
-  label: "lst:cfg-branch",
+  caption: [A branch and a join. Each arm assumes a different fact about
+    #vi[`v`], and assigns #vi[`w`] a genuinely different value; #vm[`bb3`]
+    proves both facts about #vi[`v`], each guarded by the literal that
+    produced it, and picks #vi[`w`]'s value with a ternary on that same
+    literal.],
+  label: "lst:cfg-assume",
+  stacked: true,
 )[```viper
-field val: Int
-
-method step(c: Ref, b: Bool)
-    returns (d: Int)
-  requires acc(c.val, write)
-  ensures acc(c.val, write)
+method example(b: Bool)
+    returns (v: Int, w: Int)
 {
-  var v: Int := c.val
   if (b) {
-    d := 1
-    c.val := v + 1
+    assume v == 42
+    w := 1
   } else {
-    d := 0
+    assume v == 32
+    w := 2
   }
+  assert b ==> v == 42
+  assert !b ==> v == 32
+  assert w == (b ? 1 : 2)
 }
 ```][```vmir
-method step {
+method example {
   bb0 <>:
     join:
-    e0: Ref := fresh          // c
-    e1: Bool := fresh         // b
-    e2: step#requires@snap
-       := fresh
-    h0 := empty inhale
-          step#requires(e0, e1)
-          @ 1/1 with e2
+    e0: Bool := fresh  // b
+    e1: Int := fresh   // v
     body:
-    e3: &[val] Int @ 1/1
-       := val(e0)
-    e4: Int := *[h0] e3       // v
-  bb1 <e1> from bb0:
+  bb1 <e0> from bb0:
     body:
-    e5: Int := e4 + 1
-    h1 := h0 assign e3 with e5
-  bb2 <!e1> from bb0:
+    e2: Bool := e1 == 42
+    assume e2
+    e9: Int := 1        // w
+  bb2 <!e0> from bb0:
     body:
-  bb3 <> join e1 [bb1, bb2]:
+    e3: Bool := e1 == 32
+    assume e3
+    e10: Int := 2       // w
+  bb3 <> join e0 [bb1, bb2]:
     join:
-    e6: Int := e1 ? 1 : 0     // d
-    h2 := merge e1 ? h1 : h0
+    e11: Int := e0 ? e9 : e10 // w
     body:
-    _, _ := h2 exhale
-            step#ensures(
-              e0, e1, e6, e2)
-            @ 1/1
+    e4: Bool := e1 == 42
+    e5: Bool := e0 ==> e4
+    assert e5
+    e6: Bool := e1 == 32
+    e7: Bool := e0 ? false : true //!b
+    e8: Bool := e7 ==> e6
+    assert e8
+    e12: Int := e0 ? 1 : 2
+    e13: Bool := e11 == e12
+    assert e13
 }
 ```]
 
-#figure(
-  cfg-blocks,
-  caption: [The block graph of @lst:cfg-branch. Each block carries its number,
-    its cube, and the heap it leaves behind. Two heaps reach #vm[`bb3`] and one
-    leaves it.],
-) <fig:cfg-blocks>
+Structurally, a block comprises a path condition , a record of its
+predecessors, a join phase, and a body phase. The join phase contains the value
+and heap resolution for the basic block, while the body phase is the translation
+of the block itself. This separation ensures that an execution-forking verifier
+could simply pick the correct values directly, rather than setting them up as a
+ternary as Helium does. Returning to the path conditions, #vm[`bb1`]'s cube is
+#vm[`<e0>`] and #vm[`bb2`]'s is #vm[`<!e0>`], representing the split condition in
+positive and negative polarities. The #vm[`assume`] in each arm's body phase
+carries the branch's knowledge forward: instead of assigning to #vm[`e1`], it
+records a fact into the block's state, making it visible to every subsequent
+instruction in that block.
 
-Structurally, a basic block comprises a path condition (its cube), a record of
-its incoming edges, a join phase, a body phase, and an exit heap. The cube
-formally defines the logical condition under which the block executes, as denoted
-in its header: #vm[`bb1`] executes under #vm[`e1`] and #vm[`bb2`] under
-#vm[`!e1`], whereas both the entry block and the join block execute
-unconditionally under the empty cube #vm[`<>`]. The join phase explicitly
-reconciles incoming states from predecessors, while the body phase contains
-straight-line VMIR instructions akin to those described in previous sections.
-Finally, the exit heap denotes the state the block propagates forward: #vm[`h1`]
-for #vm[`bb1`], and the unmodified #vm[`h0`] for #vm[`bb2`].
+At #vm[`bb3`], the join pops the cube back to what the two arms share, which
+here is the empty cube #vm[`<>`]. For this reason, neither assumed fact unconditionally survives
+into the join: #vm[`e1 == 42`] only holds given #vm[`e0`], so the
+join can only state it guarded by #vm[`e0`]. A fact assumed under a block's cube
+is only available at a join as an implication of that cube. This allows
+#vm[`bb3`] to prove both #vm[`e0 ==> e1 == 42`] and #vm[`!e0 ==> e1 == 32`] without
+contradiction: the two facts disagree, but neither is asserted outright.
 
-Notably, VMIR blocks omit explicit terminators. Instead of declaring successors,
-a block explicitly names its predecessors using one of three forms. The entry
-block naturally declares no predecessors. A block on a linear path identifies its
-single predecessor, as seen where #vm[`bb1`] references #vm[`bb0`]. A join block
-specifies a branch condition alongside the two predecessor blocks it merges,
-illustrated by #vm[`bb3`] merging #vm[`bb1`] and #vm[`bb2`] under #vm[`e1`].
-Orienting edges backwards in this manner ensures that a block's entry state
-remains entirely derivable from the block itself. Furthermore, it shifts the
-responsibility of state reconciliation into the join phase, rather than forcing
-predecessors to preemptively reconcile state upon exit.
-
-Blocks are stored in topological order, so every predecessor precedes its
-successor. One forward walk over that order is therefore enough to execute a
-method: every heap a block reads has already been built, and no block is visited
-twice.
-
-That order exists because a VMIR block graph is acyclic, which Viper's is not. An
-edge whose target dominates its source is a back edge, and a method with a loop
-has one. We detect those edges, and ask every ordering question of the
-graph with them removed, which is a DAG. A cut is an exchange rather than a
-deletion, and @sec:impl-loops describes what is exchanged. We consider a cycle entered at more
-than one point to be irreducible, and we reject it with a diagnostic.
-
-The reach flags Prusti writes into the program's data cost the verifier nothing,
-because they are ordinary boolean variables. A flag is assigned #vi[`false`] in
-the prologue and #vi[`true`] on the edge that sets it, so at a block that only
-one path reaches, the operands of the guard are literals and the conditional
-constant-folds before any statement of the block executes. The branch structure
-carried in the data therefore collapses into the block structure the analysis has
-already recovered. A structured #vi[`if`] and a pair of #vi[`goto`]s guarded by
-flags produce the same block graph, and nothing downstream distinguishes them.
+#vi[`w`] takes the other path: each arm assigns it a value the other arm
+disagrees with, rather than merely assuming a fact about a shared one. Thus, the
+join cannot use an implication and instead requires a genuine choice between
+two e-classes. #vm[`e11 := e0 ? e9 : e10`] makes that choice, using a ternary on the
+branch condition to resolve to the value produced by the taken arm. The heap
+semantics below encounter an analogous situation when determining the value a merged chunk carries.
 
 === Verifying a block
 
-The block's cube, stated unequivocally in its header, holds true for every
-instruction within that block. Helium assumes this cube upon entry, ensuring that
-any subsequent obligation raised within the block is discharged under this path
-condition. Furthermore, the cube inherently contextualizes the permission demands
-of its constituent instructions. For instance, the write operation in #vm[`bb1`]
-demands the location's full permission bound rather than a fraction scaled by the
-branch condition #vm[`e1`]. This is because the branching logic is inherently
-managed by the block graph architecture itself rather than by the individual
-instructions.
+For any given method, all information is stored in a single e-graph—the ground
+e-graph. An obligation raised inside a block is first attempted in this ground
+e-graph, exactly as @sec:impl-execution describes for a branchless body. If that
+fails, Helium builds a scratch copy of the e-graph and assumes the block's cube
+into it. Once this scratch copy exists, every subsequent obligation in the block
+is attempted against it rather than the ground graph. Thus, the cost of assuming
+the cube is paid once per block, rather than once per obligation. Additions and
+merges triggered by the block's instructions are mirrored into the scratch graph
+as they occur, keeping it synchronized with the ground state without repeatedly
+re-deriving the cube's consequences.
 
-Fixing one cube for the length of a block lets the costly end of the prove ladder
-be shared over it. The #vm[`implication_decompose`] tier of @sec:impl-execution
-works by cloning the e-graph and assuming in the clone, and inside a block we
-clone once: a copy of the state with the block's cube assumed, which every
-obligation the block raises then reasons in. We build that copy on the first
-obligation to reach the tier, because most blocks never reach it, and mirror
-additions and merges into it as the block runs, so it stays in step with the
-state. An obligation whose path condition the cube already implies is decided in
-the copy outright. One carrying a further literal clones the copy rather than the
-ground state, so it starts from a graph in which the cube's consequences have
-already been drawn.
+Only what the scratch graph derives is recorded back into the ground e-graph.
+Since an e-graph cannot be "unassumed," the scratch copy is discarded when the block ends.
+The next block then starts from the ground graph, exactly as it stood
+before the previous block's obligations were processed.
 
-Two further properties follow from holding that copy for a whole block. A block
-whose cube is contradictory is recognised the first time the copy is built, and
-every obligation of the block after that is discharged without further work.
-The aliasing question a consume raises under the path condition, whether two
-addresses that differ in the state coincide under the cube, is answered by a
-lookup in the copy instead of by a saturation of its own. The copy is discarded
-when the block ends, since the cube the next block runs under excludes it, and
-function and resource bodies have no blocks to hold one over, so they clone per
-obligation as @sec:impl-execution describes.
+=== Heaps
 
-=== Heaps across blocks
-
-A heap is a value (@sec:impl-heap), so a block's entry heap is named rather than
-implied. Both arms of @lst:cfg-branch read #vm[`h0`], the heap the prologue built,
-and neither disturbs what the other sees. #vm[`bb1`] leaves #vm[`h1`], #vm[`bb2`]
-leaves #vm[`h0`] untouched, and those two names are what #vm[`bb3`] has to
-reconcile. Nothing about the arrangement is implicit, which is what lets a join
-treat its two inputs as data. A variable the two arms disagree about is reconciled in the join phase by a
-ternary on the branch condition. #vm[`e6`] is one, and it gives #vi[`d`] the value
-#vm[`1`] where the then arm ran and #vm[`0`] where the else arm did. A variable
-both arms agree on passes through untouched, and one assigned on a single arm
-inherits from that arm. The value ternary and the heap merge beside it select on
-the same condition.
-
-=== Merging heaps
-
-The join phase of #vm[`bb3`] holds the instruction that reconciles the two
-heaps,
-
-#align(center)[#vm[`h' := merge c ? h1 : h2`]]
-
-which takes the exit heaps of the two predecessors and produces the heap the block
-runs on. It resolves them structurally: the two heaps are walked partition by
-partition and, within a partition, by canonical location, and each pair of chunks
-is settled on its own. Four cases arise, ordered here by how much each
-introduces. First, a location held on both arms at the same amount is carried
-across unchanged and the branch literal drops, which is the common case, since a
-call that takes permission and gives it back leaves both arms holding what they
-started with. Second, a location held on both arms at genuinely different amounts
-becomes one select on the branch condition, one level deep. Third, a location held
-on one arm only is carried across with the branch literal appended to a per-chunk
-_reachability guard_, a flat cube kept beside the amount rather than inside it.
-Finally, where two chunks' guards differ, so that presence is a disjunction rather
-than a cube, the guard moves into the amount, and we count how often that
-happens.
-
-@lst:cfg-branch takes the first case. Both arms hold #vi[`c.val`] at #vm[`1/1`],
-because a write changes a value and leaves an amount alone, so #vm[`h2`] holds it
-at #vm[`1/1`] with no trace of #vm[`e1`] on it, and the exit exhale of the
-postcondition finds the full share it demands. @lst:cfg-give takes the second: the
-write on the then arm becomes an exhale of half the permission, which is the
-smallest change that makes the two arms hold different amounts at one location.
+A heap operation inside a basic block guards its heap chunk with the block's entire path
+condition, not just the local permission amount. Analogous to the #vm[`assume`] statements in
+@lst:cfg-assume, a chunk's recorded state depends on the validity of its enclosing block's cube.
+@lst:cfg-mix illustrates this by accessing three distinct locations across a branch. The subsequent
+join phase must resolve three corresponding cases: an unmodified chunk, a location with diverging
+values from different branches, and a chunk that is only conditionally instantiated.
 
 #lowering(
-  caption: [A conditional exhale. The merged chunk holds
-    #vm[`e1 ? 1/2 : 1/1`], and the postcondition's demand for #vm[`1/2`] is proven
-    against each arm of that select in turn.],
-  label: "lst:cfg-give",
+  caption: [Three locations, three fates at the join. #vm[`x.f`] is taken
+    before the branch and neither arm touches it; #vm[`y.f`] is taken on both
+    arms with a different value each time; #vm[`z.f`] is taken only under
+    #vm[`e3`], so the other arm holds none of it at all.],
+  label: "lst:cfg-mix",
+  stacked: true,
 )[```viper
-field val: Int
+field f: Int
 
-method give(c: Ref, b: Bool)
-  requires acc(c.val, write)
-  ensures acc(c.val, 1/2)
-{
+method example(x: Ref, y: Ref, z: Ref, b: Bool) {
+  inhale acc(x.f, write)
   if (b) {
-    exhale acc(c.val, 1/2)
+    inhale acc(y.f, write)
+    inhale acc(z.f, write)
+  } else {
+    inhale acc(y.f, write)
   }
 }
 ```][```vmir
-method give {
+function f(e: Ref): &[f] Int @ 1/1
+
+method example {
   bb0 <>:
     join:
-    e0: Ref := fresh          // c
-    e1: Bool := fresh         // b
-    e2: give#requires@snap
-       := fresh
-    h0 := empty inhale
-          give#requires(e0, e1)
-          @ 1/1 with e2
+    e0: Ref := fresh          // x
+    e1: Ref := fresh          // y
+    e2: Ref := fresh          // z
+    e3: Bool := fresh         // b
+    h0 := empty
     body:
+    e4: &[f] Int := f(e0)     // x.f
+    h1 := h0 + e4 @ 1/1 with fresh   // v0
+    e5: &[f] Int := f(e1)     // y.f
+  bb1 <e3> from bb0:
+    body:
+    h2 := h1 + e5 @ 1/1 with fresh   // v1
+    e6: &[f] Int := f(e2)     // z.f
+    h3 := h2 + e6 @ 1/1 with fresh   // v3
+  bb2 <!e3> from bb0:
+    body:
+    h4 := h1 + e5 @ 1/1 with fresh   // v2
+  bb3 <> join e3 [bb1, bb2]:
+    join:
+    h5 := merge e3 ? h3 : h4
+}
+```]
+
+@fig:cfg-mix-table lays out what each arm leaves #vm[`x.f`], #vm[`y.f`] and
+#vm[`z.f`] holding, and what #vm[`bb3`]'s merge does with the three.
+
+#let cfg-mix-table = {
+  set par(justify: false)
+  set text(size: 0.95em)
+  let head(it) = text(size: 0.78em, weight: "bold")[#it]
+  table(
+    columns: (auto, auto, 1fr, 1fr, 1fr),
+    align: (left + horizon, left + horizon, left, left, left),
+    inset: (x: 0.6em, y: 0.45em),
+    stroke: (x, y) => (
+      top: if y == 1 { 1pt + luma(40%) } else if y > 1 { 0.5pt + luma(80%) } else { none },
+    ),
+    table.header(
+      head[],
+      head[],
+      head[#vm[`bb1`] exit (#vm[`h3`])],
+      head[#vm[`bb2`] exit (#vm[`h4`])],
+      head[#vm[`bb3`] merge (#vm[`h5`])],
+    ),
+    table.cell(rowspan: 2)[#vm[`x.f`]], [amount],
+    [#vm[`1/1`]], [#vm[`1/1`]], [#vm[`1/1`]],
+    [value],
+    [#vm[`v0`]], [#vm[`v0`]], [#vm[`v0`]],
+    table.cell(rowspan: 2)[#vm[`y.f`]], [amount],
+    [#vm[`1/1`]], [#vm[`1/1`]], [#vm[`1/1`]],
+    [value],
+    [#vm[`v1`]], [#vm[`v2`]], [#vm[`e3 ? v1 : v2`]],
+    table.cell(rowspan: 2)[#vm[`z.f`]], [amount],
+    [#vm[`1/1`]], [--], [#vm[`e3 ? 1/1 : 0/1`]],
+    [value],
+    [#vm[`v3`]], [--], [#vm[`v3`]],
+  )
+}
+
+#figure(
+  caption: [The amount and value each location carries out of #vm[`bb1`] and
+    #vm[`bb2`], and what #vm[`bb3`]'s merge produces from them. #vm[`x.f`]
+    passes through unchanged; #vm[`z.f`]'s amount collapses to #vm[`0/1`] on
+    the arm that never added it, and its value is left as #vm[`bb1`]'s
+    regardless, since nothing can read it where the amount is zero.],
+  cfg-mix-table,
+) <fig:cfg-mix-table>
+
+The merge operation in #vm[`bb3`] (#vm[`h5 := merge e3 ? h3 : h4`]) reconciles #vm[`x.f`],
+#vm[`y.f`], and #vm[`z.f`] based on their modifications:
+- *Unmodified Locations*: #vm[`x.f`] is defined before the branch and remains unmodified. Consequently, both arms yield identical chunks, and its value #vm[`v0`] propagates to #vm[`h5`] without requiring conditional selection.
+- *Divergent Values*: #vm[`y.f`] receives full permissions in both arms but is assigned different values. The merge preserves the permission amount (#vm[`1/1`]) and introduces a ternary expression to select the appropriate value (#vm[`e3 ? v1 : v2`]).
+- *Conditional Presence*: #vm[`z.f`] is only added in one arm (#vm[`bb1`]). The merge treats the missing chunk in #vm[`bb2`] as having a #vm[`0/1`] permission amount, resulting in a conditional permission #vm[`e3 ? 1/1 : 0/1`]. Its value remains unconditionally #vm[`v3`]: any read access requires a positive permission amount, rendering the value unobservable on the path where it was not defined.
+
+In summary, a chunk's amount and value at a join are guarded by the path condition of its originating arm. Chunks unmodified by either arm pass through the join directly. For locations modified on both paths, the join constructs a conditional value selection, mirroring the ternary construction for plain local variables (as seen for #vi[`w`] in @lst:cfg-assume). For locations modified on only one path, the join conditionally resolves the permission amount, propagating the value unconditionally.
+
+This dynamic resolution strategy naturally extends to unreachable paths. @lst:cfg-dead demonstrates a scenario where one branch is statically dead, yet the subsequent join still must produce a unified heap state to satisfy a trailing #vi[`exhale`].
+
+#lowering(
+  caption: [A dead arm. #vm[`bb0`] assumes #vm[`e1`] directly, so #vm[`bb2`]'s
+    cube #vm[`<!e1>`] is unsatisfiable, but the lowering has no way to see
+    that, so #vm[`bb3`]'s join is an ordinary merge
+    #vm[`h2 := merge e1 ? h1 : h0`], unconditionally framing the unmodified heap from #vm[`bb2`].],
+  label: "lst:cfg-dead",
+)[```viper
+method dead(x: Ref, b: Bool)
+{
+  assume b
+  if (b) {
+    inhale acc(x.f)
+  } else {
+    assert false
+  }
+  exhale acc(x.f)
+}
+```][```vmir
+method dead {
+  bb0 <>:
+    join:
+    e0: Ref := fresh          // x
+    e1: Bool := fresh         // b
+    h0 := empty
+    body:
+    assume e1
   bb1 <e1> from bb0:
     body:
-    e3: &[val] Int @ 1/1
-       := val(e0)
-    h1, _ := h0 - e3 @ 1/2
+    e2: &[f] Int := f(e0)     // x.f
+    h1 := h0 + e2 @ 1/1 with fresh
   bb2 <!e1> from bb0:
     body:
+    assert false
   bb3 <> join e1 [bb1, bb2]:
     join:
     h2 := merge e1 ? h1 : h0
     body:
-    _, _ := h2 exhale
-            give#ensures(e0, e1, e2)
-            @ 1/1
+    e3: &[f] Int := f(e0)
+    h3, _ := h2 - e3 @ 1/1
 }
 ```]
 
-When merging chunks with different conditional existence, we explicitly track the
-guard indicating reachability alongside the permission amount, rather than
-baking the guard multiplicatively into the permission itself. A location held
-unconditionally on both arms records no guard, smoothly yielding an unconditional
-amount upon exit. However, when merging differing conditional amounts, the
-resulting permission requires case analysis to evaluate against subsequent demands.
-For @lst:cfg-give, to prove that the resulting chunk satisfies a demand for
-#vm[`1/2`], we push #vm[`e1`] onto the path condition and prove $1\/2 >= 1\/2$,
-then push #vm[`!e1`] and prove $1 >= 1\/2$. The case analysis is therefore handled
-structurally during obligation checking rather than being embedded permanently as
-a permission term within the state graph.
+In @lst:cfg-dead, the condition #vi[`b`] is assumed true before the branch. Consequently,
+#vm[`bb2`]'s path condition (#vm[`<!e1>`]) contradicts the ground e-graph. During verification,
+Helium can discover that a block is unreachable by proving its path condition false. In this example,
+Helium identifies #vm[`bb2`] as dead code.
 
-An arm that is provably unreachable is dropped rather than merged. Prusti's dead
-#ru[`match`] arms lower to blocks whose cube is refuted, and selecting the
-surviving arm against one of those would build exactly the structure the previous
-paragraphs avoid, for a state that cannot arise. Such an arm therefore costs
-nothing at either end: its obligations are discharged the moment its cube is
-assumed, and its heap never reaches a join.
+While the structural shape of #vm[`bb3`]'s join remains unchanged, its evaluation is simplified by
+the contradiction. At the join point, Helium exclusively selects values and heaps from the reachable arm
+(#vm[`bb1`]). Crucially, this allows Helium to successfully discharge the #vi[`exhale`] obligation in
+#vm[`bb3`] because the merged heap #vm[`h2`] eagerly resolves to #vm[`h1`], without the `else` branch
+ever needing to contribute the permission chunk.
 
-=== Nested and repeated branches
-
-@lst:cfg-nested nests one branch inside another, which is the shape that tells
-whether the machinery above composes: the inner join runs inside an arm that
-already carries a cube. Its VMIR side elides the prologue and the arguments of
-the exit exhale, both of which @lst:cfg-branch already gives in full.
-
-#lowering(
-  caption: [Nested branches. The inner join keeps the cube #vm[`<e1>`] of the arm
-    it sits in, and the outer join telescopes back to #vm[`<>`].],
-  label: "lst:cfg-nested",
-)[```viper
-method nest(c: Ref,
-    a: Bool, b: Bool)
-  requires acc(c.val, write)
-  ensures acc(c.val, write)
-{
-  var v: Int := c.val
-  if (a) {
-    if (b) { c.val := 1 }
-    else   { c.val := 2 }
-  } else {
-    c.val := 3
-  }
-}
-```][```vmir
-method nest {
-  bb0 <>: ...
-  bb1 <e1> from bb0:
-  bb2 <e1, e2> from bb1:
-    join:
-    e6: Bool := e1 ? e2 : false
-    body:
-    h1 := h0 assign e4 with 1
-  bb3 <e1, !e2> from bb1:
-    body:
-    h2 := h0 assign e4 with 2
-  bb4 <e1> join e6 [bb2, bb3]:
-    join:
-    h3 := merge e6 ? h1 : h2
-  bb5 <!e1> from bb0:
-    join:
-    e7: Bool := e1 ? false : true
-    body:
-    h4 := h0 assign e4 with 3
-  bb6 <> join e7 [bb5, bb4]:
-    join:
-    h5 := merge e7 ? h4 : h3
-    body:
-    _, _ := h5 exhale ...
-}
-```]
-
-A block's cube is computed once, at lowering time, from its predecessors. Each
-incoming edge contributes its source's cube extended by the literal that edge is
-taken under, which is how #vm[`bb2`] arrives at #vm[`<e1, e2>`], and the block's
-reaching condition is the disjunction of those. A disjunction is not a cube, so
-the interesting part is when it collapses back into one. We keep the
-reaching condition as a _set_ of cubes and minimise it by the one law that is
-value-preserving, $P and x or P and not x = P$: two cubes differing in exactly one
-literal's polarity merge into their shared prefix. At #vm[`bb4`] the two arms of
-the inner branch differ only in #vm[`e2`], so the law fires and the join is
-reached under #vm[`<e1>`]. At #vm[`bb6`] the remaining cubes are #vm[`<e1>`] and
-#vm[`<!e1>`], which telescope to #vm[`<>`].
-
-Threading the set rather than materialising it is what makes the telescoping
-possible. Where a join's predecessors do not complete a partition, the set is
-carried on so that a later join pooling the remaining cubes can finish it. An
-#vi[`n`]-way #ru[`match`] decoded into a chain of two-way branches needs exactly
-that, because no single join in the chain can see that the cases are exhaustive
-and only the last one can. Only a set that genuinely cannot be reduced to a single
-cube is materialised into one boolean, and the block is then guarded by that
-value. The distinction matters, because a cube is what the prover assumes literal
-by literal, while a materialised disjunction is one opaque boolean.
-
-Joins are binary, and a label reached by several #vi[`goto`]s is Prusti's normal
-shape. We normalise such a block into a chain of binary joins, each a
-synthetic block with an empty body phase, and chain them so that the last arm is
-the unguarded fall-through. @lst:cfg-chain is the tail of a three-way merge, where
-#vm[`bb7`] is the synthetic block and #vm[`bb8`] the label the program named.
-
-#vmir(
-  caption: [A three-way merge as a chain of two binary joins. #vm[`bb7`] is
-    synthetic and holds nothing but its own merge.],
-  label: "lst:cfg-chain",
-)[```vmir
-bb7 <> join e7 [bb4, bb6]:
-  join:
-  h4 := merge e7 ? h2 : h3
-  body:
-bb8 <> join e1 [bb1, bb7]:
-  join:
-  h5 := merge e1 ? h1 : h4
-  body:
-  _, _ := h5 exhale ...
-```]
-
-Chaining with an unguarded last arm keeps the select exhaustive by construction.
-No leaf stands for "none of the arms", so there is nothing to prove about the arms
-covering every case. Manufacturing such a leaf instead would produce a term whose
-collapse depends on a proof of exhaustiveness, which is the proof the structural
-merge was designed to avoid.
+This optimization is motivated in part by Prusti's encoding of #ru[`match`]
+expressions, where the fallthrough arm is designed to be unreachable. Because a #ru[`match`] is an
+expression, it must yield a value across all control-flow paths. This mechanism enables Helium to
+verify that the unreachable fallthrough cannot affect the merged result, allowing it to be safely ignored.
 
 === Loops <sec:impl-loops>
 
-A loop is any back edge, and source-level #vi[`while`] is a special case of one.
-We desugar a #vi[`while`] in the control-flow analysis into the block shape a
-hand-written #vi[`goto`] loop already produces, so everything downstream sees a
-single loop shape. Prusti relies on that, because it emits no #vi[`while`] at all
-and carries its invariants on the loop head's #vi[`label`]. Each head is given a
-single forward predecessor by a pre-header, so there is one place to establish the
-invariant and one frame to restore afterwards. @lst:cfg-loop is a loop whose
-invariant claims one of the two fields the method holds.
+The lowering to VMIR treats all loops identically, whether they originate from unstructured #vi[`goto`] control flow (as encoded by Prusti) or from source-level #vi[`while`] loops. The control-flow analysis reduces both into a uniform block structure. @lst:cfg-loop demonstrates a loop whose invariant claims one of the two fields the method holds.
 
 #lowering(
   caption: [The loop cut. #vm[`h1`] is the frame, holding the permission the
@@ -444,67 +363,22 @@ method spin {
 }
 ```]
 
-The cut happens in the join phase of the head, #vm[`bb1`], in three steps. The
-invariant is exhaled from the heap the forward predecessor arrived with, which is
-the entry obligation and a claim about the state control actually reaches the head
-in. What that exhale leaves behind is the _frame_, #vm[`h1`], holding
-#vi[`c.other`] and everything else the invariant did not ask for. Every variable
-the body assigns is then replaced by a fresh value, which is why the loop guard
-tests #vm[`e4`] rather than the value #vi[`g`] had before the loop. Finally the
-invariant is inhaled into #vm[`empty`], so the body starts from the invariant and
-from the havoc'd values. The frame is an ordinary heap value with a name, so an
-edge leaving the loop simply refers to it, however deeply nested that edge is.
+The verification of a loop proceeds by cutting its back edges. Before entering the loop header, the invariant is exhaled from the incoming heap. This leaves behind a frame (#vm[`h1`]) containing any state the invariant did not claim. At the loop head, the invariant is inhaled fresh, and any modified locals are havoced (replaced with fresh variables). At the loop's back edge, the invariant is exhaled again.
 
-The body block #vm[`bb2`] exhales the invariant again at its end and has no
-successor. That is the back edge, cut: nothing reads #vm[`h4`], the block graph
-stays acyclic, and the topological order the walk relies on survives.
-Permission left over at the back edge is not required to be empty, and we
-lose it, which is what Silicon does as well.
+Currently, support for invariants is minimal: the invariant is simply inlined at these three sites. In the future, we intend to introduce a contextual VMIR resource for invariants, similar to how #vi[`forall`] quantifiers are handled. This would allow the well-formedness (WF) of the invariant to be checked only once, and the same contextual resource recipe could be cleanly reused at the pre-header, the loop body inhale, and any loop-back edges.
 
-The exit block restores the frame with the second instruction this section
-introduces,
+On any loop exit, the framed state is restored using the #vm[`union`] operation:
 
-#align(center)[#vm[`h' := union h1 h2`]]
+#align(center)[#vm[`h5 := union h2 h1`]]
 
-which is the sum of two heaps held at the same time, rather than the
-#vm[`merge`], which selects between two alternatives. Permissions at a shared
-location add, and values at a shared location are equated only where both sides
-hold provably positive permission. That second clause carries the framing story. An invariant
-demanding a #vm[`wildcard`] share leaves the frame a positive residual, so the
-frame still holds the location and its value survives the loop. An invariant
-demanding #vi[`write`] takes everything, the frame's residual holds nothing, and
-the value does not survive. Equating the two values outright would fuse a stale
-pre-loop value with the loop's havoc'd symbol and erase the havoc on the path
-where the loop ran.
-
-The support this buys is deliberately narrow. We deferred contextual resource
-resolution, so a body cannot read a frame location it holds no permission to, and
-every location the body touches has to be named in the invariant. The invariant is consequently re-lowered at each of the
-three sites the cut needs it at, clause by clause, rather than compiled once into
-a resource of its own. Two further restrictions come from elsewhere: quantified
-permissions are unsupported, which puts an index-based loop over an array out of
-reach, and #vi[`decreases`] is ignored, so the guarantee is partial correctness.
-The loops Silicon verifies and Helium does not fail on the integer arithmetic gap
-of @sec:impl-execution rather than on the cut, and each of them fails on the same
-obligation with no loop anywhere in the program.
+This operation takes whatever heap was produced inside the loop (#vm[`h2`]) and unions it with whatever remained in the frame from before the loop head (#vm[`h1`]).
 
 === Comparison with Silicon
 
-Silicon threads its heap implicitly through the symbolic state @silicon, so
-leaving a loop requires a stack of invariant contexts to recover what the head set
-aside. Helium names the frame, and an edge leaving a
-loop three blocks deep refers to that name like any other operand. Nesting needs
-no stack either, since an edge leaving two loops at once restores their frames
-innermost first.
+A fundamental distinction between Helium and Silicon lies in their approach to control-flow verification. Silicon employs symbolic execution, exploring each execution path separately. Conditional branches fork the verification state: one path assumes the condition is true, while the other assumes it is false, and each proceeds independently. While this path-enumeration strategy inherently risks exponential explosion, aggressive pruning of dead execution paths often renders it tractable in practice.
 
-At a join the two differ in what carries the branch. Silicon explores the paths
-separately and reasons about the resulting permission terms, so a method exit
-gathering several arms reaches a goal that only case analysis closes. The
-structural merge settles the same question in the heap representation, so no
-method body raises such a goal, and the prove ladder of @sec:impl-execution needs
-no case analysis it does not have.
+In contrast, Helium avoids forking the verification state entirely, instead structurally merging divergent paths at join points. This approach elegantly sidesteps the exponential blowup associated with sequential branching. However, it requires Helium to maintain a larger, more complex unified state that encodes all possible path outcomes simultaneously. Consequently, the solver must often consider all states at once, making some obligations more difficult to discharge.
 
-Both cut the back edge, and neither requires the residual there to be empty. The
-loop encodings agree on the observable question as well: a program whose invariant
-demands a #vm[`wildcard`] share keeps the framed value across the loop in both
-verifiers, and the same program demanding #vi[`write`] loses it in both.
+Furthermore, Helium's unified state is currently susceptible to *branch pollution*, where facts derived within one execution arm can unintentionally leak and influence the reasoning in parallel arms. While this leakage does not compromise soundness, it introduces verification unpredictability: benign code reorderings can sometimes alter verification outcomes. Silicon's isolated path exploration inherently prevents this phenomenon.
+
+Importantly, branch pollution is an artifact of the current implementation rather than a fundamental limitation of join-based verification. @sec:future-work discusses potential mitigations, such as strictly isolating fact derivation within individual branches and explicitly reconciling them only at join points.

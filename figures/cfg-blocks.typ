@@ -2,9 +2,9 @@
 #import "@preview/cetz:0.4.2"
 
 /// The block graph of @lst:cfg-branch, drawn as one box per block. Each box
-/// carries the block's header — its number and its cube — and the heap the
+/// carries the block's header — its number and its path condition — and the heap the
 /// block leaves behind, so the two things the section argues about are visible
-/// at once: a cube is a property of a block rather than of an instruction, and
+/// at once: a path condition is a property of a block rather than of an instruction, and
 /// a heap is an ordinary named value that an edge carries.
 ///
 /// The join block is the amber one, and it is the only box with a third line,

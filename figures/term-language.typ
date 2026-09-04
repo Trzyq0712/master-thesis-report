@@ -4,8 +4,9 @@
 /// per line and what that alternative is beside it, so a reader can count the
 /// seven forms off the page without reading a paragraph for them. The binary
 /// operators get a production of their own rather than a gloss on the `t ⊕ t`
-/// line: there are seven of those too, and burying them in prose beside the
-/// form they belong to made the line the widest on the page.
+/// line: there are twelve of those, carrying the operand sort in a subscript,
+/// and burying them in prose beside the form they belong to made the line the
+/// widest on the page.
 #let term-language = {
   // The glosses are short enough that justification only stretches them.
   set par(justify: false)
@@ -34,10 +35,15 @@
     // The operator production, set off from the term production above it.
     v(0.45em), [], [], [],
 
-    $plus.o$, $::=$, $+ #h(0.4em) | #h(0.4em) - #h(0.4em) | #h(0.4em) *$, gloss[arithmetic, over integers or rationals],
+    $plus.o$,
+    $::=$,
+    $+_i #h(0.4em) | #h(0.4em) -_i #h(0.4em) | #h(0.4em) *_i #h(0.4em) | #h(0.4em) \/_i #h(0.4em) | #h(0.4em) "mod"$,
+    gloss[integer arithmetic],
 
-    [], $|$, $\/ #h(0.4em) | #h(0.4em) "mod"$, gloss[division and remainder],
+    [], $|$, $+_r #h(0.4em) | #h(0.4em) -_r #h(0.4em) | #h(0.4em) *_r #h(0.4em) | #h(0.4em) \/_r$, gloss[rational arithmetic],
 
-    [], $|$, $< #h(0.4em) | #h(0.4em) =$, gloss[comparison and equality],
+    [], $|$, $scripts(<)_i #h(0.4em) | #h(0.4em) scripts(<)_r$, gloss[ordering, one per numeric sort],
+
+    [], $|$, $=$, gloss[equality, at any one type],
   )
 }

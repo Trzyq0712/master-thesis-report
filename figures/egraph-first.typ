@@ -27,31 +27,28 @@
       let const = (x + 2.15, y0)
       let eq = (x + 1.4, y1)
 
-      // The equality's arguments are untouched by the merge, but the node
-      // drawing them belongs to a class the merge changed.
-      let arm = if after { hot.lighten(10%) } else { luma(55%) }
-      edge(eq, a, hue: arm, dx: -0.1)
-      edge(eq, const, hue: arm, dx: 0.1)
+      edge(eq, a, dx: -0.1)
+      edge(eq, const, dx: 0.1)
 
-      cls(a.at(0), a.at(0), y0, base, "e0")
-      node(a, "a", base)
-      cls(const.at(0), const.at(0), y0, base, none)
-      node(const, "42", base)
+      cls(a.at(0), a.at(0), y0, ink, "e0")
+      node(a, "Int#0", ink)
+      cls(const.at(0), const.at(0), y0, ink, none)
+      node(const, "42", ink)
 
       if not after {
         // Two classes at the top row: the equality is a term like any other,
         // and holds no truth value until the `assume` gives it one.
         let tt = (x + 3.6, y1)
-        cls(eq.at(0), eq.at(0), y1, base, "e1")
-        node(eq, "==", base)
-        cls(tt.at(0), tt.at(0), y1, base, none)
-        node(tt, "true", base)
+        cls(eq.at(0), eq.at(0), y1, ink, "e1")
+        node(eq, "==", ink)
+        cls(tt.at(0), tt.at(0), y1, ink, none)
+        node(tt, "true", ink)
       } else {
         // The merge, and the second handle the assertion arrives with.
         let tt = (x + 2.45, y1)
-        cls(eq.at(0), tt.at(0), y1, hot, ("e1", "e2"))
-        node(eq, "==", hot)
-        node(tt, "true", hot)
+        cls(eq.at(0), tt.at(0), y1, ink, "e1")
+        node(eq, "==", ink)
+        node(tt, "true", ink)
       }
     }
 
@@ -65,12 +62,12 @@
       (pw + 0.3, 0.85),
       (pw + gap - 0.3, 0.85),
       mark: (end: ">", scale: 0.34),
-      stroke: 0.7pt + hot,
+      stroke: 0.7pt + ink,
     )
     content(
       (pw + gap / 2, 0.95),
       anchor: "south",
-      mono("assume e1", size: 0.8em, fill: hot.darken(15%)),
+      mono("assume e1", size: 0.8em),
     )
   })
 }

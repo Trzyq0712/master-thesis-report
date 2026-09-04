@@ -11,45 +11,32 @@ quantifiers appear. This section describes how each of these is encoded
 in VMIR and how Helium reasons about them.
 
 @sec:impl-predicates has already used two of them. A resource's snapshot type is
-an #vm[`adt`], and an abstract predicate's snapshot type is a #vm[`domain`]. We
-now describe how such types behave generally.
+an #vm[`adt`], and an abstract predicate's snapshot type is a #vm[`domain`].
 
-=== ADTs <sec:impl-adts>
+#para[ADTs] A datatype is one of the few Viper constructs that survives lowering
+as itself. @lst:adt-lowering pairs a two-variant declaration, and the two
+questions a program asks of such a value, with what each becomes: reading a
+field back out, and telling which constructor built one.
 
-@lst:adt-shape declares a two-variant datatype and asks a verifier for the two
-things a datatype is for: reading a field back out of a value, and telling which
-constructor built one. The value it asks about is one the program built two
-statements earlier, so both answers are there in the term and neither needs a
-fact from anywhere else.
-
-#viper(
-  caption: [A datatype, a value built from one of its constructors, and the two
-    questions a program asks about such a value.],
-  label: "lst:adt-shape",
+#lowering(
+  caption: [The declaration stays a declaration. Construction, field access and the variant test become instructions of their own.],
+  label: "lst:adt-lowering",
+  placement: auto,
 )[```viper
 adt Shape {
   Circle(r: Int)
   Square(s: Int)
 }
-
+//@
 var x: Int
 var c: Shape := Circle(x)
 assert c.r == x
 assert c.isCircle
-```]
-
-A datatype is one of the few Viper constructs that survives lowering as itself.
-@lst:adt-lowering is what the declaration and the body become: the #vm[`adt`]
-stays an #vm[`adt`], and the construction, the field read and the variant test
-each become one instruction.
-
-#vmir(
-  caption: [The declaration stays a declaration. Construction, field access and
-    the variant test become instructions of their own.],
-  label: "lst:adt-lowering",
-)[```vmir
-adt Shape { Circle(Int) | Square(Int) }
-
+```][```vmir
+adt Shape {
+  Circle(Int) | Square(Int)
+}
+//@
 e0: Int   := fresh
 e1: Shape := Shape::Circle(e0)
 e2: Int   := Shape::Circle.0(e1)
@@ -60,45 +47,19 @@ e5: Bool  := e4 == 0
 assert e5
 ```]
 
-An ADT exposes three fundamental operations: construction, projection, and
-discrimination. Within VMIR, all three manifest as function calls, directly
-reflecting their underlying semantics. Because a constructor's fields are
-positional, explicit field names are discarded during lowering; consequently,
-#vi[`c.r`] translates to #vm[`Shape::Circle.0`], denoting the constructor
-followed by the field index. The #vm[`Shape@tag`] function maps a datatype
-value to the index of its originating constructor, reducing the variant test
-#vi[`c.isCircle`] to a simple comparison of this index against zero.
+The declaration keeps its shape and loses only the field names, since a
+constructor's fields are positional in VMIR: #vi[`c.r`] becomes
+#vm[`Shape::Circle.0`], the constructor followed by the field index.
+#vm[`Shape@tag`] maps a value to the index of the constructor that built it, so
+the variant test #vi[`c.isCircle`] becomes a comparison against zero.
+Construction, projection and discrimination are all function applications, and
+each statement becomes one instruction over them.
 
-An ADT declaration reaches Helium directly. From it we mint, once
-per datatype, one e-graph function per
-constructor, one per field of each constructor, and one for the discriminator, together
-with rewrite rules relating them. In what follows $D$ is a datatype with
-constructors $C_0, ..., C_m$, and $C@i$ is the projection at field $i$ of the
-constructor $C$.
-
-The first is the projection reduction. A projection applied to a matching
-construction gives the field back,
-
-$ C@i (C(a_0, ..., a_n)) => a_i "." $
-
-The rule also descends into a ternary. Where the argument is a choice between
-two constructions rather than a single construction, the projection is pushed
-into both arms, which requires both to be built by the same constructor, since
-the projection has to yield a value on each:
-
-$
-  C@i (ternary(b, C(a_0, ..., a_n), C(a'_0, ..., a'_n)))
-  => ternary(b, a_i, a'_i)
-$
-
-The second is the discriminator reduction, one per constructor,
-
-$ D@"tag"(C_k (...)) => k $
-
-so a variant test on a known construction folds to a comparison between two
+Helium answers a projection or a variant test from the constructor that built
+the value: a projection applied to a matching construction gives the field back,
+and a variant test on a known construction folds to a comparison between two
 integer literals, which the constant folding of @sec:impl-execution decides.
-Between them the two rules answer both questions @lst:adt-shape asks, because
-the program there builds #vi[`c`] with a constructor the verifier can see.
+@sec:appendix-rewrites states the rules that do this.
 
 A datatype may take type parameters, and VMIR declares one for itself:
 #vm[`adt Option[T] { Some(T) | None() }`].
@@ -110,16 +71,14 @@ monomorphise a generic datatype: we mint one function per concept and carry
 the ground type arguments on the e-node, so #vm[`Some[Int]`] and
 #vm[`Some[Bool]`] are distinct terms sharing one rule.
 
-@lst:adt-gap illustrates the limitations of the aforementioned rules. Both
-assertions query the discriminator of an unconstructed symbolic value. Since no
-explicit constructor invocation exists, the left-hand side pattern fails to
-match, and the rewrite rules are never triggered.
+Helium reduces a projection against a visible
+construction and a discriminator against a visible constructor, which are the
+destruction and tagging axioms of @sec:bg-datatypes. It states no counterpart of
+exclusivity, so the discriminator of a value no constructor built is
+unconstrained. Helium proves neither assertion below, since both are about the
+discriminator and neither mentions a constructor to reduce against.
 
-#viper(
-  caption: [Two assertions Helium does not prove. Both are about the
-    discriminator, and neither mentions a constructor for a rule to fire on.],
-  label: "lst:adt-gap",
-)[```viper
+#no-numbers[```viper
 var s: Shape
 assume !s.isCircle
 assert s.isSquare               // fails
@@ -128,48 +87,23 @@ var t: Shape
 assert t.isCircle || t.isSquare // fails
 ```]
 
-Because nothing structurally constrains the discriminator's range, ruling a
-value out of every variant but one does not automatically prove it belongs to
-the remaining variant. This reflects a broader systemic limitation: an e-graph
-inherently stores equalities and provides no natural representation for
-disequalities. Consequently, refutations must be reconstructed via equality
-refutation over the constructor labels associated with an e-class. We
-deliberately left both these gaps open, as verifying specification-free programs
-typically relies on neither capability, deferring their implementation to future
-work.
+Ruling such a value out of every variant but one therefore does not prove it
+belongs to the remaining one. The second assertion fails for the same reason: a
+case analysis over the variants is complete only under exclusivity. Behind both
+is that an e-graph stores equalities and has no natural representation for a
+disequality, so a refutation has to be reconstructed by equality refutation over
+the constructor labels an e-class carries. Verifying specification-free programs
+relies on neither capability, so we left both open for future work.
 
-=== Domains <sec:impl-domains>
-
-A domain declares a new type alongside uninterpreted functions operating over it.
-While @lst:domain-fails defines two functions intended to be mutual inverses,
-the declaration itself encodes no such relationship. This is by design: a domain
-function merely introduces a signature, and any semantic relationships must be
-explicitly established elsewhere via axioms.
-
-#viper(
-  caption: [Two functions and no axiom. Nothing relates a round trip through
-    them to the value it started from.],
-  label: "lst:domain-fails",
-)[```viper
-domain Box {
-  function box(v: Int): Box
-  function unbox(w: Box): Int
-}
-
-method use() {
-  assert unbox(box(0)) == 0  // fails
-}
-```]
-
-The functions are uninterpreted, so the assertion fails. The program
-contains no information about how these two functions relate to one
-another. An axiom is
-how a domain makes this link, and @lst:domain-lowering adds one.
+#para[Domains] A domain groups a type, its uninterpreted functions, and the
+axioms that give them meaning. VMIR keeps none of that grouping:
+@lst:domain-lowering flattens the domain into a type declaration, ordinary
+top-level function declarations, and a top-level axiom.
 
 #lowering(
-  caption: [A domain flattens into a type, two ordinary function declarations
-    and a top-level axiom.],
+  caption: [A domain flattens into a type, two ordinary function declarations and a top-level axiom.],
   label: "lst:domain-lowering",
+  placement: auto,
 )[```viper
 domain Box {
   function box(v: Int): Box
@@ -193,7 +127,7 @@ axiom base {
 }
 ```]
 
-In VMIR a #vm[`domain`] declares a type, and that is the whole of it. The domain
+In VMIR a #vm[`domain`] declares a type. The domain
 functions become ordinary function declarations at the top level, with no body,
 and the axiom becomes a top-level #vm[`axiom`] declaration. Nothing ties the
 axiom back to the domain it was written inside: a Viper domain supplies the
@@ -207,20 +141,18 @@ verification unit. Axioms are trusted, which is how Viper defines them: Helium
 raises no obligation on an axiom body either, and the programmer is responsible
 for not declaring an inconsistency.
 
-#para[No generic domains] While a domain in Viper may declare type parameters,
+While a domain in Viper may declare type parameters,
 our verifier currently has no support for these. The reason is that VMIR
 has no notion of a type-generic axiom. An axiom is a closed fact merged into the
 state up front, whereas a generic domain's axiom is a family of facts, one per
 instantiation of the domain's parameters. Silicon (Silver) resolves that by monomorphising
 a domain as soon as one of its members is referenced, and a reference need not
 determine every parameter: whatever it leaves open is filled with the default
-type, #vi[`Int`]. @lst:domain-generic is what that costs.
+type, #vi[`Int`], so the axiom is asserted at a type the program never mentions.
+Calling #vi[`f`] below constrains nothing about #vi[`T`], so Silver instantiates
+the domain at the default type and asserts its axiom there.
 
-#viper(
-  caption: [Calling #vi[`f`] constrains nothing about #vi[`T`], so Silver
-    instantiates the domain at the default type and asserts its axiom there.],
-  label: "lst:domain-generic",
-)[```viper
+#no-numbers[```viper
 domain D[T] {
   function f(x: Int): Int
   axiom { false }
@@ -244,19 +176,12 @@ One closed axiom fixes one value, and the two functions are meant to be inverse
 at every integer. Stating that takes a quantifier, which is the last construct
 this section admits.
 
-=== Quantifiers <sec:impl-quantifiers>
-
-A universally quantified assertion becomes a #vm[`forall`] instruction, and it
-is the only quantifier VMIR provides. This subsection describes the instruction,
-what Helium keeps of a quantifier body, how an instance is released, and where
-proving a quantifier stops. @lst:quant-lowering states the round trip of
-#vi[`Box`] over every integer, beside the VMIR it lowers to, and the assertion
-at #vi[`3`] succeeds under it.
+#para[Quantifiers] A universally quantified assertion becomes a #vm[`forall`]
+instruction, the only quantifier VMIR provides. The lowering below states the
+#vi[`Box`] round trip over every integer, with the #vm[`forall`] one instruction
+whose body is a nested instruction sequence.
 
 #lowering(
-  caption: [A quantified axiom. The #vm[`forall`] is one instruction and its
-    body is a nested instruction sequence.],
-  label: "lst:quant-lowering",
   stacked: true,
 )[```viper
 axiom round_trip {
@@ -282,116 +207,89 @@ source and written over the binders. The
 braces enclose the body, an instruction sequence of its own whose #vm[`result`]
 holds the proposition being quantified.
 
-A #vm[`forall`] is a normal value: its boolean occupies a temporary like any other
-computation, and it can be asserted, assumed or passed on as an operand. The
-body being an instruction sequence is what makes nesting ordinary, since an
-inner quantifier is one more instruction of an outer body.
+A #vm[`forall`] is a normal value: the instruction binds its boolean result to a
+temporary, as every other computation does, and that temporary can then be
+asserted, assumed or passed on as an operand. Nesting demands no further
+mechanism, since the body is an instruction sequence and an inner quantifier is
+one more instruction of it.
 
 The first binder takes the quantifier's own temporary, and further binders and
-the steps of the body follow it. Reusing that temporary is what puts the
-quantifier's boolean out of reach of its own body, so a quantifier cannot refer
-to itself. A temporary below it is a value the enclosing scope supplies, and
-@lst:quant-capture names one inside the body.
+the steps of the body follow it. Reusing that temporary puts the quantifier's
+boolean out of reach of its own body, so a quantifier cannot refer to itself. A
+temporary numbered below the quantifier's own is not a binder but a value the
+enclosing scope supplies, which the body captures by naming it.
+@lst:quant-capture captures a variable and divides by it, quantifying over a
+domain function #vi[`f`] from integers to integers that carries the trigger.
 
 #lowering(
   caption: [A quantifier over a value the enclosing scope supplies. #vm[`e0`] is
     below the quantifier's own temporary, so naming it inside the body captures
-    it.],
+    it, and the division it feeds is an obligation of the body.],
   label: "lst:quant-capture",
   stacked: true,
 )[```viper
 var k: Int
-assume forall v: Int :: {box(v)}
-  unbox(box(v)) == v + k
+assume forall x: Int :: {f(x)}
+  f(x) > 1 \ k
 ```][```vmir
 e0: Int  := fresh
-e1: Bool := forall e1: Int :: {box(e1)} {
-  e2: Box  := box(e1)
-  e3: Int  := unbox(e2)
-  e4: Int  := e1 + e0
-  e5: Bool := e3 == e4
-  result: e5
+e1: Bool := forall e1: Int :: {f(e1)} {
+  e2: Int  := f(e1)
+  e3: Int  := 1 /i e0
+  e4: Bool := e2 >i e3
+  result: e4
 }
 assume e1
 ```]
 
-#vm[`e0`] is the enclosing #vi[`k`], and the body reaches it at #vm[`e4`],
+#vm[`e0`] is the enclosing #vi[`k`], and the body reaches it at #vm[`e3`],
 below the quantifier's own #vm[`e1`]. An inner quantifier's binders are numbered
-above an outer's by the same rule. What Helium keeps of that body is a _recipe_,
-drawn in @fig:forall-node: the body as a term graph, with the capture and the
-binder left open at the bottom.
+above an outer's by the same rule.
+
+Quantifiers outside of axioms are checked for well-definedness. Helium makes a
+copy of the e-graph before the quantifier, replaces the binders with fresh
+values, and then evaluates the body, discharging the side conditions as they
+arise and recording the recipe. In an axiom the same walk runs with the
+obligations skipped. The side condition of @lst:quant-capture is the divisor at
+#vm[`e3`], so the #vi[`assume`] verifies only where #vi[`k != 0`] holds.
+
+Helium keeps the body as a recipe, drawn in @fig:forall-node: the body as a term
+graph, with the capture and the binder left open at the bottom.
 
 #figure(
   forall-node,
-  caption: [The quantifier of @lst:quant-capture, and one firing of it. The node
-    holds its recipe and one child per capture, so the two holes are filled from
-    opposite sides: #vm[`t0`] by the node's child, #vm[`t1`] by the term the
-    trigger matched.],
+  caption: [The quantifier from @lst:quant-capture firing on a trigger match. The
+    node holds its recipe and one child per capture, so the two holes are filled from
+    opposite sides: #vm[`t0`] by the node's child, #vm[`t1`] by the boxed term
+    the trigger matched.],
 ) <fig:forall-node>
 
-The recipe and the triggers are compiled once and kept in a table for the remainder
-lifetime of the verified unit. What the quantifier e-node carries is a reference
-into that table and one child per capture, so the body itself never appears in
-the e-graph.
+The recipe and the triggers are compiled once and kept in a table for the
+lifetime of the verified unit. The quantifier e-node carries a reference into
+that table and one child per capture, so the body itself never appears in the
+e-graph.
 
 A single rewrite rule is responsible for instantiating every quantifier in the program. It finds the
 e-classes holding a #vm[`forall`] node, matches the triggers of each one against
-the e-graph, and replays its recipe at every new binding a match supplies. Because Viper mandates that all quantifiers have triggers, we do not need a fallback mechanism for triggerless quantifiers; the rewrite rule assumes triggers are always present. The same
+the e-graph, and replays its recipe at every new binding a match supplies. VMIR requires every quantifier to
+carry at least one trigger group covering all of its binders, since it has no
+mechanism to infer one. The same
 rule covers nesting: an inner quantifier is a step of the outer recipe, so an
 instance builds it as an ordinary node with the outer binding in its children,
 and the rule picks it up as soon as it is in the graph. This is why a quantifier
 is data rather than a rule of its own, since egg fixes the rule set before a
 saturation run and a rule cannot be added in the middle of one.
 
-An instance is released under a guard, because a quantifier need not be true
-where its trigger matches. A trigger is matched against the whole e-graph, and
-nothing about a term matching one says the quantifier holds at the point that
-term was built. @lst:quant-guard assumes a quantifier under an implication and
-then asks for an instance on either side of the assumption.
+A match releases the body as the implication $q ==> "body"$, where $q$ is the
+quantifier itself, so an instance contributes its body only once $q$ is
+#vm[`true`]. Silicon releases an instance under the same guard.
 
-#viper(
-  caption: [A quantifier assumed under an implication. The trigger matches at
-    both assertions, and the instance is released by the #vi[`assume`] between
-    them.],
-  label: "lst:quant-guard",
-)[```viper
-var b: Bool
-assume b ==> forall v: Int :: {box(v)}
-  unbox(box(v)) == v
-
-assert unbox(box(3)) == 3   // triggers forall, but fails assertion
-assume b
-assert unbox(box(3)) == 3   // succeeds
-```]
-
-Both assertions build #vi[`box(3)`], so the trigger matches at the first one
-already. What a match adds is the implication
-
-$ q ==> "body" $
-
-where $q$ is the quantifier itself, so an instance contributes its body once $q$
-is #vm[`true`]. At the first assertion only the assumed implication is known,
-$q$ is open, and the goal stands unproven. The #vi[`assume`] between the two
-puts #vi[`b`] at #vm[`true`] and $q$ with it, and the instance already in the
-graph closes the second assertion. Matching a quantifier whose truth is open is
-therefore sound, and the verifier is free to match one on a path it is still
-exploring, or one it is checking rather than using. A precondition token the
-body carries is subject to the same guard, so a callee's facts arrive with the
-quantifier's truth.
-
-Well-definedness is confirmed where the quantifier is stated. An axiom is
-trusted, so this concerns a quantifier in a method or a function body. The
-check runs in an ephemeral copy of the live state with the binders replaced by
-fresh values.
-
-Proving a quantifier is where Helium stops. There is no skolemisation, so an
+Helium stops short of proving a quantifier. There is no skolemisation, so an
 #vi[`assert forall ...`] is discharged where the same quantifier is already
 #vm[`true`] in the state, from an earlier assumption.
 Existential quantifiers are rejected by the verifier, and their implementation
 remains future work.
 
-=== Comparison with Silicon
-
-The two verifiers differ mainly in their handling of quantifiers. Silicon relies on the underlying SMT solver to handle instantiation, whereas Helium manages this process internally using the rewrite engine. This design grants Helium more granular control over when and how quantifiers are instantiated, but consequently places a greater burden on the verifier to perform these instantiations correctly and efficiently.
+#para[Comparison with Silicon] The two verifiers differ mainly in their handling of quantifiers. Silicon relies on the underlying SMT solver to handle instantiation, whereas Helium manages this process internally using the rewrite engine. This design grants Helium more granular control over when and how quantifiers are instantiated, but consequently places a greater burden on the verifier to perform these instantiations correctly and efficiently.
 
 The ultimate goal is for Helium to handle quantifiers robustly enough that, should an SMT solver be integrated in the future, the encoding could rely on a fully instantiated, quantifier-free state, eliminating the need for solver-side instantiation entirely.

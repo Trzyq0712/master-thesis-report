@@ -8,21 +8,25 @@
 /// This file is a helper module rather than a figure. Every file that draws an
 /// e-graph imports it, so the notation stays the same wherever it appears.
 
-// Teal is what the graph already held, amber is what the step being drawn
-// changed.
-#let base = rgb("#0f766e")
-#let hot = rgb("#b45309")
+// One ink for every part of every e-graph picture. Colour encoded nothing a
+// reader could use, so the figures say what changed in words instead.
+#let ink = rgb("#0f766e")
 
 #let nw = 1 // e-node width
 #let nh = 0.6 // e-node height
 #let clsp = 0.22 // padding between an e-class box and the nodes it holds
 
-#let mono(s, size: 0.8em, fill: base.darken(35%)) = text(
+#let mono(s, size: 0.8em, fill: ink.darken(35%)) = text(
   size: size,
   font: "DejaVu Sans Mono",
   fill: fill,
   s,
 )
+
+/// A sort-tagged operator label. Listings write the tag inline (`*i`, `<r`),
+/// which is what the verifier reads; a figure has the room to set it as the
+/// subscript the term language uses.
+#let op(sym, sort) = [#sym#sub[#sort]]
 
 // One e-node: a filled, rounded box centred on `pos`.
 #let node(pos, label, hue) = {

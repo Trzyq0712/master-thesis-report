@@ -1,19 +1,18 @@
 #import "../macros.typ": *
 #import "@preview/cetz:0.4.2"
 
-/// The symbolic heap of @sec:impl-heap, drawn as one box per partition —
-/// location kind (group, stored type, permission bound) — with its chunks
-/// inside. Two field groups and one predicate group, which is enough to make
-/// three things visible at a glance rather than argued for a paragraph each:
-/// a chunk cannot be in two boxes, `f(x)` and `g(y)` are in different boxes
-/// even though both are `Int @ 1/1`, and the predicate box is the
-/// `*`-bounded one, dashed.
+/// The symbolic heap of @sec:impl-heap, drawn as one box per partition, where a
+/// partition is a location kind (group, stored type, permission bound), with its
+/// chunks inside. Two field groups are enough to make the point at a glance
+/// rather than argue it for a paragraph: a chunk cannot be in two boxes, and
+/// `f(x)` and `g(y)` are in different boxes even though both are `Int @ 1/1`.
+/// A predicate box was dropped here; the `*` bound is explained where predicates
+/// are, not in a figure about partitioning.
 #let heap-partitions = {
   set par(justify: false)
   set text(hyphenate: false)
 
   let base = rgb("#0f766e")
-  let hot = rgb("#b45309")
   let ink = rgb("#334155")
 
   let mono(s, size: 0.8em, fill: ink) = text(size: size, font: "DejaVu Sans Mono", fill: fill, s)
@@ -77,17 +76,6 @@
       false,
       (("g(y)", "1/1, w"),),
       [bounded: `p ≤ 1/1`],
-    )
-    partition(
-      2 * (pw + gap),
-      0,
-      pw,
-      1.7,
-      [`&[P] SnapP @ *`],
-      hot,
-      true,
-      (("P(x)", "1/2, s0"), ("P(y)", "1/1, s1")),
-      [unbounded: no axioms],
     )
   })
 }

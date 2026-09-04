@@ -87,7 +87,7 @@ Helium, implemented using the Rust egg library @egg, maintains an e-graph as its
 
 Obligations are discharged using a tiered approach: fast, structural checks are attempted before more expensive reasoning mechanisms, keeping the common case efficient.
 
-Helium prioritizes speed over completeness and does not rely on an SMT solver. Obligations that cannot be resolved structurally---such as those involving complex functional specifications---are currently out of scope. Falling back to a general-purpose solver like Z3 is left as future work.
+Helium prioritizes speed over completeness and does not rely on an SMT solver. Obligations that cannot be resolved structurally, such as those involving complex functional specifications, are currently out of scope. Falling back to a general-purpose solver like Z3 is left as future work.
 
 == Establishing the Minimal Supported Feature Set
 
@@ -96,6 +96,7 @@ While VMIR and Helium efficiently handle structured obligations, building a comp
 #rust(
   caption: [A representative Rust program exercising the constructs Prusti emits.],
   label: "lst:example-rust",
+  placement: auto,
 )[```rust
 pub struct Account {
     pub balance: i32,
@@ -146,12 +147,9 @@ Simple structs like #ru[`Account`] are represented using algebraic datatypes for
 
 Rust functions are translated into flat control-flow graphs using #vi[`goto`] and #vi[`label`] instructions. Loops are represented purely as back edges rather than structured #vi[`while`] constructs. Consequently, the permissions held at any basic block depend conditionally on the execution path, tracked via boolean variables representing edge traversals. Arithmetic operations are encoded separately as functions over snapshots, relying on integer domains with custom axioms and encoder-supplied triggers.
 
-Enums like #ru[`Transaction`] introduce discriminants. The corresponding generated predicate ensures the discriminant matches a known variant and conditionally grants permission to the active payload (@lst:example-discr).
+Enums like #ru[`Transaction`] introduce discriminants. The corresponding generated predicate, below, ensures the discriminant matches a known variant and conditionally grants permission to the active payload: the disjunction states that the two variants exhaust the type, and each payload permission is guarded by the discriminant that selects it.
 
-#viper(
-  caption: [The predicate for #ru[`Transaction`]. The disjunction states that the two variants exhaust the type, and each payload permission is guarded by the discriminant that selects it.],
-  label: "lst:example-discr",
-)[```viper
+#no-numbers[```viper
 predicate own_Transaction(self: Ref) {
   acc(own_isize(Transaction_field_discr(self)), write) &&
   (let d == (isize_value(snap_isize(Transaction_field_discr(self)))) in
@@ -166,6 +164,7 @@ Pattern matching on enums, as seen in the #ru[`account_apply`] function, combine
 #viper(
   caption: [The #ru[`match`] of #ru[`account_apply`] as a statement. Each arm records the edge it takes and jumps to the block implementing it. The arm no variant selects exhales #vi[`false`], which is where exhaustiveness is discharged.],
   label: "lst:example-match",
+  placement: auto,
 )[```viper
 label bb_0
 // _3p holds the discriminant of *t, read out of the enum's predicate
@@ -208,8 +207,8 @@ Collecting these requirements defines the *minimal supported feature set* for VM
   quantifier, every one of them with a trigger supplied by the encoder.
 - *ADTs:* algebraic datatypes with constructors, destructors and discriminants,
   among them the datatype whose values reify the crate's types. No declaration
-  needs type parameters of its own, because that datatype is what the encoding
-  erases Rust's generics into.
+  needs type parameters of its own, because the encoding erases Rust's
+  generics into that datatype.
 - *Base Viper:* the arithmetic operators #vi[`+`], #vi[`-`], #vi[`*`],
   #vi[`/`] and #vi[`%`], and #vi[`exhale`] of #vi[`false`] to discharge an
   unreachable block.

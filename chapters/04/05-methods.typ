@@ -2,172 +2,79 @@
 
 == Methods <sec:impl-methods>
 
-A method serves as the fundamental unit of verification in Viper. Its body is
-verified exactly once against the state delineated by its own contract.
-Subsequently, every call site relies exclusively on this contract rather than
-re-evaluating the body, thereby enabling modular verification. This section
-explores both aspects: how a method contract is represented in VMIR, how Helium
-verifies a method body against it, and how a call site is executed.
+A method's contract lowers to a pair of resources, and Helium verifies the body
+against them once. This section describes those two resources, the frame Helium
+puts around a body, and the call site. The bodies here are straight-line, and
+@sec:impl-cfg adds branches and loops.
 
-For the remainder of this section, we assume straight-line method bodies devoid
-of control flow; @sec:impl-cfg later expands upon this foundation to describe
-how VMIR and Helium manage branches and loops. We begin with @lst:method-bare,
-demonstrating a method that interacts with the heap while carrying no contract.
+#para[Method contracts] A #vi[`requires`] clause is a heap fragment together
+with an assertion about it, which is the pair @sec:impl-predicates already has a
+construct for, so the translator lowers it to a resource over the method's
+parameters. An #vi[`ensures`] clause lowers to a resource as well, carrying one
+parameter the method's signature does not have: a postcondition may name the
+state at entry, so the resource takes a snapshot of the pre-state and widens it
+back into a heap with its first instruction. @lst:method-contract is
+#vi[`bump`] with both clauses.
 
 #lowering(
-  caption: [A method that increments a field while holding no permission to it.
-    The body starts from #vm[`empty`], so the read fails.],
-  label: "lst:method-bare",
+  caption: [A contract as two resources. The postcondition's trailing parameter is the precondition's snapshot, and #vm[`e3`] and #vm[`e4`] are the same read at two different heaps.],
+  label: "lst:method-contract",
+  placement: auto,
+  stacked: true,
 )[```viper
 field val: Int
 
 method bump(c: Ref)
-{
-  c.val := c.val + 1   // fails
-}
-```][```vmir
-method bump {
-  e0: Ref := fresh         // c
-  e1: &[val] Int @ 1/1
-     := val(e0)
-  e2: Int := *[empty] e1   // fails
-  e3: Int := e2 + 1
-  h0 := empty assign e1
-        with e3
-  }
-```]
-
-Execution of a method body always commences from an #vm[`empty`] heap. Each
-parameter is introduced as a #vm[`fresh`] value, constrained only by its
-declared type. Consequently, the initial heap observed by the first instruction
-is completely empty. The read operation into #vm[`e2`] inevitably fails: a
-dereference strictly requires positive permission at #vm[`val(c)`], and
-permission can only enter a method body via its contract. A precondition is
-precisely the mechanism designed to supply such permission.
-
-=== Method contracts
-
-@lst:method-pre gives #vi[`bump`] permission to the field it reads through. The
-clause is a heap fragment together with an assertion about it, which is the pair
-@sec:impl-predicates already has a construct for.
-
-#lowering(
-  caption: [A Viper method precondition becomes a resource in VMIR.],
-  label: "lst:method-pre",
-)[```viper
-method bump(c: Ref)
   requires acc(c.val, write)
+  ensures acc(c.val, write)
+       && c.val == old(c.val) + 1
 ```][```vmir
 resource bump#requires(e0: Ref) {
-  e1: &[val] Int @ 1/1
-     := val(e0)
+  e1: &[val] Int @ 1/1 := val(e0)
   h0 := empty + e1 @ 1/1 with self
   result: (h0, true)
 }
-```]
 
-Fundamentally, a #vi[`requires`] clause consists of a heap fragment coupled with
-a self-framing assertion. Because this perfectly matches the definition of a
-resource, the translator naturally lowers a method precondition into one. This
-resource accepts the method's parameters, and its internal body is constructed
-using the exact same mechanisms @sec:impl-predicates employs for predicates.
-
-An #vi[`ensures`] clause similarly lowers to a resource, as illustrated in
-@lst:method-post. Notably, this resource accepts one additional parameter absent
-from the method's original signature. Because a postcondition may reference the
-initial state present upon method entry, the resource must explicitly receive a
-snapshot of that pre-state.
-
-#lowering(
-  caption: [The postcondition as a resource. Its trailing parameter is the
-    precondition's snapshot, and its first instruction widens that snapshot back
-    into a heap.],
-  label: "lst:method-post",
-)[```viper
-method bump(c: Ref)
-  requires acc(c.val, write)
-  ensures acc(c.val, write)
-```][```vmir
-resource bump#ensures(e0: Ref,
-    e1: bump#requires@snap) {
-  h0 := empty inhale
-        bump#requires(e0) @ 1/1
-        with e1
-  e2: &[val] Int @ 1/1
-     := val(e0)
+resource bump#ensures(e0: Ref, e1: bump#requires@snap) {
+  h0 := empty inhale bump#requires(e0) @ 1/1 with e1
+  e2: &[val] Int @ 1/1 := val(e0)
   h1 := empty + e2 @ 1/1 with self
-  result: (h1, true)
+  e3: Int  := *[h1] e2
+  e4: Int  := *[h0] e2
+  e5: Int  := e4 +i 1
+  e6: Bool := e3 == e5
+  result: (h1, e6)
 }
 ```]
 
 A postcondition's parameters are the method's parameters, then its return
-variables, and last the precondition's snapshot. It takes that last one whenever
-the method has a precondition. From that snapshot the postcondition rebuilds
-the pre-state of the method, and its own well-definedness is established against
-that state. @lst:method-old adds the clause that pre-state exists for.
-
-// Short enough never to need splitting, and the global `breakable: true` on
-// listing figures otherwise strands the caption on the following page.
-#block(breakable: false, lowering(
-  caption: [The two reads differ in one temporary. #vm[`e3`] consults the delta
-    the postcondition grants, #vm[`e4`] the state the method was entered in.],
-  label: "lst:method-old",
-)[```viper
-method bump(c: Ref)
-  requires acc(c.val, write)
-  ensures acc(c.val, write)
-  ensures c.val
-       == old(c.val) + 1
-```][```vmir
-resource bump#ensures(e0: Ref,
-    e1: bump#requires@snap) {
-  h0 := empty inhale
-        bump#requires(e0) @ 1/1
-        with e1
-  e2: &[val] Int @ 1/1
-     := val(e0)
-  h1 := empty + e2 @ 1/1 with self
-  e3: Int := *[h1] e2
-  e4: Int := *[h0] e2
-  e5: Int := e4 + 1
-  e6: Bool := e3 == e5
-  result: (h1, e6)
-}
-```])
-
-The opening inhale rebuilds the pre-state at #vm[`1/1`], so every chunk returns
-at the amount the precondition named for it. Its boolean makes every invariant
-the precondition establishes available for the rest of the body. Its chunks frame
-the reads that follow.
+variables, and last the precondition's snapshot. The opening inhale rebuilds the
+pre-state at #vm[`1/1`], so every chunk returns at the amount the precondition
+named for it, and its boolean makes the invariants the precondition establishes
+available to the rest of the body.
 
 #vm[`e3`] and #vm[`e4`] are the same read at the same address, separated by the
 heap each names: #vm[`e3`] takes #vi[`c.val`] from the postcondition's own
 delta, #vm[`e4`] takes #vi[`old(c.val)`] from the pre-state. Since heaps are
-values, the ordinary dereference instruction executes an #vi[`old`] expression.
-A postcondition reading past the precondition's footprint fails to discharge
-at #vm[`h0`], exactly as an unframed read would.
+values, the ordinary dereference instruction executes an #vi[`old`] expression,
+and a #vi[`label`] inside a body is recorded the same way, as the heap the
+labelled point produced. A postcondition reading past the precondition's
+footprint fails to discharge at #vm[`h0`], exactly as an unframed read would.
 
-Both contract resources undergo verification at their respective declarations,
-following the standard resource verification rules outlined in
-@sec:impl-predicates. The precondition is verified first; the postcondition is
-subsequently verified using the pre-state explicitly reconstructed by the
-precondition's inhale. Each verification yields a permanent record of recipes
-(@sec:impl-verify-resource). Consequently, any
-subsequent use of the contract merely reconstructs its footprint from this
-record rather than repeatedly traversing the clause, ensuring that
-well-definedness is definitively settled exactly once during declaration.
+Both contract resources are verified at their declarations, by the rules
+@sec:impl-predicates gives: the precondition first, then the postcondition
+against the pre-state the precondition's inhale rebuilds.
 
-=== Verifying a method
-
-@lst:method-full is the method with a return variable and both contracts, which
-is every piece of the frame Helium puts around a body. The frame is three
-phases: a prologue that builds the entry heap out of the precondition, the body
-itself, and an exit that checks the postcondition against what the body left.
+#para[Verifying a method] Helium frames a body in three phases: a prologue that
+builds the entry heap out of the precondition, the body itself, and an exit that
+checks the postcondition against what the body left. @lst:method-full is
+#vi[`bump`] with a return variable, inside that frame.
 
 #lowering(
   caption: [A complete method: the prologue builds the entry heap, the body
     runs, and the exit checks the contract against what the body left.],
   label: "lst:method-full",
+  placement: auto,
 )[```viper
 method bump(c: Ref)
     returns (before: Int)
@@ -193,7 +100,7 @@ method bump {
   e3: &[val] Int @ 1/1
      := val(e0)
   e4: Int := *[h0] e3      // before
-  e5: Int := e4 + 1
+  e5: Int := e4 +i 1
   h1 := h0 assign e3 with e5
   //@
   _, _ := h1 exhale
@@ -202,73 +109,25 @@ method bump {
 }
 ```]
 
-The prologue mints a fresh value for each parameter and for each return
-variable, then a fresh handle for the precondition's snapshot, and inhales the
-precondition against #vm[`empty`]. Binding the inhale to that handle, rather
-than writing #vm[`with fresh`], is what carries the pre-state to the
-postcondition at the exit. The body is made up of the usual VMIR instructions,
-each treating #vm[`h0`] as it would any other heap. The read into #vm[`e4`]
-finds the chunk the inhale put at #vm[`val(c)`], the permission the same read
-ran without in @lst:method-bare.
+A body starts from #vm[`empty`]. The prologue mints a fresh value for each
+parameter and each return variable, then a fresh handle for the precondition's
+snapshot, and inhales the precondition against that empty heap. Binding the
+inhale to the handle carries the pre-state to the exit. The body is made up of
+the usual VMIR instructions, each treating #vm[`h0`] as it would any other heap.
 
-The exit exhales the postcondition. Its arguments are the method's parameters,
-the final values of the return variables, and the precondition's snapshot. It
-raises the sufficiency obligation of a subtraction
-(@sec:impl-heap-ops) at each slot of the postcondition's footprint and asserts its boolean. Both of its results are
-discarded, which is why the listing blanks the pair: the exit is the last
-instruction of the method.
+The exit exhales the postcondition over the method's parameters, the final
+values of the return variables, and the precondition's snapshot. It raises the
+sufficiency obligation of a subtraction (@sec:impl-heap) at each slot of the
+postcondition's footprint and asserts its boolean.
 
-A body may also reach back to an earlier heap of its own. A #vi[`label`] names
-the state at a point, and #vi[`old[L](e)`] reads the state that name stands for.
-@lst:method-label writes one field twice and asks about the value in between.
+#para[Calling a method] A call lowers to a pair of resource operations on the
+caller's heap, with the callee's contract standing in for its body.
+@lst:method-call calls the method of @lst:method-full.
 
 #lowering(
-  caption: [A label names a heap. The read that mentions it says #vm[`h1`] where
-    an ordinary read would say #vm[`h2`].],
-  label: "lst:method-label",
-)[```viper
-method twice(c: Ref)
-  requires acc(c.val, write)
-{
-  c.val := 1
-  label mid
-  c.val := 2
-  assert old[mid](c.val) == 1
-}
-```][```vmir
-method twice {
-  e0: Ref := fresh         // c
-  e1: twice#requires@snap := fresh
-  h0 := empty inhale
-        twice#requires(e0) @ 1/1
-        with e1
-  e2: &[val] Int @ 1/1
-     := val(e0)
-  h1 := h0 assign e2 with 1
-  h2 := h1 assign e2 with 2
-  e3: Int := *[h1] e2
-  e4: Bool := e3 == 1
-  assert e4
-}
-```]
-
-The translation records which heap each label stands for. #vi[`mid`] is recorded
-as #vm[`h1`], the heap the preceding statement produced, and
-#vi[`old[mid](c.val)`] reads from it. An unlabelled #vi[`old`] inside a body
-reads #vm[`h0`], the heap the prologue's inhale produced.
-
-=== Calling a method <sec:impl-calls>
-
-A call lowers to a pair of resource operations on the caller's heap, the
-callee's contract standing in for its body. Nothing of the callee is executed at
-the call site, and nothing about it is needed beyond the two resources its
-declaration already produced. @lst:method-call calls the method of
-@lst:method-full.
-
-#lowering(
-  caption: [A call is an exhale of the callee's precondition and an inhale of
-    its postcondition, with the return values minted between the two.],
+  caption: [A call is an exhale of the callee's precondition and an inhale of its postcondition, with the return values minted between the two.],
   label: "lst:method-call",
+  placement: auto,
 )[```viper
 method client(x: Ref)
   requires acc(x.val, write)
@@ -295,34 +154,19 @@ method client {
 }
 ```]
 
-The exhale takes the precondition's footprint out of the caller's heap, on the
-same terms as the exit of a body. It also yields #vm[`e3`], the precondition's
-snapshot, recording what the caller's heap held at each of the precondition's
-slots. That is the trailing argument the postcondition takes. Between the two
-instructions the call mints a fresh value for each return variable, which is
-what lets the postcondition name them: #vm[`e4`] is what #vi[`b`] names after
-the call.
+The exhale takes the precondition's footprint out of the caller's heap and
+yields #vm[`e3`], the snapshot recording what that heap held at each of the
+precondition's slots, which the postcondition then takes as its trailing
+argument. Between the two instructions the call mints a fresh value for each
+return variable, so #vi[`b`] names #vm[`e4`] after the call.
 
-The inhale adds the postcondition's footprint to the caller's heap, bound
-#vm[`with fresh`], so each slot comes back as a value of its own, constrained by
-the boolean the inhale then assumes. It relates to what the caller's heap held
-before the call exactly where consolidation merges the two chunks
-(@sec:impl-heap-repr).
+The inhale is bound #vm[`with fresh`], so each slot comes back as a value of its
+own, constrained by the boolean the inhale then assumes. It relates to what the
+caller's heap held before the call exactly where the add merges the two chunks
+(@sec:impl-heap).
 
-The order of the two instructions matters. Because the exhale runs first,
-permission the callee demands leaves the caller's heap before the postcondition
-puts anything back, so the caller ends holding what the precondition left behind
-plus what the postcondition returns.
-
-=== Comparison with Silicon
-
-Silicon runs its produce and consume rules over the assertion the programmer
-wrote at every use @silicon[Section 3.3], and well-definedness there is a side
-effect of evaluating an expression rather than a pass of its own
-@silicon[Section 3.5]. Every use therefore re-poses the obligations the
-declaration's well-definedness check already settled: positive permission for
-each heap read, a non-zero divisor, and the precondition of each function
-applied. Helium discharges those once, when the resource is verified and compiled
-to recipes (@sec:impl-verify-resource), so a method
-with $n$ call sites raises them once rather than $n + 1$ times. The footprint
-walk itself costs the same in both, since each use touches every slot either way.
+#para[Comparison with Silicon] A contract is walked once however often it is
+used, so a method with $n$ call sites raises the well-definedness obligations of
+its clauses once rather than $n + 1$ times (@sec:impl-predicates). The footprint
+walk itself costs the same in both verifiers, since each use touches every slot
+either way.

@@ -1,4 +1,6 @@
 #import "../macros.typ": *
+#import "../generated/perf-rust-scalars.typ": *
+#import "../generated/perf-viper-scalars.typ": *
 
 = Introduction
 
@@ -7,27 +9,27 @@
 The _Viper_ project @viper provides a modern intermediate verification language
 and a suite of tools, designed for encoding a rich variety of
 real-world verification problems down to a set of core verification
-primitives. Front-end tools for languages such as Rust, Python, Java,
+primitives. Frontend tools for languages such as Rust, Python, Java,
 and Go encode their source programs into Viper, which then discharges
 the resulting proof obligations to establish correctness properties
 such as memory safety or functional correctness.
 
 Internally, Viper offers two verification backends: _Silicon_ @silicon, based on
-symbolic execution, and _Carbon_, based on verification condition
+symbolic execution, and _Carbon_ @carbon, based on verification condition
 generation. Both ultimately delegate their reasoning to an SMT solver.
 Given the breadth of Viper's feature set, these backends are necessarily
 intricate: they must handle the general case, and consequently do not
 specialize for the cases that dominate in practice.
 
-The proof obligations a front-end generates fall into two groups. The
+The proof obligations a frontend generates fall into two groups. The
 first are the user-defined *functional specifications*: the assertions a
 programmer writes to state what a program computes. The second is the
 *core proof*, the fundamental set of obligations required to establish a
 program's memory safety and ownership invariants. The two differ sharply
 in character. Functional specifications are arbitrary first-order
 assertions, and reasoning about them may require arithmetic, quantifiers,
-and rich theories. Core proofs are not arbitrary at all — for Rust
-programs translated by the _Prusti_ front-end @prusti, they are
+and rich theories. Core proofs are not arbitrary at all: for Rust programs translated by
+the _Prusti_ frontend @prusti, they are
 automatically inferred from Rust's own memory semantics and are therefore
 highly structured. They establish that ownership is respected, that
 permissions to memory locations are held where those locations are
@@ -36,7 +38,7 @@ boundaries. Reasoning about them is largely a matter of tracking which
 heap locations are known to be equal and which permissions are currently
 held.
 
-This distinction matters because the core proof is what dominates in
+This distinction matters because the core proof dominates in
 practice. A Rust program carrying no functional specification at all
 still generates a complete core proof, and it is exactly this case that
 existing backends discharge through a general-purpose SMT solver — doing
@@ -90,8 +92,8 @@ This thesis makes two main contributions:
 
 - *An equality-reasoning backend* for VMIR. The backend is a symbolic
   execution engine, architecturally inspired by _Silicon_ @silicon, but
-  it uses equality saturation over e-graphs — via the _egg_ library
-  @egg — as its sole reasoning engine. No SMT solver is involved at any
+  it uses equality saturation over e-graphs (via the _egg_ library
+  @egg) as its sole reasoning engine. No SMT solver is involved at any
   point: equality reasoning replaces it outright for the fragment the
   backend supports.
 
@@ -114,17 +116,16 @@ silently skipped, so the scoping is a refusal to answer and not a wrong
 answer.
 
 Within the supported fragment, the backend discharges Prusti-generated
-core proofs considerably faster than Silicon while preserving its
-verification outcomes. We evaluate this on 22 Prusti encodings comprising
-2886 verifying members, establishing soundness by regression against
-Silicon — every member Silicon verifies, we verify, and no run of ours is
-vacuous — and
-measuring a 30-fold reduction in total verification time across the
-corpus, with a geometric mean of 22#sym.times per file (@sec:results).
+core proofs faster than Silicon while preserving its verification outcomes. We
+evaluate this on two corpora, #rust-files Prusti encodings and #viper-files
+hand-written Viper programs, establishing soundness by regression against Silicon,
+since every declaration Silicon verifies we verify and no run of ours is vacuous,
+and measuring a #rust-ratio-total reduction in total verification time on the
+Prusti corpus, with a geometric mean of #rust-ratio-geo per file (@sec:results).
 
 == Thesis Outline
 
-@sec:background introduces Viper, the Prusti front-end, and equality
+@sec:background introduces Viper, the Prusti frontend, and equality
 reasoning via equality saturation. @sec:approach presents a real Prusti
 encoding, measures what such an encoding demands of a
 backend, and states the principles that follow. @sec:implementation presents VMIR and describes

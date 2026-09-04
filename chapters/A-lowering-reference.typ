@@ -7,15 +7,15 @@ explains it best. This appendix is the other view: every construct of the input
 language in one place, with what it lowers to and where in the chapter it is
 discussed. It is meant to be consulted rather than read.
 
-The rows are not a selection. There is one for each variant of the typed Viper
-syntax the frontend produces — declarations, statements, assertion forms and the
-heap-dependent expression nodes — so that a construct absent from the table is
-absent from the language, not merely from the exposition. The pure operators are
+The table holds one row for each variant of the typed Viper syntax the frontend
+produces — declarations, statements, assertion forms and the heap-dependent
+expression nodes — so that a construct absent from the table is absent from the
+language, not merely from the exposition. The pure operators are
 the one deliberate exception: there are two dozen of them, they carry no heap and
 each becomes the same operator over e-classes, so they share a single row.
 
-The _support_ column is what @sec:beyond-fragment and the fragment claim of
-@sec:approach both rest on:
+@sec:beyond-fragment and the fragment claim of @sec:approach both rest on the
+_support_ column:
 
 #table(
   columns: (auto, 1fr),
@@ -28,8 +28,8 @@ The _support_ column is what @sec:beyond-fragment and the fragment claim of
 
 #todo[
   *Status of this appendix.* Rows marked #emph[check] in the support column have
-  not been read off the translator yet — they are what the chapter says, not what
-  `src/translate/` does. Resolve each against the match arm named in the row
+  not been read off the translator yet — they record what the chapter says rather
+  than what `src/translate/` does. Resolve each against the match arm named in the row
   before the draft goes out.
 
   Completeness is checkable rather than asserted: walk `typed::Declaration`,
@@ -152,7 +152,7 @@ The _support_ column is what @sec:beyond-fragment and the fragment claim of
   [full], [#sec(<sec:impl-heap-interaction>)],
 
   vi[`assert A`],
-  [Non-destructive: each #vi[`acc(l, p)`] becomes #vm[`perm[h] l >= p`] and the
+  [Non-destructive: each #vi[`acc(l, p)`] becomes #vm[`perm[h] l >=r p`] and the
    whole assertion is asserted as one boolean. The heap is unchanged],
   [full], [#sec(<sec:impl-heap-interaction>)],
 

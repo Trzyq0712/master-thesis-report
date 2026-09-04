@@ -3,6 +3,9 @@
 = Benchmark Descriptions <sec:appendix-benchmarks>
 
 == Hand-written Viper <sec:appendix-benchmarks-viper>
+The programs below are the hand-written Viper corpus of @sec:results-quantitative, in the order of @tbl:perf-viper, which gives the measurement for each program that @tbl:perf-viper-categories aggregates by construct.
+
+#include "../generated/perf-viper-table.typ"
 
 / #raw("adt_expr"): An expression language as an algebraic datatype, and a second
   datatype for its values. The obligations are constructor injectivity,
@@ -18,6 +21,13 @@
   driven by an algebraic datatype's discriminant, eight more by an integer field,
   and the two forms are nested inside each other, so the cost reads as the cost
   of the split itself.
+/ #raw("branch_perms"): Permission crossing a branch, rather than control flow
+  crossing one. A location untouched by either arm, written on one arm and on
+  both, acquired or released on one arm alone, two fractions rejoined at the
+  merge, complementary locations, guards two deep, a predicate opened inside an
+  arm, an arm the guard makes unreachable, and a call inside an arm. It fixes
+  the branch and varies the heap, which is the counterpart to
+  #raw("branch_paths").
 / #raw("goto_jumps"): Forward jumps over a reducible control-flow graph: a
   skipped block, two and then four #vi[`goto`]s converging on one exit label, a
   dispatch whose arms jump to a common tail, a jump over a call, a jump out of a
@@ -42,13 +52,29 @@
   Most of the work is carrying an unmentioned field's value across a call, and
   splitting a fractional permission and putting it back, so the obligations are
   framing and permission arithmetic.
+/ #raw("perm_transfer"): #vi[`inhale`] and #vi[`exhale`] as the program rather
+  than as a method contract. A location taken and given straight back, released
+  in halves and rejoined, a quarter kept across a release of the rest, two
+  locations taken together and released apart, the transfer under a guard, a
+  predicate exchanged for its own footprint, and the cycle around a call.
+/ #raw("giveback_join"): A location lent inside a branch arm and handed back at
+  an address that equals the original only under that arm's guard, so the
+  release after the merge recombines two chunks instead of looking one up. One
+  arm, both arms, three arms, a bystander location, two receivers, through a
+  predicate, at half permission, and two guards deep. This is Prusti's
+  #ru[`&mut`] reborrow inside a #ru[`match`] written directly, and it is the
+  only file here that reaches the recovery @sec:results-discussion measures.
 / #raw("transfer"): Ownership passed across method boundaries. A predicate stands
   for the right to touch an account, and the obligations are that two accounts
   are distinct and that touching one left the other alone.
 / #raw("pure_functions"): Recursion, mutual recursion, and postconditions a
   caller reads without unfolding the body. Every clause is an equality or a
-  disequality, which keeps the arithmetic gap of @sec:results-incomplete out of
+  disequality, which keeps the arithmetic gap of @sec:results-qualitative out of
   the measurement.
+/ #raw("pure_eval"): Obligations with no heap in them. Destructor equations,
+  constructor injectivity, discriminant exclusivity, congruence through nested
+  application, and the axioms of two domains instantiated at their own triggers.
+  #raw("pure_functions") recurses over the heap; this one removes it.
 / #raw("loop_frames"): Invariants that are permissions and equalities rather than
   arithmetic facts, carried around the back edge. It fixes the loop shape and
   varies the invariant, which is the counterpart to what #raw("loop_exits") does.
@@ -65,17 +91,21 @@
   doubles the fold traffic of #raw("list_deep") at each level.
 
 == Prusti-generated benchmark <sec:appendix-benchmarks-rust>
+The files below are the Prusti-generated corpus of @sec:results-quantitative, in the order of @tbl:perf-rust, which gives the measurement for each file that @tbl:perf-rust-categories aggregates by pattern.
+
+#include "../generated/perf-rust-table.typ"
 
 / #raw("aabb_collide"): Axis-aligned box tests written as #ru[`if`] and
   #ru[`else`] nested three to five levels deep, with no early return. An inner
   block's path condition is a strict superset of its dominator's, which puts the
-  cost of a long cube under load.
+  cost of a long path condition under load.
 / #raw("color_blend"): Colour blending and clamping written as explicit branch
   chains rather than library calls. A body accumulates a long series of small
-  joins, so each block's cube is short and the block count per body is high.
+  joins, so each block's path condition is short and the block count per body is high.
 / #raw("state_machine"): A state enum and an event enum matched against each
-  other, so a nested #ru[`match`] produces a grid of arms. Many sibling cubes die
-  at the join under one shared dominator cube, and an arm may branch again on top
+  other, so a nested #ru[`match`] produces a grid of arms. Many sibling path conditions
+  die at the join under the one their shared dominator carries, and an arm may
+  branch again on top
   of its own discriminant literal.
 / #raw("vec3_math"): Integer vector algebra in which every operation is built
   from calls to the smaller ones. A single block accumulates many call
@@ -91,18 +121,18 @@
   against a single chunk.
 / #raw("borrow_fields"): Structs that hold borrows rather than take them as
   parameters, so Prusti's reference predicate appears nested inside another type
-  predicate. Folding the struct draws that permission in and unfolding hands it
-  back.
+  predicate. Folding the struct draws that permission in and unfolding returns
+  it.
 / #raw("physics_step"): A world of three bodies stepped through integrate, clamp
   and bounce, each stage built from smaller helpers. A caller's block inherits
   obligations from several callees, so the ground graph carries a great deal
   before any single block raises its proof.
 / #raw("inventory"): Hand-rolled #ru[`Maybe`] and #ru[`Res`] enums, so error
-  paths are ordinary enum arms. A block's cube is a discriminant fact and its
+  paths are ordinary enum arms. A block's path condition is a discriminant fact and its
   body then reads the payload, which is where tag knowledge and framing meet.
 / #raw("classify_tuple"): A fixed-arity eight-field buffer classified element by
   element through a match cascade and then summarised. Bodies have a high block
-  count where every cube is short, which is the opposite extreme from
+  count where every path condition is short, which is the opposite extreme from
   #raw("aabb_collide").
 / #raw("mat3_mul"): Unrolled #ru[`3x3`] integer linear algebra. Every body is one
   long straight-line block with no branching, so the file measures how much a

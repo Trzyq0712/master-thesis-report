@@ -181,7 +181,14 @@
 // styling is done by the show rules in `code-setup`; these wrappers exist only
 // to add a caption, a `Listing` number and a cross-reference label. A plain
 // ```lang block is styled identically — it just cannot be referenced.
-#let _listing(lang, body, caption: none, label: none, numbers: auto) = {
+//
+// `placement` is Typst's own figure placement. The default `none` keeps a
+// listing where it is written, which is what every chapter but 5 relies on:
+// `#lowering` pairs a listing with the paragraph that walks it line by line, and
+// a float would separate the two. Chapter 5 passes `placement: auto` so its
+// listings settle at the top or bottom of a page instead of splitting the prose.
+#let _listing(lang, body, caption: none, label: none, numbers: auto,
+              placement: none) = {
   // Accept either a bare ```lang ...``` block or a language-less raw block,
   // and re-emit it tagged with `lang` so the right grammar is used.
   let code = raw(_plain(body), lang: lang, block: true)
@@ -190,46 +197,51 @@
 
   if caption == none { return code }
 
-  let fig = figure(code, caption: caption, kind: "listing", supplement: [Listing])
+  let fig = figure(code, caption: caption, kind: "listing", supplement: [Listing],
+                   placement: placement)
   if label == none { fig } else { [#fig #std.label(label)] }
 }
 
 /// A Rust listing — the source program a Prusti user writes.
 ///   #rust(caption: [...], label: "lst:foo")[```rust ... ```]
-#let rust(body, caption: none, label: none, numbers: auto) = _listing(
+#let rust(body, caption: none, label: none, numbers: auto, placement: none) = _listing(
   "rust",
   body,
   caption: caption,
   label: label,
   numbers: numbers,
+  placement: placement,
 )
 
 /// A Viper listing — Prusti's encoding, and our verifier's input.
-#let viper(body, caption: none, label: none, numbers: auto) = _listing(
+#let viper(body, caption: none, label: none, numbers: auto, placement: none) = _listing(
   "viper",
   body,
   caption: caption,
   label: label,
   numbers: numbers,
+  placement: placement,
 )
 
 /// A VMIR listing — our verifier's intermediate representation.
-#let vmir(body, caption: none, label: none, numbers: auto) = _listing(
+#let vmir(body, caption: none, label: none, numbers: auto, placement: none) = _listing(
   "vmir",
   body,
   caption: caption,
   label: label,
   numbers: numbers,
+  placement: placement,
 )
 
 /// A VMIR-lite listing — VMIR written schematically, where the real encoding
 /// would bury the point being made. Used only where the difference is stated.
-#let lvmir(body, caption: none, label: none, numbers: auto) = _listing(
+#let lvmir(body, caption: none, label: none, numbers: auto, placement: none) = _listing(
   "lvmir",
   body,
   caption: caption,
   label: label,
   numbers: numbers,
+  placement: placement,
 )
 
 // ---------------------------------------------------------------------------
@@ -290,6 +302,7 @@
   columns: (1fr, 1.15fr),
   target-lang: "vmir",
   stacked: false,
+  placement: none,
 ) = {
   let src-chunks = _chunks(source)
   let tgt-chunks = _chunks(target)
@@ -368,7 +381,8 @@
   let body = if stacked { stacked-body } else { side-by-side-body }
 
   if caption == none { return body }
-  let fig = figure(body, caption: caption, kind: "listing", supplement: [Listing])
+  let fig = figure(body, caption: caption, kind: "listing", supplement: [Listing],
+                   placement: placement)
   if label == none { fig } else { [#fig #std.label(label)] }
 }
 
@@ -447,7 +461,7 @@
 /// Unnumbered and absent from the outline, so section numbering never goes
 /// three levels deep:
 ///
-///   #para[Path conditions] Every chunk carries the cube of branch literals ...
+///   #para[Path conditions] Every chunk carries the conjunction of branch literals ...
 /// The hidden level-3 heading is what puts the paragraph in a PDF reader's
 /// navigation pane. It is `place`d so that it occupies no space at all and
 /// disturbs neither the paragraph spacing above nor the run-in below; a

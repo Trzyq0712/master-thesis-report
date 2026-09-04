@@ -2,46 +2,32 @@
 
 
 // The chapter is split one file per section, under `chapters/05/`, following
-// the layout of chapter 4.
+// the layout of chapter 4. Three sections, no `===` anywhere: the parts of each
+// are `#para` run-in headings.
 //
-// Skeleton, 30 August 2026. Every number this chapter will quote comes from
-// `helium-eval`, whose `raw.jsonl` is the single source of truth; the tables are
-// generated into `helium-eval/report-tables/` and included here. Nothing is
-// typed in by hand. Where a measurement does not exist yet, the prose says so in
-// a `#todo` rather than carrying a placeholder that could be mistaken for a
-// result.
+// Every number the chapter quotes comes from `helium-eval`, whose `raw.jsonl` is
+// the single source of truth; the tables are generated into
+// `report/generated/` and included here. Nothing is typed in by hand.
 
-// The chapter heading `= Results <sec:results>` lives in `main.typ`, as it does
-// for every chapter but 4.
+= Evaluation and Discussion <sec:results>
 
-= Results and Analysis <sec:results>
+This chapter evaluates the pipeline in three parts. @sec:results-qualitative
+describes what the intermediate representation contributes to a backend and where
+the supported fragment stops, separating a construct VMIR does not represent from
+one it represents but about which Helium proves nothing. Neither question
+requires a measurement.
 
-In this chapter we report what Helium verifies, how fast it is, and where it
-fails. Four questions, in order, with the measurement protocol stated between the
-first and the second.
+@sec:results-quantitative states the machine, the toolchain and the measurement
+protocol, argues that the numbers taken under that protocol are valid, and then
+compares Helium against Silicon on two corpora. The first is hand-written Viper,
+written for this evaluation, and the second is the output of Prusti's encoder on
+Rust programs carrying no specifications, which is the input class Helium is
+aimed at.
 
-@sec:results-features asks which of Viper Helium implements. It separates two
-kinds of gap that a reader has every reason to conflate: a construct Helium does
-not translate at all, and a construct it translates but cannot prove anything
-about. The first is a feature gap and is visible in the source; the second is a
-verification gap and is only visible by measurement.
-
-@sec:results-setup states the machine, the toolchain and the protocol under
-which every time in the sections that follow was taken. It comes second rather
-than first because @sec:results-features reports verdicts rather than times, and
-a verdict does not depend on how a stopwatch was run.
-
-@sec:results-perf compares Helium against Silicon on two corpora. The first is
-hand-written Viper, written for this evaluation. The second is the output of
-Prusti's encoder on spec-less Rust, which is the input class Helium is aimed at.
-Both halves open with validity, since a verifier that has managed to assume
-#vi[`false`] is fast and worthless.
-
-@sec:results-attribution then explains the pattern in the timings. It relates
+@sec:results-discussion accounts for the pattern in those timings. It relates
 each result to the counters Helium records for itself, and it states the shapes
 on which Helium loses to Silicon as plainly as the shapes on which it wins.
 
-#include "05/01-features.typ"
-#include "05/02-setup.typ"
-#include "05/03-performance.typ"
-#include "05/04-attribution.typ"
+#include "05/01-qualitative.typ"
+#include "05/02-quantitative.typ"
+#include "05/03-discussion.typ"

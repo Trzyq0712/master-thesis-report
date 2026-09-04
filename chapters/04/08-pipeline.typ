@@ -5,9 +5,9 @@
 A VMIR program comprises a flat sequence of declarations falling into six
 distinct categories. Importantly, these declarations never nest: predicate
 bodies, method contracts, and domain axioms all exist exclusively at the top
-level. Helium processes this flat list in two consecutive phases. First, it
-computes a dependency-based execution order over the declarations; subsequently,
-it verifies each unit in that established sequence.
+level. Helium processes this flat list in two consecutive phases: it first
+computes a dependency-based execution order over the declarations, then verifies
+each unit in that order.
 
 @tbl:decl-summary summarizes these six declaration types. They strictly partition into two groups: three constitute active verification units that encapsulate a body requiring traversal, while the other three merely establish the vocabulary utilized during those traverses.
 
@@ -25,7 +25,7 @@ it verifies each unit in that established sequence.
     stroke: (x, y) => (
       top: if y == 1 { 1pt + luma(40%) } else if y > 1 { 0.5pt + luma(80%) } else { none },
     ),
-    table.header(head[VMIR declaration], head[Unit], head[Leaves behind]),
+    table.header(head[VMIR declaration], head[Verified?], head[Leaves behind]),
     ..rows,
   )
 }
@@ -71,6 +71,14 @@ Because a method's contract is an independent #vm[`resource`] declaration, its p
 
 To establish the execution schedule, Helium constructs a dependency graph among the verifiable units by drawing directed edges from dependencies to their dependents.
 
-Crucially, we allow functions to form dependency cycles (enabling mutual recursion), and these are the only units allowed to do so. All other constructs strictly prohibit recursive dependencies. For example, resources cannot recursively depend on each other through resource inhales or exhales (using the resource's snapshot ADT or the location function leaves no dependency edge). Furthermore, method bodies cannot be depended upon by any other unit. While a method's pre- and postconditions can serve as dependencies for both the method body and its callers, the method body itself is always a terminal node in the graph.
+No unit may form a dependency cycle. A recursive function would be the one
+construct that does, and @sec:impl-functions removes the recursion at
+translation, so a body depends on the bodyless twin rather than on the function
+it belongs to. Resources cannot recursively depend on each other through
+resource inhales or exhales, and using the resource's snapshot ADT or the
+location function leaves no dependency edge. Method bodies cannot be depended
+upon by any other unit: a method's pre- and postconditions can serve as
+dependencies for both the method body and its callers, but the method body
+itself is always a terminal node in the graph.
 
 Verification proceeds by taking one available unit from the graph at a time. When a unit fails verification, Helium halts its execution. Consequently, any downstream dependents are immediately aborted and reported as having failed due to an unresolved verification dependency.

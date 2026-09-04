@@ -1,14 +1,16 @@
 #import "../macros.typ": *
+#import "../generated/perf-rust-scalars.typ": *
+#import "../generated/perf-viper-scalars.typ": *
 
 = Conclusion
 
 In this thesis, we presented a novel approach to verifying Viper programs by introducing the Viper Mid-level Intermediate Representation (VMIR) and an associated verifier, Helium. Our work successfully demonstrates that the complex, feature-rich Viper language can be significantly simplified and verified with much higher performance than the state-of-the-art Silicon verifier.
 
-The introduction of VMIR plays a crucial role in simplifying Viper's semantics. By reducing method contracts, heap-dependent function preconditions, and predicates to a unified concept of a VMIR resource, we drastically decrease the conceptual surface area of the language. Complex, implicit operations in Viper, such as calling methods or folding and unfolding predicates, are elegantly expressed as simple, explicit operations on heap locations and VMIR resources. This transformation flattens the input into a straightforward, explicitly typed format, removing ambiguities and allowing the verifier to operate on a minimal instruction set without losing expressiveness.
+The introduction of VMIR plays a crucial role in simplifying Viper's semantics. By reducing method contracts, heap-dependent function preconditions, and predicates to a unified concept of a VMIR resource, we drastically decrease the conceptual surface area of the language. Complex, implicit operations in Viper, such as calling methods or folding and unfolding predicates, are expressed as simple, explicit operations on heap locations and VMIR resources. This transformation flattens the input into a straightforward, explicitly typed format, removing ambiguities and allowing the verifier to operate on a minimal instruction set without losing expressiveness.
 
 Building on the simplicity of VMIR, Helium introduces an optimized verification architecture. By managing resources explicitly, Helium ensures that permissions and resources only need to be verified once. Furthermore, Helium employs an e-graph data structure for cheap proof discharging. By leveraging e-graph saturation to accumulate facts and permissions, the verifier handles the majority of proof obligations through highly efficient rewrite rules. Because Helium lacks extended reasoning capabilities, it is specifically designed to deal with spec-less programs, focusing on being exceptionally fast at discharging programs with highly structured obligations.
 
-Our evaluation confirms that this architecture yields significant performance improvements. On hand-written Viper benchmarks, Helium achieves a 25#sym.times speedup over Silicon. Across the Prusti-generated corpus, Helium demonstrates an 18#sym.times average speedup. The performance gains are especially spectacular on straight-line code, where Helium reaches speedups exceeding 100#sym.times due to its ability to accumulate facts linearly without branching overhead. However, on heap-heavy, highly branched code, the advantage deteriorates, yielding performance similar to Silicon, primarily due to the computational cost of reconciling conditional permission chunks at control-flow merge points.
+Our evaluation confirms that this architecture yields significant performance improvements. On hand-written Viper benchmarks, Helium achieves a #viper-ratio-total speedup over Silicon. Across the Prusti-generated corpus, Helium demonstrates a #rust-ratio-geo average speedup. The performance gains are especially spectacular on straight-line code, where Helium reaches #rust-best-ratio on #rust-best due to its ability to accumulate facts linearly without branching overhead. However, on heap-heavy, highly branched code, the advantage deteriorates, yielding performance similar to Silicon, primarily due to the computational cost of reconciling conditional permission chunks at control-flow merge points.
 
 In summary, this work demonstrates that reducing permission-based verification to explicit resource management and e-graph saturation is a viable and highly performant architecture for structured, spec-less programs.
 
@@ -17,7 +19,7 @@ In this section we discuss relevant directions for future work, for further impr
 Helium and VMIR. The list is ordered by our percpetion of the relevance of each item.
 
 === Adding Support for Missing Viper Constructs
-As detailed in @sec:results-unsupported, several Viper constructs are currently
+As detailed in @sec:results-qualitative, several Viper constructs are currently
 unsupported by Helium. Adding support for these missing features, such as
 built-in containers, existential quantifiers, and termination measures, remains
 an important goal for future work.
@@ -30,12 +32,9 @@ inherently entail them.
 === Extending Location Types
 The current design of VMIR location types is insufficiently expressive for certain heap properties. While a location type encodes the stored value type, the location group, and the maximum permission bound (e.g., #vm[`&[f] Int @ 1/1`]), it lacks the structural capacity to express invariants regarding the relationship between the permission amount held and the underlying state.
 
-As identified in @sec:results-unsupported, VMIR currently provides no mechanism to assert that possessing positive permission to a location implies its receiver reference must be non-null. To address this, we propose extending location types into full top-level declarations. This would allow locations to explicitly define the semantics necessary to support robust field reasoning. @lst:future-location-types provides a sketch of how this missing information could be encoded.
+As identified in @sec:results-qualitative, VMIR currently provides no mechanism to assert that possessing positive permission to a location implies its receiver reference must be non-null. To address this, we propose extending location types into full top-level declarations. This would allow locations to explicitly define the semantics necessary to support robust field reasoning. The sketch below shows how this missing information could be encoded, with a location type carrying an invariant relating it to the permission amount held.
 
-#vmir(
-  caption: [A sketch of the proposed extension of location types into full declarations, enabling them to specify invariants relating the location to its held permission amount.],
-  label: "lst:future-location-types",
-)[```vmir
+#no-numbers[```vmir
 function f#loc(e0: Ref): f     // Ref to location mapping
   ensures f#inv(result) == e0
 
@@ -43,7 +42,7 @@ function f#inv(e0: f): Ref     // location to Ref inverse mapping
   ensures f#loc(result) == e0
 
 location f: Int @ 1/1
-  perm > 0/1 ==> f#inv(this) != null
+  perm >r 0/1 ==> f#inv(this) != null
   f#inv(this) == null ==> perm == 0/1
 ```]
 
@@ -55,9 +54,9 @@ These invariants utilize two special keywords: #vm[`this`], representing the loc
 Currently, the most significant performance bottleneck in Helium is proving
 that sufficient permission is held at a location. We believe that the current
 mechanism for checking sufficiency in non-trivial cases is suboptimal. This
-inefficiency is particularly problematic when reasoning about conditional
-permissions or branching logic, because the fallback mechanism attempts to
-ensure sufficiency by traversing down the permission tree.
+inefficiency is most visible when reasoning about conditional permissions or
+branching logic, where sufficiency is established by descending the permission
+tree, which @sec:results-discussion measures.
 
 === Parallel Branch Information Isolation
 In the current implementation, Helium shares a single, global e-graph across
@@ -113,8 +112,8 @@ instantiation.
 
 Adding support for contextual resources would enable Helium to verify the
 well-formedness of an invariant exactly once. The invariant could then be
-compiled into a recipe, allowing it to be applied much more efficiently wherever
-it is needed throughout the method.
+compiled into a recipe, so that applying it wherever the method needs it costs
+one replay of that recipe.
 
 === Improving the Reasoning Capabilities of Helium
 Helium's reasoning capabilities are currently constrained by its reliance on a

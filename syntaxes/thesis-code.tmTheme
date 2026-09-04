@@ -4,6 +4,25 @@
 <dict>
   <key>name</key>
   <string>Thesis Code</string>
+  <!--
+    Four colours and default ink, and nothing else.
+
+    The theme used to carry twelve colours over seventeen scopes, one per
+    syntactic role, and a twelve-line VMIR listing painted seven of them. The
+    supervisor's annotation on the §4.2 excerpt was that there were too many to
+    decode. Two of the twelve were also the same hue (#2f4f8f served both
+    function names and SSA temporaries), so the scheme did not deliver the
+    distinctions it charged the reader for.
+
+    What survives is what a reader can name without a legend: a comment, a
+    keyword, a type, a literal. Everything else is ink.
+
+    The largest deletion is the per-namespace colouring of VMIR temporaries
+    (`eN` a value, `hN` a heap, `pN` a permission amount). The prefix letter
+    already names the namespace at every occurrence, so the hue restated the
+    identifier rather than adding to it. Path conditions keep their italic,
+    which is a weight rather than a colour and costs the palette nothing.
+  -->
   <key>settings</key>
   <array>
 
@@ -26,7 +45,8 @@
       </dict>
     </dict>
 
-    <!-- Declaration heads: domain / function / predicate / method / adt / fn / struct -->
+    <!-- Declaration heads keep the bold they had: a weight, not a hue, so it
+         separates the head of a listing from its body for free. -->
     <dict>
       <key>name</key><string>Declaration keyword</string>
       <key>scope</key><string>keyword.declaration, storage.type.function, storage.type.struct, storage.type.enum, storage.type.class, keyword.other.fn</string>
@@ -37,44 +57,14 @@
       </dict>
     </dict>
 
-    <!-- Specification clauses: requires / ensures / invariant / decreases -->
+    <!-- Every other keyword, in the one keyword colour: contract clauses,
+         the heap and permission constructs, control flow, word operators. -->
     <dict>
-      <key>name</key><string>Contract clause</string>
-      <key>scope</key><string>keyword.other.contract</string>
+      <key>name</key><string>Keyword</string>
+      <key>scope</key><string>keyword.other.contract, keyword.control.heap, keyword.operator.wand, keyword.operator.arithmetic.vmir, keyword.control, keyword.other.section, keyword.operator.word, keyword.operator</string>
       <key>settings</key>
       <dict>
-        <key>foreground</key><string>#1b6b3a</string>
-        <key>fontStyle</key><string>bold</string>
-      </dict>
-    </dict>
-
-    <!-- The point of the thesis: everything that moves permission gets its own
-         colour, distinct from ordinary control flow. -->
-    <dict>
-      <key>name</key><string>Heap and permission constructs</string>
-      <key>scope</key><string>keyword.control.heap, keyword.operator.wand, keyword.operator.arithmetic.vmir</string>
-      <key>settings</key>
-      <dict>
-        <key>foreground</key><string>#a3105e</string>
-        <key>fontStyle</key><string>bold</string>
-      </dict>
-    </dict>
-
-    <dict>
-      <key>name</key><string>Control flow</string>
-      <key>scope</key><string>keyword.control, keyword.other.section</string>
-      <key>settings</key>
-      <dict>
-        <key>foreground</key><string>#8a4b00</string>
-      </dict>
-    </dict>
-
-    <dict>
-      <key>name</key><string>Word-like operators</string>
-      <key>scope</key><string>keyword.operator.word, keyword.operator</string>
-      <key>settings</key>
-      <dict>
-        <key>foreground</key><string>#6a3fb5</string>
+        <key>foreground</key><string>#1a3fa0</string>
       </dict>
     </dict>
 
@@ -89,77 +79,22 @@
 
     <dict>
       <key>name</key><string>Constants and literals</string>
-      <key>scope</key><string>constant.language, constant.numeric, constant.other</string>
+      <key>scope</key><string>constant.language, constant.numeric, constant.other, string</string>
       <key>settings</key>
       <dict>
         <key>foreground</key><string>#b3541e</string>
       </dict>
     </dict>
 
+    <!-- Italic, no colour: a path condition reads as an aside without
+         spending a hue on it. -->
     <dict>
-      <key>name</key><string>Strings</string>
-      <key>scope</key><string>string</string>
-      <key>settings</key>
-      <dict><key>foreground</key><string>#1b6b3a</string></dict>
-    </dict>
-
-    <dict>
-      <key>name</key><string>Function and member names</string>
-      <key>scope</key><string>entity.name.function, support.function, meta.function-call</string>
-      <key>settings</key>
-      <dict><key>foreground</key><string>#2f4f8f</string></dict>
-    </dict>
-
-    <dict>
-      <key>name</key><string>Labels and basic blocks</string>
+      <key>name</key><string>Path conditions and labels</string>
       <key>scope</key><string>entity.name.label, markup.italic.pathcond</string>
       <key>settings</key>
       <dict>
-        <key>foreground</key><string>#7a7a7a</string>
         <key>fontStyle</key><string>italic</string>
       </dict>
-    </dict>
-
-    <!-- VMIR temporaries: eN is a value, hN is a heap state, pN is a
-         permission amount. Distinguishing them makes the dataflow in a VMIR
-         listing readable at a glance. -->
-    <dict>
-      <key>name</key><string>SSA value temporaries</string>
-      <key>scope</key><string>variable.other.ssa</string>
-      <key>settings</key>
-      <dict><key>foreground</key><string>#2f4f8f</string></dict>
-    </dict>
-
-    <dict>
-      <key>name</key><string>Heap state temporaries</string>
-      <key>scope</key><string>variable.other.heap</string>
-      <key>settings</key>
-      <dict>
-        <key>foreground</key><string>#a3105e</string>
-      </dict>
-    </dict>
-
-    <dict>
-      <key>name</key><string>Permission temporaries</string>
-      <key>scope</key><string>variable.other.perm</string>
-      <key>settings</key>
-      <dict>
-        <key>foreground</key><string>#1a6b4a</string>
-      </dict>
-    </dict>
-
-    <dict>
-      <key>name</key><string>Annotations</string>
-      <key>scope</key><string>variable.annotation, meta.annotation</string>
-      <key>settings</key>
-      <dict><key>foreground</key><string>#7a7a7a</string></dict>
-    </dict>
-
-    <dict>
-      <key>name</key><string>Plain variables</string>
-      <key>scope</key><string>variable.other, variable.parameter</string>
-      <key>settings</key>
-      <dict><key>foreground</key><string>#1c1c1c</string></dict>
     </dict>
 
   </array>

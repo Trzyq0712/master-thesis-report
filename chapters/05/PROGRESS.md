@@ -168,14 +168,113 @@ re-run inside a table generator on every sweep. The numbers live in
 `ABLATION` at the top of `11_report_attribution.py`, with the exact command
 that reproduces them.
 
-**Open, not blocking:** chapter 4's execution-model prose (`04/01-execution-
-model.typ`) still describes the prover ladder with five tiers named
-`inconsistent`/`goal_true`/`implication_true`/`saturate`/`implication_decompose`.
-The current code (and everything §5.4 quotes) has seven:
-`prove_inconsistent`, `prove_dead_block`, `prove_goal_true`, `prove_memo`,
-`prove_saturate`, `prove_probe`, `prove_ite_decompose` — the tiers were
-renamed and `dead_block`/`memo`/`ite_decompose` added after that chapter-4
-prose was written (per `helium-eval/CLAUDE.md`: renamed and case-split
-deleted 2026-08-13). §5.4 uses the current names and cross-references
-`sec:impl-execution` for the mechanism, but the two chapters now disagree on
-vocabulary. Worth a pass over chapter 4 before submission.
+**Closed, 2 September 2026.** The chapter-4/chapter-5 tier vocabulary
+disagreement is resolved in the verifier rather than in either chapter.
+`silver-oxide` now names its counters after chapter 4's five tiers
+(`prove_inconsistent`, `prove_goal_true`, `prove_implication_true`,
+`prove_saturate`, `prove_implication_decompose`), keeps `prove_dead_block`,
+`prove_ite_decompose` and `prove_probe_clone` as splits *inside* those tiers,
+and adds `prove_unproven`. It now attributes **exactly one** counter per
+`prove_under_pc` call, so the six sum to `prove_calls` and the table's share
+column is a real share. Before this, no tier was credited at all on the
+in-block path and `prove_probe` was bumped on the attempt rather than on the
+outcome, so §5.4.1's old table both undercounted the expensive tier and did not
+add up. `heval.stats.LADDER` is now the single definition; `report.tier_table`,
+`06_tier_breakdown.py`, `05_attribution.py` and `11_report_attribution.py` all
+read it.
+
+**Also fixed:** `11_report_attribution.tier_shares` summed every kept
+repetition, the same defect `report.tier_table` had fixed on 1 September. It
+cancels in a share and does not cancel in a count, which is why it only showed
+up once §5.4.1 began quoting counts (`prove_dead_block` read 90 against an
+`inconsistent` total of 30).
+
+
+## §5.4 rewritten, 3 September
+
+Three subsections instead of four, on one question: why a few files are much
+slower. Everything comes from sweep `2026-09-03-fa31c1d`, and `env/lock.json` was
+refreshed so the generated headers name the pin the numbers were taken at.
+
+- **§5.4.1 How the ladder discharges a goal.** As before, minus the `viper-perf`
+  tier table (deleted; it was saying the same thing at a smaller scale). The last
+  row is renamed `no answer` -> `fallback`, in `report.tier_table`.
+- **§5.4.2 Why some programs are much slower.** The give-back, the
+  permission-tree lower bound, then the new e-graph size law. The two give-back
+  listings merged into one.
+- **§5.4.3 Scaling with branching.** New generated Viper family under
+  `suites/viper/branching/`, run by `experiments/13_branch_scaling.py`.
+
+**Dropped:** the per-rule cost table and its three ablations; the log-linear fit
+of ratio against Silicon's time and its residuals (the old §5.4.4); the Σ-rung
+material. The one ablation fact that survives is a clause in §5.4.2 —
+`distinguishing-observation` costs exactly `shape_area`'s two methods.
+
+**Chapter 6 loses a citation.** "Improving the Rewrite Rule Set and Scheduling"
+rested on the `proj-...` ablation showing a redundant rule. Nothing breaks at
+compile time, and the claim now stands unevidenced. Worth a look.
+
+**New instrumentation** (`silver-oxide` `fa31c1d`): `record_graph` measures the
+ground graph, the block scratch and the probe clones apart, with the largest
+e-class and the `true` class, per file and per member. Findings: the largest
+e-class is the `true` class in all 5076 member observations; 44-48% of the old
+`egraph_nodes_peak` on the four slowest files was throwaway clones; and
+`egraph_nodes_peak` is **not** deterministic although it sits in the gated perf
+snapshot, varying across repetitions on 8 of 11 files while the new ground
+counters do not. Not ASLR, not egg's hashers. Cause open.
+
+**`PERM_TREE` re-measured** at `fa31c1d`, bands 25-37% against at most 3%. Its
+runs are taken outside a sweep, so its wall clocks sit a little below
+`@tbl:perf-rust`; the caption now says so.
+
+**Trap closed.** `02_rust_corpus.py` sweeps all 35 files under `suites/rust/vpr/`
+unless given `--exclude 'enum_v*' 'depth_*'`, and §5.4's generator read rows by
+suite alone. It now drops the generated grid itself, so a sweep taken without the
+flag cannot corrupt the section. `12_egraph_size.py` and `13_branch_scaling.py`
+both assert their case count before measuring.
+
+
+## Restructured for the §5 feedback, 4 September 2026
+
+The chapter is three `==` sections and no `===` anywhere, at the user's
+direction: `01-qualitative.typ`, `02-quantitative.typ`, `03-discussion.typ`.
+`01-features.typ`, `02-setup.typ`, `03-performance.typ` and `04-attribution.typ`
+are gone; the superseded draft that sat at the end of the last of them was
+carried into `03-discussion.typ` rather than deleted.
+
+- **§5.1 gained the qualitative argument** the chapter lacked, in
+  `#para[Impact of VMIR]`: the five VMIR design properties and
+  what each removes from the backend, rewritten from scratch out of chapter 3's
+  ideas and chapter 4's sections. Nothing in chapter 5 cites `@sec:approach` any
+  more, so chapter 3 can be removed in its own pass.
+- **§5.2 absorbed the setup section** as `#para[Protocol]`, and now includes the
+  *generated* `setup-table.typ` rather than the hand-typed table that carried
+  Z3 4.15.1 as a literal.
+- **The per-file tables moved to appendix C.** `report.category_table` is new and
+  emits one row per pattern; `perf-{rust,viper}-categories.typ` are the chapter's
+  tables, `perf-{rust,viper}-table.typ` are the appendix's.
+- **Every generated figure floats** (`placement: auto` added to the twelve
+  `#figure(` emissions in `report.py`), and `macros.typ` gained a `placement:`
+  parameter on the four listing tags, defaulting to `none` so no other chapter
+  reflows. Chapter 5's listings pass `placement: auto`.
+
+### The Z3 re-measurement
+
+The supervisor requires Silicon on Z3 4.8.7 rather than the system 4.15.1.
+Helium runs no SMT solver, so only Silicon's rows change: the three sweep
+scripts gained `--reuse-helium RAW`, which copies Helium's rows forward from an
+earlier sweep (`record.reuse_helium`) and skips the vacuity gate with them.
+`HELIUM_EVAL_Z3` points `config.resolve_z3` at Prusti's binary, and
+`env/lock.json` records it.
+
+Hand-written Viper, re-measured at 4.8.7: Silicon 11.157s against 11.912s at
+4.15.1, every verdict unchanged.
+
+### `--moreJoins`
+
+`Config.silicon_args` splices extra flags into the verification argument string,
+`Server.verify(tool=...)` tags the rows, and `13_branch_scaling.py
+--silicon-more-joins` measures Silicon a second time over the `bpure` ladder
+alone, where no permission crosses the branch. `report.ladder_plot(extras=...)`
+draws it in the thesis's indigo, and `11_report_attribution.py` guards every
+output that mentions it on the rows being present.

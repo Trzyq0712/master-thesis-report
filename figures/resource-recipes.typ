@@ -1,108 +1,96 @@
 #import "../macros.typ": *
 #import "@preview/cetz:0.4.2"
 
-/// The record the linked-list resource `Node` leaves behind, drawn as three
-/// slots whose recipes reach back into the only two things a recipe may name:
-/// the resource's argument and the members of its snapshot.
+/// The record the linked-list resource leaves behind, drawn as three slots
+/// whose recipes name the only two things a recipe may name: the resource's
+/// argument and the members of its snapshot.
 ///
-/// The table this replaced put the recipes in a column and left the reader to
-/// work out where a hole was filled from. The point of the subsection is that
-/// slot 2's receiver, written `this.next` in the source, is answered by a
-/// snapshot member rather than by a heap, and an arrow says that where a column
-/// of terms did not.
+/// An earlier version left a hole in each recipe and ran an arrow to the source
+/// that filled it. The supervisor's annotation on the §4.3 excerpt was that the
+/// arrows were confusing and that a recipe naming two sources would need two
+/// arrows into one line, so the holes are now written as the names themselves
+/// (`e0`, `s1`) and the arrows are gone. The correspondence is read off the
+/// text, which is also what the prose says.
+///
+/// The canvas was ~14.6 units wide and overflowed the text block. The two
+/// columns are now stacked closer and the recipe column is narrower.
 #let resource-recipes = {
   set par(justify: false)
   set text(hyphenate: false)
 
-  let src = rgb("#0f766e")   // what a recipe may draw on
-  let hot = rgb("#b45309")   // the arrows, and the holes they fill
+  let src = rgb("#0f766e") // what a recipe may draw on
   let ink = rgb("#334155")
 
-  let mono(s, size: 0.88em, fill: ink) = text(
+  let mono(s, size: 0.7em, fill: ink) = text(
     size: size, font: "DejaVu Sans Mono", fill: fill, s,
   )
-  let lbl(s, fill: ink) = text(size: 0.7em, weight: "bold", fill: fill, s)
-  let hole = mono(sym.circle.stroked.small, fill: hot)
+  let lbl(s, fill: ink) = text(size: 0.68em, weight: "bold", fill: fill, s)
+  // A name a recipe draws on, tinted so the eye finds it inside a recipe.
+  let name(s) = mono(s, fill: src.darken(15%))
 
   cetz.canvas({
     import cetz.draw: *
 
     // Breathing room. cetz crops to the ink, which reads cramped against a
     // caption.
-    rect((-0.3, -4.3), (14.7, 1.1), stroke: none, fill: none)
+    rect((-0.3, -4.2), (11.6, 1.1), stroke: none, fill: none)
 
     // ------------------------------------------------------------------
-    // Left column: the two sources. The argument on top, the snapshot's
-    // three members below it.
+    // Left column: what a recipe may name. The argument on top, the
+    // snapshot's three members below it. No types here: the adt on the
+    // page before already gives them, and repeating them made the third
+    // box wider than the column.
     // ------------------------------------------------------------------
     let x-src = 0.0
-    let w-src = 3.9
+    let w-src = 1.5
 
-    let source(y, name, ty) = {
+    let source(y, n) = {
       rect(
-        (x-src, y - 0.32), (x-src + w-src, y + 0.32),
+        (x-src, y - 0.3), (x-src + w-src, y + 0.3),
         stroke: 0.8pt + src, fill: src.lighten(93%), radius: 2pt,
       )
-      content((x-src + 0.3, y), anchor: "west", mono(name, fill: src.darken(15%)))
-      content((x-src + w-src - 0.3, y), anchor: "east", text(
-        size: 0.62em, fill: ink.lighten(20%), ty,
-      ))
+      content((x-src + w-src / 2, y), name(n))
     }
 
     content((x-src, 0.82), anchor: "west", lbl("Argument", fill: src.darken(15%)))
-    source(0.0, "e0", "Ref")
+    source(0.0, "e0")
 
-    content((x-src, -1.18), anchor: "west", lbl("Snapshot members", fill: src.darken(15%)))
-    source(-2.0, "s0", "Option[Int]")
-    source(-2.8, "s1", "Option[Ref]")
-    source(-3.6, "s2", "Option[Node@snap]")
+    content((x-src, -1.15), anchor: "west", lbl("Snapshot", fill: src.darken(15%)))
+    content((x-src, -1.55), anchor: "west", lbl("members", fill: src.darken(15%)))
+    source(-2.1, "s0")
+    source(-2.9, "s1")
+    source(-3.7, "s2")
 
     // ------------------------------------------------------------------
     // Right column: one row per slot, address recipe then permission
-    // recipe. The hole a recipe leaves is drawn in the arrow colour, so
-    // the eye pairs it with the arrow that fills it.
+    // recipe. Each recipe names its source outright, so no arrow is
+    // needed to say where a term came from.
     // ------------------------------------------------------------------
-    let x-slot = 6.3
-    let w-slot = 8.3
-    let x-perm = x-slot + 4.05
+    let x-slot = 2.3
+    let w-slot = 9.2
+    let x-perm = x-slot + 4.6
 
-    let slot(y, n, addr-pre, addr-post, perm) = {
+    let slot(y, n, addr, perm) = {
       rect(
         (x-slot, y - 0.4), (x-slot + w-slot, y + 0.4),
         stroke: 0.8pt + ink.lighten(45%), fill: luma(98%), radius: 2pt,
       )
-      content((x-slot + 0.28, y), anchor: "west", lbl("slot " + n))
-      content((x-slot + 1.25, y), anchor: "west", {
-        mono(addr-pre); hole; mono(addr-post)
-      })
-      line((x-perm - 0.3, y - 0.4), (x-perm - 0.3, y + 0.4), stroke: 0.5pt + ink.lighten(65%))
+      content((x-slot + 0.22, y), anchor: "west", lbl("slot " + n))
+      content((x-slot + 1.0, y), anchor: "west", addr)
+      line(
+        (x-perm - 0.25, y - 0.4), (x-perm - 0.25, y + 0.4),
+        stroke: 0.5pt + ink.lighten(65%),
+      )
       content((x-perm, y), anchor: "west", perm)
     }
 
-    content((x-slot + 1.25, 0.82), anchor: "west", lbl("Address recipe"))
+    content((x-slot + 1.0, 0.82), anchor: "west", lbl("Address recipe"))
     content((x-perm, 0.82), anchor: "west", lbl("Permission recipe"))
 
-    slot(0.0, "0", "val(", ")", mono("1/1", size: 0.82em))
-    slot(-1.15, "1", "next(", ")", mono("1/1", size: 0.82em))
-    slot(-2.3, "2", "Node@loc(", ")", {
-      hole; mono(" != null ? 1/1 : 0/1", size: 0.82em)
+    slot(0.0, "0", { mono("val("); name("e0"); mono(")") }, mono("1/1"))
+    slot(-1.15, "1", { mono("next("); name("e0"); mono(")") }, mono("1/1"))
+    slot(-2.3, "2", { mono("LinkedList@loc("); name("s1"); mono(")") }, {
+      name("s1"); mono(" != null ? 1/1 : 0/1")
     })
-
-    // ------------------------------------------------------------------
-    // The arrows. Slots 0 and 1 reach the argument. Slot 2 reaches the
-    // snapshot member the slot before it contributed, and that arrow is
-    // the figure.
-    // ------------------------------------------------------------------
-    let feed(from-y, to-y, bend) = line(
-      (x-src + w-src + 0.15, from-y),
-      ((x-src + w-src + x-slot) / 2, bend),
-      (x-slot - 0.15, to-y),
-      stroke: 0.9pt + hot,
-      mark: (end: ">", scale: 0.4, fill: hot),
-    )
-
-    feed(0.0, 0.0, 0.0)
-    feed(0.0, -1.15, -0.6)
-    feed(-2.8, -2.3, -2.6)
   })
 }

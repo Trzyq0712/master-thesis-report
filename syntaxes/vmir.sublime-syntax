@@ -80,8 +80,10 @@ contexts:
       scope: entity.name.tag.group.vmir
 
   operators:
-    # sort-tagged arithmetic: +i -i *i /i, +r -r *r /r, <i <r
-    - match: '(\+|-|\*|/|<|<=)[ir]\b'
+    # sort-tagged arithmetic and comparison: +i -i *i /i, +r -r *r /r,
+    # <i <r, <=i >=i >i. Longer alternatives first, so `>=i` is not read
+    # as `>` followed by `=i`.
+    - match: '(\+|-|\*|/|<=|>=|<|>)[ir]\b'
       scope: keyword.operator.arithmetic.vmir
     # path-condition guard <e5>
     - match: '<[^>]*>'

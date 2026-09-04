@@ -14,7 +14,10 @@
 //
 // `series` is a list of dictionaries:
 //   (name: [Silicon], colour: rgb(...), points: ((0, 16.6, false), (1, 41.7, true)))
-// with x an index into `x-ticks` and y a time in seconds.
+// with x an index into `x-ticks` and y a time in seconds. An optional `dash` key
+// draws that series' line dashed, which is how two families of the same two
+// tools are told apart on one pair of axes. It does not change the points: a
+// hollow point means censored and nothing else.
 
 #let _log(v) = calc.log(calc.max(v, 1e-9), base: 10)
 
@@ -63,6 +66,7 @@
 
     for s in series {
       let pts = s.points
+      let family-dash = s.at("dash", default: false)
       for i in range(pts.len() - 1) {
         let (x0, y0, c0) = pts.at(i)
         let (x1, y1, c1) = pts.at(i + 1)
@@ -70,7 +74,11 @@
         // is not known, only that it goes at least that far.
         line(
           (px(x0), py(y0)), (px(x1), py(y1)),
-          stroke: (paint: s.colour, thickness: 1.1pt, dash: if c1 { "dashed" } else { none }),
+          stroke: (
+            paint: s.colour,
+            thickness: 1.1pt,
+            dash: if c1 or family-dash { "dashed" } else { none },
+          ),
         )
       }
       for (x, y, censored) in pts {
@@ -83,11 +91,22 @@
     }
 
     if legend {
-      let y = height + 0.45
-      let step = width / calc.max(series.len(), 1)
+      // Two series fit across the width; four do not, so the legend wraps into
+      // rows of at most two and grows upwards from the plot.
+      let cols = if series.len() > 2 { 2 } else { calc.max(series.len(), 1) }
+      let rows = calc.ceil(series.len() / cols)
+      let step = width / cols
       for (i, s) in series.enumerate() {
-        let x = i * step
-        line((x, y), (x + 0.5, y), stroke: 1.1pt + s.colour)
+        let y = height + 0.45 + 0.4 * (rows - 1 - calc.floor(i / cols))
+        let x = calc.rem(i, cols) * step
+        line(
+          (x, y), (x + 0.5, y),
+          stroke: (
+            paint: s.colour,
+            thickness: 1.1pt,
+            dash: if s.at("dash", default: false) { "dashed" } else { none },
+          ),
+        )
         content((x + 0.65, y), text(size: 7.5pt, s.name), anchor: "west")
       }
     }

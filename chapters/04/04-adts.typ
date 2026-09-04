@@ -73,7 +73,7 @@ the ground type arguments on the e-node, so #vm[`Some[Int]`] and
 
 Helium reduces a projection against a visible
 construction and a discriminator against a visible constructor, which are the
-destruction and tagging axioms of @sec:bg-datatypes. It states no counterpart of
+destruction and tagging axioms of @sec:bg-viper. It states no counterpart of
 exclusivity, so the discriminator of a value no constructor built is
 unconstrained. Helium proves neither assertion below, since both are about the
 discriminator and neither mentions a constructor to reduce against.

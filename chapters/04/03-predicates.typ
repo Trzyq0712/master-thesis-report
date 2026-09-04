@@ -4,7 +4,7 @@
 == Predicates <sec:impl-predicates>
 
 A Viper predicate packages a region of the heap, together with claims about its
-contents, behind a name. @sec:bg-predicates gives the construct and the
+contents, behind a name. @sec:bg-viper gives the construct and the
 #vi[`fold`] and #vi[`unfold`] statements that exchange an instance for its body.
 This section shows what a predicate becomes in VMIR, how Helium compiles its
 body once into a record of recipes, and how every later fold and unfold replays

@@ -33,8 +33,7 @@ fields, methods, functions, predicates and domains.
 
 Two further features are outside the scope of this thesis. A magic wand describes a partial data structure as a resource that yields one assertion when combined with another, and quantified permissions state a permission for every element of an unbounded set of locations at once. Neither is covered here nor supported by the verifier we present.
 
-=== Statements
-Viper programs are composed of statements and expressions. Basic statements
+#para[Statements] Viper programs are composed of statements and expressions. Basic statements
 include variable declarations, assignments, and structural control flow.
 Verification-specific statements include `assert` (which requires the verifier
 to prove a property holds at that point), and `assume` (which adds a property
@@ -46,8 +45,7 @@ assume a == 42
 assert a == 42
 ```]
 
-=== The Heap and Fields
-Viper uses the `Ref` type for heap-allocated objects with globally declared fields. A field declaration is global, so every field is nominally accessible through every reference: given #vi[`x: Ref`] and the two declarations below, both #vi[`x.value`] and #vi[`x.next`] are expressions the program may write.
+#para[The heap and fields] Viper uses the `Ref` type for heap-allocated objects with globally declared fields. A field declaration is global, so every field is nominally accessible through every reference: given #vi[`x: Ref`] and the two declarations below, both #vi[`x.value`] and #vi[`x.next`] are expressions the program may write.
 
 #no-numbers[```viper
 field value: Int
@@ -68,13 +66,11 @@ assert x.value > 0
 
 After the #vi[`exhale`], half of the permission remains, which is enough to read #vi[`x.value`] but no longer enough to assign to it.
 
-=== Separating Conjunction
-The conjunction #vi[`&&`] acts as a separating conjunction when its operands are permission assertions: it sums their amounts rather than requiring both to hold independently. The assertion #vi[`acc(x.f, 1/2) && acc(x.f, 1/2)`] is therefore equivalent to #vi[`acc(x.f, write)`], and #vi[`acc(x.f, write) && acc(y.f, write)`] implies that #vi[`x`] and #vi[`y`] are distinct, because the two amounts would otherwise sum past the maximum.
+#para[Separating conjunction] The conjunction #vi[`&&`] acts as a separating conjunction when its operands are permission assertions: it sums their amounts rather than requiring both to hold independently. The assertion #vi[`acc(x.f, 1/2) && acc(x.f, 1/2)`] is therefore equivalent to #vi[`acc(x.f, write)`], and #vi[`acc(x.f, write) && acc(y.f, write)`] implies that #vi[`x`] and #vi[`y`] are distinct, because the two amounts would otherwise sum past the maximum.
 
 The permission model is modular for this reason. A method that holds full permission to a location knows that no other part of the program holds any, so it may reason about that location without considering aliases.
 
-=== Predicates <sec:bg-predicates>
-Predicates are packed, named permission assertions. A predicate declaration bundles a set of permissions with logical constraints on the values they guard. Predicate bodies may be recursive, which is what allows a finite assertion to describe an unbounded structure such as a list or a tree. One instance of the predicate below carries the permissions to every node reachable from #vi[`this`].
+#para[Predicates] Predicates are packed, named permission assertions. A predicate declaration bundles a set of permissions with logical constraints on the values they guard. Predicate bodies may be recursive, which is what allows a finite assertion to describe an unbounded structure such as a list or a tree. One instance of the predicate below carries the permissions to every node reachable from #vi[`this`].
 
 #no-numbers[```viper
 field val: Int
@@ -95,8 +91,7 @@ each.
 
 Two statements exchange a predicate instance for the resources it packs. The #vi[`unfold`] statement requires the instance, consumes it, and produces the permissions and properties of the body. The #vi[`fold`] statement is its inverse: it requires everything the body states and produces the instance. Reading #vi[`this.val`] of some #vi[`acc(LinkedList(this))`] therefore takes an #vi[`unfold LinkedList(this)`] first, to exchange the predicate instance for its body.
 
-=== Data Types (Domains and ADTs) <sec:bg-datatypes>
-Alongside built-in primitive types, Viper supports complex data types. Algebraic
+#para[Data types] Alongside built-in primitive types, Viper supports complex data types. Algebraic
 data types allow defining structural types with named constructors, and Viper
 derives the destructors and the discriminator of each variant from the
 declaration alone, so the datatype below also provides #vi[`isCircle`] and the
@@ -122,8 +117,7 @@ domain Box {
 }
 ```]
 
-=== Axioms and Quantifiers
-An axiom is a closed assertion the verifier assumes everywhere in the program, and a domain gives its functions meaning through axioms. A single axiom constrains a single case, so stating a property of every value of a type takes a quantifier. Viper offers the universal quantifier #vi[`forall`] and the existential quantifier #vi[`exists`]. The axiom below quantifies over every integer, and it makes #vi[`box`] and #vi[`unbox`] mutual inverses: unboxing a boxed integer yields the integer it started from.
+#para[Axioms and quantifiers] An axiom is a closed assertion the verifier assumes everywhere in the program, and a domain gives its functions meaning through axioms. A single axiom constrains a single case, so stating a property of every value of a type takes a quantifier. Viper offers the universal quantifier #vi[`forall`] and the existential quantifier #vi[`exists`]. The axiom below quantifies over every integer, and it makes #vi[`box`] and #vi[`unbox`] mutual inverses: unboxing a boxed integer yields the integer it started from.
 
 #no-numbers[```viper
 axiom round_trip {
@@ -184,8 +178,7 @@ The first two answer questions about a value some constructor visibly built. The
 third lets a verifier reason about a value none did, and it makes a case
 analysis over the variants complete.
 
-=== Methods
-Methods are imperative code blocks serving as the fundamental unit of verification in Viper. They are annotated with contracts: `requires` for preconditions and `ensures` for postconditions. Methods can modify the heap.
+#para[Methods] Methods are imperative code blocks serving as the fundamental unit of verification in Viper. They are annotated with contracts: `requires` for preconditions and `ensures` for postconditions. Methods can modify the heap.
 
 #no-numbers[```viper
 field val: Int
@@ -212,8 +205,7 @@ method client(x: Ref)
 }
 ```]
 
-=== Control flow
-A method body directs its execution with three constructs: #vi[`if`], #vi[`while`], and #vi[`goto`] paired with #vi[`label`]. @lst:bg-control uses all three.
+#para[Control flow] A method body directs its execution with three constructs: #vi[`if`], #vi[`while`], and #vi[`goto`] paired with #vi[`label`]. @lst:bg-control uses all three.
 
 #viper(
   caption: [A method clamping an integer into the range from zero to ten,
@@ -240,8 +232,7 @@ method clamp(x: Int) returns (r: Int)
 
 A loop is verified against its invariant. The verifier proves the invariant on entry, proves that one arbitrary iteration preserves it, and then continues after the loop knowing the invariant and the negated loop condition. The pairing of #vi[`goto`] and #vi[`label`] turns a body into a control-flow graph (CFG) of arbitrary shape, so a backend cannot assume that control flow is structured.
 
-=== Functions
-Functions are parameterized, side-effect-free expressions. Like methods, they
+#para[Functions] Functions are parameterized, side-effect-free expressions. Like methods, they
 are annotated with contracts, but their body is a single expression and thus
 cannot modify the heap.
 

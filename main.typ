@@ -21,6 +21,14 @@
 // spacing. Give every one of them the same extra room above and below.
 #show figure: set block(above: 1.6em, below: 1.6em)
 
+// Typst keeps a heading on the same page as the text under it by giving its
+// block `sticky: true`. The template's level-2 and level-3 show rules replace
+// the heading with bare inline content, which throws that block away and lets a
+// section title strand at the foot of a page (5.3 did). Wrap the template's
+// output back into a sticky block.
+#show heading.where(level: 2): it => block(sticky: true, it)
+#show heading.where(level: 3): it => block(sticky: true, it)
+
 #frontchapter[Abstract]
 #include "chapters/00-abstract.typ"
 

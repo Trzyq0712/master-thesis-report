@@ -11,22 +11,15 @@
 
 = Evaluation and Discussion <sec:results>
 
-This chapter evaluates the pipeline in three parts. @sec:results-qualitative
-describes what the intermediate representation contributes to a backend and where
-the supported fragment stops, separating a construct VMIR does not represent from
-one it represents but about which Helium proves nothing. Neither question
-requires a measurement.
-
-@sec:results-quantitative states the machine, the toolchain and the measurement
-protocol, argues that the numbers taken under that protocol are valid, and then
-compares Helium against Silicon on two corpora. The first is hand-written Viper,
-written for this evaluation, and the second is the output of Prusti's encoder on
-Rust programs carrying no specifications, which is the input class Helium is
-aimed at.
-
-@sec:results-discussion accounts for the pattern in those timings. It relates
-each result to the counters Helium records for itself, and it states the shapes
-on which Helium loses to Silicon as plainly as the shapes on which it wins.
+This chapter evaluates the proposed system in three parts. @sec:results-qualitative
+evaluates what the new intermediate representation contributes to a backend, which
+Viper constructs VMIR does not support, and where Helium's reasoning stops.
+@sec:results-quantitative then quantitatively measures the performance of VMIR and
+Helium against Silicon on two corpora, one of hand-written Viper and
+one of Prusti's output on Rust programs carrying no specifications.
+@sec:results-discussion accounts for the spread of those timings, relating each
+result to the counters Helium records for itself and stating program shapes on which
+Helium loses to Silicon alongside those on which it wins.
 
 #include "05/01-qualitative.typ"
 #include "05/02-quantitative.typ"

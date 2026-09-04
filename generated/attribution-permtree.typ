@@ -10,7 +10,7 @@
     raw("shape_area"), [7.462s], [5.354s], [28%],
     raw("state_machine"), [0.804s], [0.593s], [26%],
     raw("physics_step"), [1.890s], [1.421s], [25%],
-    table.hline(stroke: 0.5pt + luma(70%)),
+    table.hline(stroke: 2pt + blue),
     raw("mat3_mul"), [1.363s], [1.324s], [3%],
     raw("classify_tuple"), [0.656s], [0.647s], [1%],
     raw("bank_transfer"), [0.520s], [0.513s], [1%],

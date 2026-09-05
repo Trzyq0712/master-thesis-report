@@ -237,7 +237,7 @@ representation more tightly than the corpus does. Once Silicon is allowed to joi
 Helium's advantage on branch-heavy code is a constant factor per obligation rather
 than a better asymptote, and it is confined to the branches across which no
 permission travels. @sec:future-work develops the design that would lift the
-second restriction, a fork of the verification state at a branch, in which an
+second restriction, branching the execution at a conditional, in which an
 arm's guard is assumed outright and the reborrow's identity with its original
 becomes the same ordinary fact it is for Silicon.
 

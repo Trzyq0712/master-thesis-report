@@ -14,7 +14,7 @@ language, not merely from the exposition. The pure operators are
 the one deliberate exception: there are two dozen of them, they carry no heap and
 each becomes the same operator over e-classes, so they share a single row.
 
-@sec:beyond-fragment and the fragment claim of @sec:approach both rest on the
+@sec:beyond-fragment and the fragment claim of @sec:bg-prusti both rest on the
 _support_ column:
 
 #table(

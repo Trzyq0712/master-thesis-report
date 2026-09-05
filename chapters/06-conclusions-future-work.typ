@@ -68,8 +68,8 @@ conditions, ensuring no soundness issues arise, this shared state can lead to
 unpredictable verification behavior where the arbitrary order of branch
 traversal influences the outcome.
 
-To resolve this, we propose adopting a fork-join execution model for the e-graph
-state. Under this model, when execution reaches a control-flow fork, each branch
+To resolve this, we propose branching and joining the e-graph
+state. Under this model, when the execution branches at a conditional, each arm
 receives an isolated copy of the e-graph to perform its verification. Crucially,
 the e-graph remains assumption-free. The path condition itself is not globally
 assumed to be true, and any facts derived within the branch remain explicitly
@@ -83,10 +83,10 @@ complete, conditionally guarded knowledge acquired from all predecessor paths.
 This ensures that verification remains deterministic and independent of
 traversal order.
 
-=== Forking Execution Model
+=== Branching Execution Model
 As an alternative to resolve the issues raised in the previous two sections, it
-may be beneficial in certain cases to completely fork the execution state at a
-branch point. This strategy would align Helium with how Silicon handles
+may be beneficial in certain cases to branch the execution at a
+conditional. This strategy would align Helium with how Silicon handles
 branching and provide two immediate benefits. First, it addresses the exhale
 performance bottleneck by reducing the individual state size within each
 execution branch. The state only needs to encode the traversed blocks, and the

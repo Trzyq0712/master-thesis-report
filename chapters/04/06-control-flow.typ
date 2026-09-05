@@ -15,7 +15,7 @@ Each back edge is cut and exchanged for an appropriately placed loop invariant,
 described below, so the burden of control flow analysis falls on the lowering.
 
 A DAG of blocks does not dictate how a verifier proves a branch. It could still
-be explored one path at a time, treating each arm as a separate execution fork
+be explored one path at a time, branching the execution at each arm
 (as Silicon does). Helium instead verifies each arm in place and reconciles
 them at their merge block. The remainder of this section details how VMIR represents
 control flow, and how Helium verifies them in various situations.
@@ -54,7 +54,7 @@ method example(b: Bool)
 Structurally, a block comprises a path condition, a record of its predecessors,
 a join phase, and a body phase. The join phase contains the value and heap
 resolution for the basic block, while the body phase is the translation of the
-block itself. This separation ensures that an execution-forking verifier could
+block itself. This separation ensures that a verifier branching its execution could
 simply pick the correct values directly, rather than setting them up as a
 ternary as Helium does. #vm[`bb1`]'s path condition is #vm[`<e0>`] and
 #vm[`bb2`]'s is #vm[`<!e0>`], the split condition in its two polarities, and
@@ -253,7 +253,7 @@ Helium identifies #vm[`bb2`] as dead code.
 While the structural shape of #vm[`bb3`]'s join remains unchanged, its evaluation is simplified by
 the contradiction. At the join point, Helium exclusively selects values and heaps from the reachable arm
 (#vm[`bb1`]). Crucially, this allows Helium to successfully discharge the #vi[`exhale`] obligation in
-#vm[`bb3`] because the merged heap #vm[`h1`] eagerly resolves to #vm[`h0`], without the `else` branch
+#vm[`bb3`] because the merged heap #vm[`h1`] eagerly resolves to #vm[`h0`], without the #vi[`else`] branch
 ever needing to contribute the permission chunk.
 
 This optimization is motivated in part by Prusti's encoding of #ru[`match`]
@@ -332,9 +332,9 @@ On any loop exit, the framed state is restored using the #vm[`union`] operation:
 
 This operation takes whatever heap was produced inside the loop (#vm[`h2`]) and unions it with whatever remained in the frame from before the loop head (#vm[`h1`]).
 
-#para[Comparison with Silicon] A fundamental distinction between Helium and Silicon lies in their approach to control-flow verification. Silicon employs symbolic execution, exploring each execution path separately. Conditional branches fork the verification state: one path assumes the condition is true, while the other assumes it is false, and each proceeds independently. While this path-enumeration strategy inherently risks exponential explosion, aggressive pruning of dead execution paths often renders it tractable in practice.
+#para[Comparison with Silicon] A fundamental distinction between Helium and Silicon lies in their approach to control-flow verification. Silicon employs symbolic execution, exploring each execution path separately. A conditional branches the execution: one path assumes the condition is true, while the other assumes it is false, and each proceeds independently. While this path-enumeration strategy inherently risks exponential explosion, aggressive pruning of dead execution paths often renders it tractable in practice.
 
-In contrast, Helium avoids forking the verification state entirely, instead structurally merging divergent paths at join points. This approach avoids the exponential blowup associated with sequential branching. However, it requires Helium to maintain a larger, more complex unified state that encodes all possible path outcomes simultaneously. Consequently, the solver must often consider all states at once, making some obligations more difficult to discharge.
+In contrast, Helium never branches its execution, instead structurally merging divergent paths at join points. This approach avoids the exponential blowup associated with sequential branching. However, it requires Helium to maintain a larger, more complex unified state that encodes all possible path outcomes simultaneously. Consequently, the solver must often consider all states at once, making some obligations more difficult to discharge.
 
 Furthermore, Helium's unified state is currently susceptible to *branch pollution*, where facts derived within one execution arm can unintentionally leak and influence the reasoning in parallel arms. While this leakage does not compromise soundness, it introduces verification unpredictability: benign code reorderings can sometimes alter verification outcomes. Silicon's isolated path exploration inherently prevents this phenomenon.
 

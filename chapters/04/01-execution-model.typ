@@ -342,7 +342,7 @@ it, and pops it on the way out, and a nested guard is one more push on the
 stack. That trail is a feature of Z3's role as a backtracking SMT solver, not
 something every e-graph library provides: egglog's own push and pop clone the
 database underneath, and _egg_, the library Helium builds on, offers no undo at
-all, only `Clone`. Helium therefore assumes a condition by cloning the whole
+all, only #ru[`Clone`]. Helium therefore assumes a condition by cloning the whole
 graph, merging in the clone and discarding it afterwards, and a nested guard
 means a second clone from the same base rather than a clone built on the first.
 

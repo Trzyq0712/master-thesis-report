@@ -290,6 +290,8 @@
 ///   ```]
 /// `target-lang` is `"vmir"` by default and `"lvmir"` where the right-hand side
 /// is written schematically (see the note on VMIR-lite in @sec:implementation).
+/// `source-lang` is `"viper"` by default and `"rust"` for the Rust-to-Viper
+/// pairings in @sec:bg-prusti.
 /// `stacked: true` puts the target under the source instead of beside it, for
 /// listings whose lines are too wide to survive a half-width column. Chunks
 /// still pair up: each source chunk is followed by the target chunk it lowers
@@ -300,6 +302,7 @@
   caption: none,
   label: none,
   columns: (1fr, 1.15fr),
+  source-lang: "viper",
   target-lang: "vmir",
   stacked: false,
   placement: none,
@@ -319,7 +322,10 @@
     )
   }
 
-  let langs = ("viper", target-lang)
+  let langs = (source-lang, target-lang)
+  // `lvmir` has no grammar of its own: it is VMIR written schematically, so it
+  // is highlighted as VMIR and differs only in the corner label.
+  let raw-langs = langs.map(l => if l == "lvmir" { "vmir" } else { l })
   let tints = langs.map(l => _lang-style(l).fill)
   let accents = langs.map(l => lang-colors.at(l))
 
@@ -347,7 +353,7 @@
       ),
       ..src-chunks
         .zip(tgt-chunks)
-        .map(((s, t)) => (head(0), _cell("viper", s), head(1), _cell("vmir", t)))
+        .map(((s, t)) => (head(0), _cell(raw-langs.at(0), s), head(1), _cell(raw-langs.at(1), t)))
         .flatten()
     )
     _bare-raw.update(false)
@@ -372,7 +378,7 @@
       table.header(head(0), head(1)),
       ..src-chunks
         .zip(tgt-chunks)
-        .map(((s, t)) => (_cell("viper", s), _cell("vmir", t)))
+        .map(((s, t)) => (_cell(raw-langs.at(0), s), _cell(raw-langs.at(1), t)))
         .flatten()
     )
     _bare-raw.update(false)

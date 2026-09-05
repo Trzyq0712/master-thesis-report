@@ -101,7 +101,7 @@ Two properties of this design account for the resulting speedup. First,
 obligations are discharged without ever invoking an SMT solver, avoiding
 not only the cost of solving but the per-query overhead of constructing a
 solver context and translating constraints into it. Second, the backend
-does not fully fork its execution state at every branch the way Silicon
+does not branch its execution at every conditional the way Silicon
 does, so branching code does not incur the duplicated work that path-wise
 exploration entails.
 
@@ -125,10 +125,10 @@ Prusti corpus, with a geometric mean of #rust-ratio-geo per file (@sec:results).
 
 == Thesis Outline
 
-@sec:background introduces Viper, the Prusti frontend, and equality
-reasoning via equality saturation. @sec:approach presents a real Prusti
-encoding, measures what such an encoding demands of a
-backend, and states the principles that follow. @sec:implementation presents VMIR and describes
+@sec:background introduces Viper, equality reasoning via equality saturation,
+and the Prusti frontend, giving the Viper each Rust construct becomes and the
+fragment a spec-less Rust program therefore needs. @sec:approach states the
+principles that follow for a backend. @sec:implementation presents VMIR and describes
 the implementation built on it, and @sec:results evaluates it against Silicon, both
 for soundness and for performance. @sec:future-work concludes and
 discusses directions for extending the supported fragment.

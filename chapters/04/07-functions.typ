@@ -189,8 +189,8 @@ precondition is checked in the state that precondition describes.
 
 #para[Recursive functions] A function that calls itself would instantiate its
 own recipe without end. The translation removes the recursion before the
-verifier sees it, using the _limited twin_ @sec:bg-silicon describes for
-Silicon: it detects the cycle and emits a second function #vm[`length#lim`]
+verifier sees it, using the limited symbol @sec:bg-silicon describes for
+Silicon: it detects the cycle and emits a twin function #vm[`length#lim`]
 carrying the same #vi[`ensures`] and no body, a body whose recursive call is
 retargeted to that twin, and an axiom relating the two. Because the twin has no
 body, an instantiation of #vm[`length`]'s recipe lands on #vm[`length#lim`] and

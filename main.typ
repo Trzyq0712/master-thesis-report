@@ -8,7 +8,6 @@
   ("Jonáš Fiala", "Prof. Dr. Peter Müller"), // advisors
   thesis-type: "Master Thesis",
   department: "Department of Computer Science",
-  bib: bibliography("bib.bib", title: none),
 )
 
 #show: code-setup
@@ -29,7 +28,11 @@
 #show heading.where(level: 2): it => block(sticky: true, it)
 #show heading.where(level: 3): it => block(sticky: true, it)
 
-#frontchapter[Abstract]
+// Front matter above the table of contents is not listed in it.
+#heading(level: 1, numbering: none, outlined: false)[Acknowledgements]
+#include "chapters/acknowledgements.typ"
+
+#heading(level: 1, numbering: none, outlined: false)[Abstract]
 #include "chapters/00-abstract.typ"
 
 #outline(depth: 2)
@@ -46,6 +49,11 @@
 
 #include "chapters/06-conclusions-future-work.typ"
 
+// The template appends its `bib:` argument after the whole document, which puts
+// the references behind the appendix. Place the bibliography by hand instead,
+// so the appendix ends the thesis; `<no-wc>` keeps it out of the word count.
+#frontchapter[References]
+#bibliography("bib.bib", title: none) <no-wc>
 
 #show: appendix
 

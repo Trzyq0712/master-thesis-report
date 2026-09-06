@@ -123,10 +123,17 @@ e-graph would answer the structural obligations, which are the bulk of them, and
 the solver would take only what the e-graph fails on. Keeping the solver's state
 in step with the e-graph would make those queries cheap when they come.
 
+#para[VMIR preoptimizations] VMIR is a lower-level representation in SSA form,
+which makes it a natural place to optimise a program before the verifier sees
+it. A Viper program emitted by a frontend carries redundant and dead code,
+because the encoding is generated mechanically rather than written by hand.
+Dead code elimination and common subexpression elimination are cheap on an SSA
+representation, and every instruction they remove is one the verifier never has
+to reason about.
+
 #para[Rewrite rules and scheduling] Helium applies the same rule set to every obligation, whatever the goal.
 Refining the rules and selecting only those a goal can use should recover the
 time spent on matches that cannot contribute.
-
 The rules also run round-robin until a fixpoint. Running the rules that pay off
 first would cut matching work across the whole saturation.
 

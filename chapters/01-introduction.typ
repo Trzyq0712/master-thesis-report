@@ -7,12 +7,11 @@
 The Viper project at ETH Zurich @viper provides an intermediate verification
 language and a toolchain that map a range of real-world verification tasks onto
 a shared set of core primitives. Frontends for Rust, Python, Go and Java encode
-their source programs into Viper, which then discharges the resulting
-obligations to establish properties such as memory safety or functional
-correctness.
+their source programs into Viper, which is then discharged by a backend
+to establish properties such as memory safety or functional correctness.
 
-Internally Viper offers two backends, Silicon @silicon by symbolic execution and
-Carbon @carbon by verification condition generation, and both ultimately hand
+Internally Viper offers two backends, Silicon @silicon with symbolic execution and
+Carbon @carbon with verification condition generation, and both ultimately hand
 their reasoning to an SMT solver. Because Viper supports a broad feature set,
 both backends are necessarily intricate: they handle the general case, and do
 not specialise for the case that dominates in practice.
@@ -31,21 +30,19 @@ a value is either shared or mutable but never both, and the borrow checker
 settles that statically. The Prusti frontend @prusti therefore derives a
 program's whole core proof from the program text, without a line
 of annotation. A Rust program that specifies nothing at all still yields a
-complete core proof, so this is the common case rather than a corner of it.
+complete core proof, so this is the common case rather than a corner one.
 
 Such a proof asks a narrow question. The same location acquires many spellings
-over an execution, as values are copied and snapshots taken. Establishing that a
-permission is held where the program reads memory therefore means establishing
+over an execution, as values are moved. Establishing that a
+permission is held where the program owns memory therefore means establishing
 that two of those spellings agree. Permission amounts work the same way: a
-caller that passes a fraction $p$ keeps $1 - p$, and must recover
-$(1 - p) + p = 1$ when the callee returns it. Both are equalities between
-applications of uninterpreted symbols, and settling them takes no theory and no
-case split.
+caller that passes must recover it when the callee returns it.
+Such questions can be settled efficiently by equality reasoning alone.
 
 A general-purpose SMT solver therefore brings more machinery than the question
 uses. Every obligation becomes a query, translated into the solver's language
 and answered across a process boundary by a search built for arbitrary theories.
-This thesis holds that equality reasoning alone settles the core proof of a
+This thesis claims that equality reasoning alone settles the core proof of a
 spec-less program, and settles it faster.
 
 This thesis makes two contributions.
@@ -68,10 +65,9 @@ This thesis makes two contributions.
   conditional, so the work after a branch is done once rather than once per path.
 
 We evaluate Helium against Silicon on #rust-files Prusti encodings and
-#viper-files hand-written Viper programs. The two agree on every declaration
-both accept, and no run of ours is vacuous. Helium reduces total verification
+#viper-files hand-written Viper programs. Helium reduces total verification
 time on the Prusti corpus by #rust-ratio-total, with a geometric mean of
 #rust-ratio-geo per file. The advantage is not uniform. It is largest on
-straight-line code, where facts accumulate with no branch to reconcile, and it
+straight-line code, where facts accumulate with no branches to reconcile, and it
 disappears on heap-heavy branching code, where the single state Helium carries
-has to reconcile conditional permission amounts at every join.
+has to reconcile conditional permission amounts at every join point.

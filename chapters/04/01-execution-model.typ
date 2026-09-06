@@ -16,6 +16,7 @@ integer and then trivially asserts it.
   caption: [A Viper program that assumes a fact and then asserts it, with its
     VMIR translation.],
   label: "lst:ex-v1",
+  placement: top,
 )[```viper
 var a: Int
 assume a == 42
@@ -63,12 +64,17 @@ whether #vm[e2] names the class of #vm[`true`]. The #vm[`assume`] merged the
 two, so it does, and the check passes.
 
 We now slightly alter the program to make the assertion non-trivial. The
-program below declares #vi[a] to be #vi[10], adds #vi[32] to it, and then asserts
+program in @lst:ex-v2 declares #vi[a] to be #vi[10], adds #vi[32] to it, and then asserts
 that the result is #vi[42]. Because the asserted equality is never explicitly stated
 prior, the verifier cannot discharge it merely by finding a pre-existing node,
 as it did in the previous example.
 
-#lowering()[```viper
+#lowering(
+  caption: [A Viper program that declares an integer, adds to it, and asserts the
+    result, with its VMIR translation.],
+  label: "lst:ex-v2",
+  placement: bottom,
+)[```viper
 var a: Int := 10
 a := a + 32
 assert a == 42
@@ -145,6 +151,7 @@ on the right is one the instructions had already inserted: the rewriting merely 
 classes without constructing new nodes.
 
 #figure(
+  placement: top,
   egraph-saturate,
   caption: [How the e-graph of @lst:ex-v3 evolves as the representation is
     saturated via rewrite rules. Both panels hold the same nodes, and differ
@@ -226,8 +233,7 @@ wherever spelling out its ternary would only introduce unnecessary clutter.
   term-language,
   kind: image,
   caption: [The language of terms an e-graph holds. An arithmetic or ordering
-    operator carries its operand sort as a subscript, and #vm[`mod`] and
-    equality need none.],
+    operator carries its operand sort as a subscript.],
 ) <fig:term-language>
 
 The ternary is the only boolean connective, so every other one is spelled with

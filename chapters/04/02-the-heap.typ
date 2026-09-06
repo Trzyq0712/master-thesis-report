@@ -29,7 +29,7 @@ becomes the dereference #vm[`*[h] f(x)`], which names the heap it reads.
 #vmir(
   caption: [Field access becomes a location dereference, and the heap is threaded explicitly through every operation on it.],
   label: "lst:heap-first-inhale-vmir",
-  placement: top,
+  placement: btt,
 )[```vmir
 function f(e0: Ref): &[f] Int @ 1/1
 
@@ -95,8 +95,7 @@ the location alone, without consulting the declaration.
 can come from. A field declaration fixes all three parts of the type at once,
 and it becomes an uninterpreted function mapping the receiver to a location.
 
-#lowering(
-)[```viper
+#lowering()[```viper
 field f: Int
 ```][```vmir
 function f(e0: Ref): &[f] Int @ 1/1
@@ -143,14 +142,14 @@ index settles the receiver without a solver query.
 Adding a chunk merges it with what the partition already holds. We first check
 whether the partition holds a chunk at the same location. If it does, we create
 no new chunk but merge the two into one, summing their permission amounts. We take the value from whichever side holds positive
-permission. If both do, we assume them equal rather than asserting it. For two chunks
+permission. If both do, we assume them equal. For two chunks
 with permission amounts and values $p_0, v_0$ and $p_1, v_1$, merging produces
 
 $ p' := p_0 + p_1, quad v' := ternary(p_0 > 0, v_0, v_1) $
 
 $ p_0 > 0 and p_1 > 0 ==> v_0 = v_1 " (assumed)" $
 
-Sometimes we learn two locations are equal only after their chunks are
+Sometimes one learns two locations are equal only after their chunks are
 already on the heap. The program below takes half permission to #vi[`x.f`] and half to
 #vi[`y.f`], learns #vi[`x == y`], then exhales the combined whole.
 
@@ -263,8 +262,7 @@ granted only where that condition holds. The lowering below does so at a
 symbolic amount, with #vm[`e0`] the receiver and #vm[`e1`] the amount: the guard
 becomes a conditional permission amount.
 
-#lowering(
-)[```viper
+#lowering()[```viper
 inhale p >= none ==> acc(x.f, p)
 ```][```vmir
 e2: Bool := e1 <r 0/1

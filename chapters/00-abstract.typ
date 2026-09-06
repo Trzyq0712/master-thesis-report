@@ -1,7 +1,7 @@
 #import "../generated/perf-rust-scalars.typ": *
 #import "../generated/perf-viper-scalars.typ": *
 
-#pad(x: 10%, y: 8%)[
+#pad(x: 10%, y: 5em)[
   Viper verification backends, like Silicon, are built to handle a wide range of
   obligations, making their implementation complex. Because of this they rarely
   optimise for the common cases. Many of the proof obligations are can be

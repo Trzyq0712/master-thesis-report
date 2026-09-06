@@ -105,9 +105,9 @@
       mark: (end: ">", scale: 0.45),
       stroke: 0.6pt + ink.lighten(25%),
     )
-    edge("bb0.south-west", "bb1.north")
-    edge("bb0.south-east", "bb2.north")
-    edge("bb1.south", "bb3.north-west")
-    edge("bb2.south", "bb3.north-east")
+    edge("bb0.south", "bb1.north")
+    edge("bb0.south", "bb2.north")
+    edge("bb1.south", "bb3.north")
+    edge("bb2.south", "bb3.north")
   })
 }

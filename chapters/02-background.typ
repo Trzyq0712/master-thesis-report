@@ -11,13 +11,14 @@ We also discuss equality reasoning in the context of symbolic execution, and how
 can be used to encode and discharge obligations that arise during symbolic execution of
 a program.
 
-Last, we discuss the related work: the earlier attempts to make symbolic
-execution of Viper programs faster, the provers our reasoning engine descends
-from, and the other verifiers that take Rust as their source language.
+Last, we discuss the related work: Viper's other backend, another attempt to
+make symbolic execution of Viper programs faster that modified Silicon,
+the libraries that implement equality saturation, and the other verifiers that
+take Rust as their source language.
 
 == Automated Program Verification with Viper <sec:bg-viper>
 
-Unlike software testing, which checks program behavior against concrete inputs, deductive program verification aims to formally prove that a program satisfies its specification for all possible inputs.
+Deductive program verification proves that a program satisfies its specification for all possible inputs, where software testing checks its behaviour against concrete ones.
 Viper @viper is a verification infrastructure that simplifies the development of
 program verifiers for such proofs and supports the rapid prototyping of
 verification techniques. It supports permissions natively and uses them to
@@ -37,14 +38,10 @@ target for a frontend, and it carries both the high-level constructs that make a
 verification problem convenient to state by hand and the low-level constructs a
 frontend needs to encode a source language automatically. Two backends verify a
 program written in it, and both discharge the obligations they produce with the
-Z3 @z3 SMT solver. Carbon @carbon generates verification conditions: it
-translates a whole method into a single formula whose validity implies the
-method's correctness, emits it as a Boogie program @boogie, and lets Boogie
-resolve it. Silicon @silicon instead executes the program symbolically, raising
-a separate query at every point where the program demands something. A
-verification condition generator makes one large query, and attributing its
-failure to a particular statement is harder. A symbolic executor makes many
-small queries, and records which statement raised each.
+Z3 @z3 SMT solver. Silicon @silicon executes the program symbolically, raising a
+separate query at every point where the program demands something, and this work
+takes it as the point of comparison. Carbon @carbon takes the other route,
+generating verification conditions.
 
 We present Viper's constructs with a small example of each. Viper
 programs consist of fields, methods, functions, predicates, domains and ADTs. The two
@@ -72,6 +69,8 @@ field next: Ref
 
 Whether a program may read or write #vi[`x.value`] is decided by permissions. Viper treats a field of a reference as a resource, and the expression #vi[`acc(x.value)`] denotes the permission to access it. Permissions are fractional. The amount #vi[`write`], equivalently #vi[`1/1`], is the maximum any state may hold, and it grants both reading and writing. Any amount above zero grants reading alone. A fraction is therefore what lets one part of a program lend read access while retaining the rest, and #vi[`acc(x.value, 1/2)`] states that half of the permission to #vi[`x.value`] is held.
 
+A program that needs to read a location without committing to how much of it to hold writes #vi[`wildcard`] in place of a fraction. The amount is positive but unspecified, and it is settled only where the assertion is used. Inhaling a wildcard yields a fresh positive amount. Exhaling one requires the location to hold something already and gives away strictly less than that, so a positive remainder always stays behind. A wildcard therefore lends read access that can be handed out repeatedly without being exhausted, and it never grants writing, which needs #vi[`write`].
+
 Permissions move between states through two statements. The #vi[`inhale`] statement adds permissions and assumes properties, and #vi[`exhale`] asserts that the stated permissions are held, then removes them.
 
 #no-numbers[```viper
@@ -86,7 +85,7 @@ After the #vi[`exhale`], half of the permission remains, which is enough to read
 
 #para[Separating conjunction] The conjunction #vi[`&&`] acts as a separating conjunction when its operands are permission assertions: it sums their amounts rather than requiring both to hold independently. The assertion #vi[`acc(x.f, 1/2) && acc(x.f, 1/2)`] is therefore equivalent to #vi[`acc(x.f, write)`], and #vi[`acc(x.f, write) && acc(y.f, write)`] implies that #vi[`x`] and #vi[`y`] are distinct, because the two amounts would otherwise sum past the maximum.
 
-The permission model is modular for this reason. A method that holds full permission to a location knows that no other part of the program holds any, so it may reason about that location without considering aliases.
+Permissions therefore support modular reasoning. A method that holds full permission to a location knows that no other part of the program holds any, so it may reason about that location without considering aliases.
 
 #para[Predicates] Predicates are packed, named permission assertions. A predicate declaration bundles a set of permissions with logical constraints on the values they guard. Predicate bodies may be recursive, which is what allows a finite assertion to describe an unbounded structure such as a list or a tree. One instance of the predicate below carries the permissions to every node reachable from #vi[`this`].
 
@@ -118,8 +117,8 @@ fold acc(LinkedList(this), write)
 #para[Data types] Alongside built-in primitive types, Viper supports complex
 data types. Four container types are built in, #vi[`Seq[T]`], #vi[`Set[T]`],
 #vi[`Multiset[T]`] and #vi[`Map[K, V]`], each with its own literal syntax and
-operators. Algebraic
-data types allow defining structural types with named constructors, and Viper
+operators. Algebraic data types allow defining structural types with named
+constructors, and Viper
 derives the destructors and the discriminator of each variant from the
 declaration alone, so the datatype below also provides #vi[`isCircle`] and the
 destructor #vi[`r`].
@@ -323,8 +322,8 @@ properties that relate chunks pairwise, among them that two amounts summing past
 #vi[`write`] imply distinct receivers. The filter by declaration confines every
 comparison to chunks of the same field or predicate, but a full pass remains
 cubic in the number of chunks in the worst case @silicon[Section 3.4.2]. Silicon
-performs a full consolidation at a join, and again on a path it retries after a
-failed check.
+performs a full consolidation at a join, and on a path it retries after a failed
+check.
 
 #para[Predicates] A folded predicate instance is a chunk of the shape above,
 holding the predicate's arguments and the amount of the instance. The value it
@@ -868,44 +867,43 @@ returning no references out of its arguments needs none.
 
 == Equality Reasoning and E-Graphs <sec:bg-equality>
 
-Equality reasoning decides whether an equality follows from a set of assumed
-equalities. Given $x = y$ and $f(y) = z$, does $f(x) = z$ follow?
+A core proof asks one question over and over, whether two syntactically
+different terms denote the same location. A location is identified by the terms
+naming its receiver, and Prusti's encoding reaches a field through a function
+applied to that receiver, so one location acquires many spellings
+over an execution. Establishing that a permission is held where the program
+reads memory means establishing that two such spellings agree.
+Permission amounts behave the same way. A caller passing a fraction $p$ to a
+callee retains $1 - p$, and when the callee returns the fraction the caller must
+establish full permission again, $(1 - p) + p = 1$. Both questions are equalities
+between applications of uninterpreted symbols, and equality reasoning alone
+settles them.
 
-Equality is reflexive, symmetric and transitive, so the assumptions partition
-terms into equivalence classes, and two terms are equal exactly when they share
-a class. The rule that matters is _congruence_: if $x = y$ then $f(x) = f(y)$.
-Congruence ties the classes to the structure of terms. Merging two classes can
-make other terms congruent, forcing further merges. For example, if $f(x) = z$
-and $f(y) = w$, then merging the classes of $x$ and $y$ will consequently merge
-the classes of $z$ and $w$. This process continues until no further merges are
-possible, a fixpoint known as the _congruence closure_ of the assumptions.
+Equality is reflexive, symmetric and transitive, so a set of assumed equalities
+partitions terms into equivalence classes, and two terms are equal exactly when
+they share a class. _Congruence_ carries that partition into the structure of
+terms: if $x = y$ then $f(x) = f(y)$. From $x = y$ and $f(y) = z$ it therefore
+follows that $f(x) = z$. Congruence also propagates. Merging two classes can
+make other terms congruent and force further merges, so from $f(x) = z$ and
+$f(y) = w$, merging the classes of $x$ and $y$ merges the classes of $z$ and $w$
+as well. Repeating until no further merge is possible gives a fixpoint, the
+_congruence closure_ of the assumptions.
 
-Core proofs consist of obligations of this shape. A heap location is denoted by
-a term, and the same location may be denoted by many syntactically distinct terms during a
-symbolic execution. Establishing that a permission is held where the program
-accesses memory means establishing that two such terms are equal. Permission
-amounts behave the same way: a caller passing a fraction $p$ to a callee retains
-$1 - p$, and when the callee returns it the caller must again establish full
-permission, $(1 - p) + p = 1$. An obligation of this shape is settled by
-computing a congruence closure, which involves no theory reasoning, no case
-split, and no external process.
+An _e-graph_ computes that closure. It holds _e-classes_, each an equivalence
+class of terms known to be equal, and each e-class holds one or more _e-nodes_.
+An e-node applies an operator to e-classes rather than to terms, so one e-node
+stands for every term formed by choosing a member of each argument class, and a
+graph of modest size represents a large set of terms. Adding a term is a lookup:
+an e-node with the same operator over the same argument classes is either
+already present or created. Two terms are then equal exactly when the lookup
+returns the same class for both, which reduces an equality query to a comparison
+of two class identifiers.
 
-The data structure that computes one is the _e-graph_. An e-graph holds
-_e-classes_, each an equivalence class of terms known to be equal, and each
-e-class holds one or more _e-nodes_. An e-node applies an operator to e-classes
-rather than to terms, so a single e-node stands for every term formed by
-choosing one member of each argument class. Adding a term to the graph is a
-lookup: an e-node with the same operator over the same argument classes is
-already there, or it is created. Two terms are equal exactly when the lookup
-returns the same class for both, which makes an equality query a comparison of
-two class identifiers.
-
-Merging two classes makes the structure more than a union-find. After a
-merge, e-nodes that were distinct may have become congruent, because their
-arguments now name the same classes, and every such pair has to be merged in
-turn. @fig:egraph-congruence shows one step of this. Restoring the invariant
-until no congruent pair is left is exactly the fixpoint described above, so an
-e-graph with its invariant restored is a congruence closure.
+After a merge, e-nodes that were distinct may have become congruent, because
+their arguments now name the same classes, and every such pair has to be merged
+in turn. @fig:egraph-congruence shows one step.
+Restoring the invariant until no congruent pair is left is the fixpoint above,
+so an e-graph with its invariant restored is a congruence closure.
 
 #figure(
   egraph-congruence,
@@ -916,32 +914,78 @@ e-graph with its invariant restored is a congruence closure.
     merge as well.],
 ) <fig:egraph-congruence>
 
-We build on _egg_ @egg, a Rust library implementing e-graphs and equality
-saturation. It provides three things this work uses. The first is _rebuilding_:
-rather than restoring the congruence invariant after every merge, egg defers the
-work and restores it in batches, which amortises the cost across a run of
-merges. The second is the _e-class analysis_, a value drawn from a lattice that
-is attached to each class and maintained across merges, which gives a place to
-compute a fact about every term in a class at once. The third is _equality
-saturation_: given a set of rewrite rules, egg applies every rule everywhere it
-matches, repeatedly, until no rule produces anything new or a limit is reached.
-A rule extends the closure with equalities that congruence alone does not give,
+Congruence derives only the equalities that follow from the assumptions. A
+_rewrite rule_ adds the rest. A rule is a pattern paired with a replacement, and
+finding where it applies means matching the pattern against the graph: the match
+walks e-nodes from the operator at the pattern's root, binding each pattern
+variable to an e-class, and yields one substitution per way the pattern fits.
+Applying the rule builds the replacement under that substitution and merges the
+result with the class that matched. Because an e-node ranges over classes rather
+than terms, a single match covers every term those classes contain, and a single
+application speaks for all of them.
+
+_Equality saturation_ applies every rule everywhere it matches, repeatedly,
+until no rule produces anything new or a limit is reached. The result extends
+the closure with equalities congruence alone does not give, and reaches them
 without an explicit proof search over the rules.
 
-Saturation carries the cost of this approach. Arithmetic reasoning is
-available to an e-graph, since the laws of arithmetic are rewrite rules like any
-other and saturating over them derives their consequences. The difficulty is
-that the rules which make arithmetic useful are also the ones that grow the
-graph fastest. Commutativity and associativity together generate an e-node for
-every permutation of a term's arguments, and distributivity multiplies a product
-of sums into a sum of products. A rule set rich enough for general arithmetic
-therefore blows the representation up long before saturation reaches the goal.
-A verifier built on an e-graph must pick a rule set that saturates quickly, and
-accept that an obligation needing genuine arithmetic or a case split lies
-outside what that rule set reaches. @sec:results-qualitative reports where
-our choice of rules falls short.
+Proving two terms equal and proving them different are not symmetric tasks. A
+merge proves an equality, and congruence carries it upward at no cost, since
+equal arguments make equal applications. Two terms in different classes prove
+nothing, because a class records the equalities the assumptions force rather
+than the distinctions they permit. A disequality therefore has to be derived.
+
+Arithmetic meets the same boundary from the other side. The laws of arithmetic
+are rewrite rules like any other, so saturating over them derives their
+consequences, but the rules that make arithmetic useful are also the ones that
+enlarge the graph fastest. Commutativity and associativity together generate an
+e-node for every permutation of a term's arguments, and distributivity turns a
+product of sums into a sum of products. A rule set rich enough for general
+arithmetic therefore exhausts the representation long before saturation reaches
+the goal, which confines a verifier built on an e-graph to a rule set that
+saturates quickly.
+
+None of this machinery is unusual in a prover. An SMT solver maintains an
+e-graph of its own, holding the equalities it has derived, and matches a
+quantifier's triggers against it, which is e-matching.
+The structure is the same one described here. A solver layers theory solvers
+and a case-splitting search over that graph, and those layers separate a solver
+from the bare congruence closure underneath.
+
+We adopt _egg_ @egg, a Rust library implementing e-graphs and equality
+saturation, as the engine for the equality reasoning this work rests on. Its
+rules and analyses are written as types in the host language rather than as
+patterns in a rule language of its own, so a rule may consult state outside the
+graph, memoise its work, or construct a term
+conditionally, none of which a pattern expresses. Its one limitation worth
+naming is the absence of an undo: an e-graph can be cloned but not rolled back,
+so assuming a condition for the duration of a proof means copying the whole
+graph.
+
+Egg introduced two techniques of its own. _Rebuilding_ addresses the cost of
+restoring congruence after every merge, which repeats work the next merge may
+undo. Egg defers the restoration and runs it in batches, which amortises the
+cost over a run of merges, so a rebuild stands for the whole congruence closure:
+after one, the graph holds every equality the assumptions entail.
+
+An _e-class analysis_ attaches a value drawn from a lattice to each class and
+maintains it across merges, so a fact about every term in a class is computed
+once and held in one place. The mechanism is abstract interpretation lifted to
+the e-graph. Merging two classes joins their values, and a value that changes
+propagates to the classes built on top of it, again to a fixpoint.
+
 
 == Related Work <sec:bg-related>
+
+#para[Verification condition generation] Carbon @carbon is Viper's other
+backend, and it discharges a program without executing it. It translates a whole
+method into a single formula whose validity implies the method's correctness,
+emits that formula as a Boogie program @boogie, and lets Boogie resolve it. A
+verification condition generator therefore raises one large query, which gives
+the solver the whole method at once but makes attributing a failure to a
+particular statement harder. A symbolic executor raises many small queries and
+records which statement raised each, and pays for that by exploring every path
+separately.
 
 #para[Joining symbolic execution branches] The path explosion of @sec:bg-silicon has
 been attacked inside Silicon before. Bösiger @perf-impr added join points to
@@ -961,23 +1005,12 @@ paths were bought with a more complex symbolic state, and the conditional
 permission amounts a merge introduces make every later query harder for the
 solver.
 
-#para[Reducing the reliance on quantifier instantiation] Gasser @theory-enc attacks
-Silicon's encoding rather than its search, replacing the uninterpreted functions
-and quantified axioms that @sec:bg-silicon describes with interpreted functions
-and the solver's native theories. With quantifier instantiation heuristics
-disabled entirely, that encoding verifies 53 of 176 test cases where the
-existing encoding verifies 33. The two works target the same layer from opposite
-sides: that one makes the solver's job more predictable and keeps the solver,
-and this one removes the solver from the core proof.
-
-#para[Congruence closure in provers] The reasoning of @sec:bg-equality is not new
-machinery. Congruence closure is the decision procedure for the theory of
-equality with uninterpreted functions, due to Nelson and Oppen @nelson-oppen,
-and the E-graph that implements it sits at the centre of Simplify @simplify. A
-modern SMT solver still contains one, underneath the theory solvers and the
-case-splitting search it layers on top. The contribution here is therefore not a
-new decision procedure. It is the observation that a core proof needs only the
-bottom layer, and that removing the rest makes it fast.
+#para[Equality saturation libraries] _egg_ is not the only implementation of
+e-graphs and equality saturation. Its successor egglog @egglog unifies
+Datalog with equality saturation, and states its rules and queries in a
+specialised language of its own rather than as types in the host language. That
+language is the primary way of driving the library, which makes it the more
+rigid of the two to interact with directly from a Rust program.
 
 #para[Other Rust verifiers] Prusti is not the only tool that derives obligations
 from Rust's ownership discipline. Creusot @creusot translates Rust to WhyML and

@@ -1,8 +1,8 @@
 #import "../../macros.typ": *
 
 == Qualitative Evaluation <sec:results-qualitative>
-This section answers two questions that the timings of
-@sec:results-quantitative presuppose, and that no measurement settles. The first
+This section answers two questions the timings presuppose and no measurement
+settles. The first
 asks what the intermediate representation contributes, meaning how VMIR simplifies
 Viper's surface constructs and how that makes a backend's implementation easier.
 The second concerns the limitations of the proposed system in two distinct
@@ -13,10 +13,8 @@ which programs the backend fails to verify.
 that a backend must support. First, VMIR drops redundant operators.
 For example it retains the ternary operator as the sole boolean connective,
 so #vi[`a && b`] lowers to #vm[`a ? b : false`] and
-#vi[`a || b`] to #vm[`a ? true : b`]. The lowering also makes explicit what in
-surface
-Viper is left implicit, such as the #vi[`write`] amount that an #vi[`acc(x.f)`]
-carries.
+#vi[`a || b`] to #vm[`a ? true : b`]. The lowering also makes explicit what surface Viper leaves implicit, such as the
+#vi[`write`] amount an #vi[`acc(x.f)`] carries.
 
 Second, VMIR represents every heap object as a location. A field declaration
 becomes a function from a receiver to a location, and a predicate instance
@@ -29,8 +27,13 @@ different heaps.
 
 Third, VMIR represents predicates, method contracts and function preconditions
 alike as resources, a heap delta paired with an assertion about that delta, so
-the backend implements one verification path for all three. Having these as separate declarations allows
-for improved proof reuse compared to Viper.
+the backend implements one verification path for all three. A resource is also
+verified where it is declared rather than where it is used. Its body is walked
+once, at the declaration, and the side conditions that walk raises are
+discharged there. A use replays recipes instead of raising them again, so a
+predicate with $n$ uses and a contract with $n$ call sites each pay for their
+well-definedness once. The uses still visit every slot, check that the state
+holds enough permission, and handle the boolean claim.
 
 Fourth, the lowering decomposes the constructs that would otherwise each need
 a rule of their own in the backend. A recursive function is replaced by a
@@ -115,12 +118,12 @@ constructor and states no counterpart of exclusivity, so
 
 The last gap is the relation between a field and its receiver. Silicon enforces
 the guarantee that positive permission to a field implies a non-#vi[`null`]
-receiver, and the uniform representation of every heap entity as one abstract
-location discards it. A field and a single-argument predicate share one mathematical
+receiver. Representing every heap entity as one abstract location discards that
+guarantee. A field and a single-argument predicate share one mathematical
 representation, so VMIR has no per-kind mechanism to state the guarantee. Helium
 consequently fails on it in either direction. It does not derive
 #vi[`x != null`] from #vi[`acc(x.f)`], and it grants positive permission to a
 field of a receiver already known to be #vi[`null`], where the two facts should
-contradict each other and collapse the state. @sec:future-work develops the design
-that would close the gap, in which a field's location carries the guarantee as an
-axiom of its own rather than the engine enforcing it as a built-in rule.
+contradict each other and collapse the state. Closing the gap means giving a
+field's location the guarantee as an axiom of its own, rather than having the
+engine enforce it as a built-in rule.

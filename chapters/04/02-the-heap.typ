@@ -29,7 +29,7 @@ becomes the dereference #vm[`*[h] f(x)`], which names the heap it reads.
 #vmir(
   caption: [Field access becomes a location dereference, and the heap is threaded explicitly through every operation on it.],
   label: "lst:heap-first-inhale-vmir",
-  placement: auto,
+  placement: top,
 )[```vmir
 function f(e0: Ref): &[f] Int @ 1/1
 
@@ -143,8 +143,7 @@ index settles the receiver without a solver query.
 Adding a chunk merges it with what the partition already holds. We first check
 whether the partition holds a chunk at the same location. If it does, we create
 no new chunk but merge the two into one, summing their permission amounts. We take the value from whichever side holds positive
-permission;
-if both do, we assume them equal rather than asserting it. For two chunks
+permission. If both do, we assume them equal rather than asserting it. For two chunks
 with permission amounts and values $p_0, v_0$ and $p_1, v_1$, merging produces
 
 $ p' := p_0 + p_1, quad v' := ternary(p_0 > 0, v_0, v_1) $
@@ -168,8 +167,8 @@ partition: we ask the e-graph for each chunk's canonical e-class and rebuild the
 partition around those, merging chunks by the same rule as an ordinary add. The
 retried lookup then finds one chunk holding #vm[`1/1`], as required. Silicon's
 heap consolidation does the same repair, but decides aliasing by asking the
-solver whether pairs of receivers are equal, so it is scheduled periodically
-rather than run on demand. Helium's reads canonical e-classes that congruence has
+solver whether pairs of receivers are equal, so it runs at a join and when a
+failed action is retried rather than at the lookup that needed it. Helium's reads canonical e-classes that congruence has
 already computed, so it costs one linear pass and runs on a failed lookup.
 
 To match Viper's memory
@@ -298,8 +297,7 @@ Settling it in the e-graph instead would need the distributive rule
 not bind. Descending the tree is therefore one of the few places Helium
 case-splits.
 
-#para[Wildcard permissions] In Viper, wildcards are used when a programmer wants to denote some positive amount of permission without specifying an exact value. In VMIR, a #vm[`wildcard`] can be used wherever a heap operation expects a permission amount (#vi[`Real`]). However, a wildcard is not a normal value and has no concrete numerical meaning by itself. It only gains meaning when executed by a heap operation, at which point it resolves to an unspecified positive amount of permission, as
-in the lowering below.
+#para[Wildcard permissions] A #vm[`wildcard`] may stand wherever a heap operation expects a permission amount (#vi[`Real`]), but it is not a value of that namespace and has no number of its own. It gains one only when a heap operation executes it, as in the lowering below.
 
 #lowering(
   stacked: true,
@@ -319,13 +317,8 @@ Wildcards can appear under conditions, such as when a programmer conditionally i
 Beyond explicit use by the programmer, wildcards are heavily relied upon internally during translation. When lowering heap-dependent functions to VMIR, Helium follows the default semantics of Silicon and changes every permission amount to be either a #vm[`wildcard`] or #vm[`0/1`]. If it is not decidable at translation time whether a symbolic amount $p$ is positive, the translator emits a ternary expression: #vm[`0/1 < p ? wildcard : 0/1`].
 
 
-#para[Comparison with Silicon] Silicon's heap representation reaches the same
-guarantees as partitioning, consolidation and the location axioms above, by a
-different route throughout. Its consolidation is cubic in the number of chunks in
-the worst case, since a full pass repeatedly queries the solver
-@silicon[Section 3.4.2].
-
-The two verifiers also place the non-aliasing axiom differently. Silicon
+#para[Comparison with Silicon] The two verifiers place the non-aliasing axiom
+differently. Silicon
 states it over field receivers, one instance per field:
 $x = y ==> p + p' <= b$. Helium states it over locations, $ell = ell' ==> p + p'
 <= b$, with $ell$ being #vm[`f(x)`] for a field. Stating it over receivers makes Silicon's field mappings injective. VMIR has injectivity only where a

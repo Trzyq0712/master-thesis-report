@@ -46,8 +46,8 @@ one another, domains carrying axioms about their own operations, algebraic
 datatypes, pure functions whose postconditions a caller reads, loops whose
 invariants are permissions, and ownership moved across method boundaries.
 @tbl:perf-viper-categories gathers them by the construct each is built around,
-and @sec:appendix-benchmarks-viper describes each program and gives the same
-measurements per file.
+and @sec:appendix-benchmarks-viper describes each program, with the per-program
+measurements in @sec:appendix-benchmarks-tables.
 
 #include "../../generated/perf-viper-categories.typ"
 
@@ -68,8 +68,8 @@ Prusti imposes, and the corpus therefore consists of framing, fold and unfold,
 and discriminant well-formedness obligations rather than hand-written functional
 specifications. Each program places one shape of those obligations under load.
 @tbl:perf-rust-categories gathers the files by that shape, and
-@sec:appendix-benchmarks-rust describes each file and gives the per-file
-measurements.
+@sec:appendix-benchmarks-rust describes each file, with the per-file
+measurements in @sec:appendix-benchmarks-tables.
 
 #include "../../generated/perf-rust-categories.typ"
 

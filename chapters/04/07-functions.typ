@@ -17,7 +17,6 @@ a body, and the section works from it.
 #lowering(
   caption: [Both clauses become functions of their own, and the declaration links to #vm[`div#ensures`].],
   label: "lst:fn-contract",
-  placement: auto,
   stacked: true,
 )[```viper
 function div(s: Int, n: Int): Int
@@ -86,7 +85,7 @@ One uninterpreted symbol per function, #vm[`div%pre`], is minted at each
 syntactic call on that call's arguments and assumed true under the call's path
 condition:
 
-$ "PC" => f"%pre"(overline(x)) $
+$ "PC" => f%"pre"(macron(x)) $
 
 A call in one arm of a conditional therefore lowers to
 #no-numbers[```vmir
@@ -94,9 +93,8 @@ e2: Int := <e0> div(10, k)
 ```]
 and its token is assumed under #vm[`e0`] alone, which keeps a fact released at
 one call from reaching a sibling branch that never made it. The token licenses
-the definitional equation, so a function unfolds only where that would be sound:
-
-$ {f"%pre"(overline(x))} f"%pre"(overline(x)) => f(overline(x)) = "body"_f (overline(x)) $
+the definitional equation, so a function unfolds only where that would be sound.
+@fig:vmir-fn-axioms gives that axiom together with the two that follow.
 
 #para[Postconditions] An #vi[`ensures`] clause lowers to a boolean function the
 way a #vi[`requires`] clause does, over the parameters and one more for the
@@ -107,12 +105,9 @@ rather than from an instruction the translator emitted beside the call. The same
 construction serves a function with a body and one without.
 
 Write $p$ for the member the link names. At an occurrence the token releases the
-link alongside the definitional equation:
-
-$ {f"%pre"(overline(x))} f"%pre"(overline(x)) => p(overline(y)) and p"%pre"(overline(y)) $
-
-Here $overline(y)$ is the argument list the link records, built from the
-parameters $overline(x)$ and carrying the application $f(overline(x))$ in the
+link alongside the definitional equation, which is the postcondition row of
+@fig:vmir-fn-axioms. Here $macron(y)$ is the argument list the link records, built from the
+parameters $macron(x)$ and carrying the application $f(macron(x))$ in the
 result position. The first conjunct states that $p$ holds where the token is
 present, and the second releases $p$'s own token, which is what lets the caller
 open $p$'s body.
@@ -123,12 +118,25 @@ instead. Every call in a body carries a mark, written #vm[`export`], saying
 whether instantiating the body at a client re-releases that callee's token
 there. A marked call releases its token under two guards, the token that
 licensed the instantiation and the path condition the call sits under inside the
-body:
+body, which is the propagation row.
 
-$ {f"%pre"(overline(x))} f"%pre"(overline(x)) and "PC"_g(overline(y)) => g"%pre"(overline(y)) $
+#figure(
+  $
+  &"body:" #h(0.7em) && {f%"pre"(macron(x))} #h(0.7em)
+    && f%"pre"(macron(x)) ==> f(macron(x)) = "body"_f (macron(x)) \
+  &"postcondition:" #h(0.7em) && {f%"pre"(macron(x))} #h(0.7em)
+    && f%"pre"(macron(x)) ==> p(macron(y)) and p%"pre"(macron(y)) \
+  &"propagation:" #h(0.7em) && {f%"pre"(macron(x))} #h(0.7em)
+    && f%"pre"(macron(x)) and "PC"_g (macron(y)) ==> g%"pre"(macron(y)) \
+  $,
+  caption: [The three axioms a #vm[`function`] declaration leaves behind, set as
+    @fig:fn-axioms sets Silicon's. Each carries its trigger before its body, and
+    every one of them triggers on the precondition token. $p$ is the member the
+    #vi[`ensures`] link names and $g$ a call the body makes.],
+) <fig:vmir-fn-axioms>
 
-Here $g(overline(y))$ is the call the body makes, and $overline(y)$ its
-arguments, built from $overline(x)$ by the steps of the recipe that precede it.
+Here $g(macron(y))$ is the call the body makes, and $macron(y)$ its
+arguments, built from $macron(x)$ by the steps of the recipe that precede it.
 Setting the mark is the translator's decision, recorded on the instruction,
 because the translator knows why it emitted the call. Marking selectively
 confines a client's term graph to the applications that matter, at the cost of
@@ -161,17 +169,17 @@ recipe a client instantiates omits it entirely. A caller that applies #vi[`half(
 #vm[`half%pre(k)`], the one token written at that call site. The token releases
 #vi[`half`]'s definitional equation,
 
-$ "half%pre"(s) => "half"(s) = "div"(s, 2), $
+$ "half"%"pre"(s) => "half"(s) = "div"(s, 2), $
 
 and the instantiation that produces #vm[`div(k, 2)`] mints that call's own token
 alongside it, meaning that the #vm[`div`] inside was applied safely:
 
-$ "half%pre"(s) => "div%pre"(s, 2). $
+$ "half"%"pre"(s) => "div"%"pre"(s, 2). $
 
 With #vm[`div%pre(k, 2)`] present, #vi[`div`]'s equation fires at those
 arguments,
 
-$ "div%pre"(s, 2) => "div"(s, 2) = s \/ 2, $
+$ "div"%"pre"(s, 2) => "div"(s, 2) = s \/ 2, $
 
 so the caller eventually gets #vm[`half(k) == k /i 2`]. Three rules fired in
 sequence, each licensed by a token the one before it minted, and the caller
@@ -200,7 +208,7 @@ stops there.
   caption: [The length of a list. The translation emits a bodyless twin,
     retargets the recursive call to it, and states one axiom relating the two.],
   label: "lst:fn-recursive",
-  placement: auto,
+  placement: top,
   stacked: true,
 )[```viper
 adt List {
@@ -282,7 +290,7 @@ the precondition describes, as @lst:fn-heapdep shows.
 #lowering(
   caption: [The precondition becomes a resource, the function takes that resource's snapshot as a trailing parameter, and the call site produces the snapshot by exhaling the resource. That exhale discards its heap into #vm[`_`], and the call itself takes no heap operand.],
   label: "lst:fn-heapdep",
-  placement: auto,
+  placement: top,
   target-lang: "lvmir",
   stacked: true,
 )[```viper
@@ -334,7 +342,7 @@ remains, instantiated at each occurrence on the caller's arguments and the
 snapshot it exhaled, with no heap consulted anywhere. The heap the body reasoned
 about survives as the snapshot it was summarised into. Silicon gives every
 function a snapshot parameter and evaluates every precondition against the heap
-(@sec:bg-silicon); the translator distinguishes the two cases on the syntactic
+(@sec:bg-silicon). The translator distinguishes the two cases on the syntactic
 presence of an #vi[`acc`] expression, so a heap-free function carries no
 snapshot and its precondition is a boolean function.
 
@@ -349,11 +357,31 @@ footprint is rejected with it, since #vm[`f#requires`] is parameterised by the
 whole argument list and its boolean has to be checked under the quantifier's
 antecedent, which taking the exhale outside the binder does not preserve.
 
-#para[Comparison with Silicon] Silicon unfolds a recursive heap-dependent
-definition one level at each unfold of the surrounding predicate
-(@sec:bg-silicon). Helium has no counterpart: a recipe is instantiated where its
-trigger matches, and an unfold produces no term the definitional equation is
-keyed on. Silicon also states a function's contract as axioms it asserts
-directly, whereas each clause here is an independent declaration the function
-links to, so the facts of a contract arrive through the mechanism that carries
-any other call.
+#para[Comparison with Silicon] Silicon encodes a function as four symbols and six
+axioms. VMIR uses two symbols, the function and its precondition token, and the
+three axioms of @fig:vmir-fn-axioms. The three the encodings do not share are
+worth naming, because each is absent for a reason.
+
+Silicon's stateless symbol records that a function was applied, so that a
+quantifier can be triggered on the application without naming a snapshot. VMIR
+needs no such symbol, since the translator rejects a heap-dependent function
+inside a trigger, so no quantifier ever has to match one.
+
+Silicon's limited symbol bounds the unfolding of a recursive definition. VMIR has
+no recursive functions: the translation removes the recursion before the verifier
+sees the program, so the bodyless twin above is an artifact of that translation
+rather than a symbol the verifier knows.
+
+What remains is the precondition token, and the two encodings hang their axioms
+on different terms. Silicon triggers the definition on the application and guards
+it with the precondition symbol, which it assumes once the precondition has been
+consumed at the call. VMIR triggers on the token and guards on it too, and the
+translator releases the token at every syntactic call under that call's path
+condition, having emitted the precondition assertion before it. The unfolding is
+therefore scoped to the path the call sits on rather than to a solver scope.
+
+One further difference follows from the encoding. Silicon unfolds a recursive
+heap-dependent definition one level at each #vi[`fold`], #vi[`unfold`] or
+#vi[`unfolding`] of the surrounding predicate. Helium has no counterpart, since a
+recipe is instantiated where its trigger matches and opening a resource produces
+no term the definitional equation is keyed on.

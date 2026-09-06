@@ -2,14 +2,34 @@
 
 == Verification Pipeline <sec:impl-pipeline>
 
-A VMIR program comprises a flat sequence of declarations falling into six
-distinct categories. Importantly, these declarations never nest: predicate
-bodies, method contracts, and domain axioms all exist exclusively at the top
-level. Helium processes this flat list in two consecutive phases: it first
-computes a dependency-based execution order over the declarations, then verifies
-each unit in that order.
+A VMIR program is a flat sequence of declarations. Nothing nests: a predicate
+body, a method contract and a domain axiom are all top-level declarations.
+Helium computes a dependency order over them and then verifies each unit in that
+order.
 
-@tbl:decl-summary summarizes these six declaration types. They strictly partition into two groups: three constitute active verification units that encapsulate a body requiring traversal, while the other three merely establish the vocabulary utilized during those traverses.
+The order exists because a unit's walk consumes what earlier declarations left
+behind. A domain's axioms are assumed into the e-graph before the walk begins, a
+function's equation is available to be instantiated, and a resource's recipes are
+already recorded, so no walk reconstructs a fact that another declaration is
+responsible for. Verifying a unit means walking its body and discharging the
+obligations that walk raises, against a state the earlier units have furnished.
+
+Several Viper constructs collapse onto one VMIR declaration, which is why the
+kinds are fewer than the constructs. A field and a domain function are both
+bodyless #vm[`function`]s, each leaving an uninterpreted symbol and needing no
+walk. A predicate body and a method contract are both #vm[`resource`]s, each
+walked once at its declaration and leaving a record of recipes.
+
+Helium draws the graph from what each unit names. A unit records the global
+names it introduces and the identifiers it mentions, and an edge runs from the
+unit introducing a name to every unit that mentions it. The second set is an
+over-approximation, since a local variable shadowing a global name still counts
+as a mention. That costs an edge, which constrains the order without changing
+what any unit proves.
+
+@tbl:decl-summary gives what each kind leaves for the units that follow. Three
+of its rows carry a body the verifier walks. The other four declare vocabulary
+that later units use without being verified themselves.
 
 // A three-column summary. The house style of the lowering reference: a rule
 // under the header, a hairline between rows, and a ragged prose column, since
@@ -47,8 +67,8 @@ each unit in that order.
 
     [#vm[`function`] with a body],
     [yes],
-    [the equation #vm[`f(args) == body`], installed as a rewrite rule the first
-      time a later unit meets an application of #vm[`f`]],
+    [the equation #vm[`f(args) == body`], guarded by the precondition token and
+      triggered on it, so it fires wherever a call released that token],
 
     [#vm[`function`] with no body],
     [no],
@@ -61,15 +81,15 @@ each unit in that order.
 
     vm[`method`],
     [yes],
-    [one result],
+    [nothing: a method body is a terminal node no other unit depends on],
   ),
 ) <tbl:decl-summary>
 
-Importantly, our unified design maps multiple source-level Viper constructs onto single VMIR declarations. For instance, a field and a domain function are both treated as bodyless #vm[`function`]s, leaving an uninterpreted symbol without requiring a separate verification walk. Similarly, a predicate body and a method contract are both encoded as #vm[`resource`]s; each is verified once at declaration, yielding a reusable record of recipes.
-
-Because a method's contract is an independent #vm[`resource`] declaration, its pre- and postconditions are verified entirely separately from the method body itself (@sec:impl-methods). The same isolation applies to a function's clauses (@sec:impl-functions), ensuring that their well-definedness is confirmed independently of their usage.
-
-To establish the execution schedule, Helium constructs a dependency graph among the verifiable units by drawing directed edges from dependencies to their dependents.
+A method's contract is a #vm[`resource`] declaration of its own, so its clauses
+are verified apart from the body that carries them (@sec:impl-methods), and a
+function's clauses are verified apart from the function (@sec:impl-functions).
+The well-definedness of a contract is therefore established once, however often
+that contract is later used.
 
 No unit may form a dependency cycle. A recursive function would be the one
 construct that does, and @sec:impl-functions removes the recursion at
@@ -81,4 +101,7 @@ upon by any other unit: a method's pre- and postconditions can serve as
 dependencies for both the method body and its callers, but the method body
 itself is always a terminal node in the graph.
 
-Verification proceeds by taking one available unit from the graph at a time. When a unit fails verification, Helium halts its execution. Consequently, any downstream dependents are immediately aborted and reported as having failed due to an unresolved verification dependency.
+Helium then takes one available unit from the graph at a time. A unit that fails
+stops there, and every unit that depends on it is reported as skipped rather than
+verified. The units that do not depend on it are still verified, so one failure
+does not cost the report on the rest of the program.

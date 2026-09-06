@@ -19,7 +19,6 @@ back into a heap with its first instruction. @lst:method-contract is
 #lowering(
   caption: [A contract as two resources. The postcondition's trailing parameter is the precondition's snapshot, and #vm[`e3`] and #vm[`e4`] are the same read at two different heaps.],
   label: "lst:method-contract",
-  placement: auto,
   stacked: true,
 )[```viper
 field val: Int
@@ -74,7 +73,7 @@ checks the postcondition against what the body left. @lst:method-full is
   caption: [A complete method: the prologue builds the entry heap, the body
     runs, and the exit checks the contract against what the body left.],
   label: "lst:method-full",
-  placement: auto,
+  placement: top,
 )[```viper
 method bump(c: Ref)
     returns (before: Int)
@@ -127,7 +126,7 @@ caller's heap, with the callee's contract standing in for its body.
 #lowering(
   caption: [A call is an exhale of the callee's precondition and an inhale of its postcondition, with the return values minted between the two.],
   label: "lst:method-call",
-  placement: auto,
+  placement: top,
 )[```viper
 method client(x: Ref)
   requires acc(x.val, write)
@@ -166,7 +165,8 @@ caller's heap held before the call exactly where the add merges the two chunks
 (@sec:impl-heap).
 
 #para[Comparison with Silicon] A contract is walked once however often it is
-used, so a method with $n$ call sites raises the well-definedness obligations of
-its clauses once rather than $n + 1$ times (@sec:impl-predicates). The footprint
-walk itself costs the same in both verifiers, since each use touches every slot
-either way.
+used. Silicon walks a method's precondition $n + 1$ times and its postcondition
+$n + 2$ times for $n$ call sites, raising the well-definedness obligations of
+the clauses at each walk, where the resource here raises them once at its
+declaration. The footprint walk itself costs the same in both verifiers, since
+each use touches every slot either way.

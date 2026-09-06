@@ -119,8 +119,8 @@ recovery, #attr-giveback-m-shape-grow-share of its own verification time.
 
 The recovery thus accounts for about a tenth of what the corpus's slowest file
 pays, which leaves the other nine tenths to account for. Part of the remainder
-goes on the permission sufficiency checks. If not discharged immediately, the
-verifier descends down the ternary tree attempting to prove sufficiency.
+goes on the permission sufficiency checks. A check the verifier cannot settle at
+once sends it down the ternary tree in search of a proof.
 Discharging every such check for free, which is unsound and done here only to
 establish an upper bound, splits the corpus in two. Both columns of
 @tbl:results-permtree are measured outside a sweep, so they sit a little under
@@ -236,8 +236,7 @@ permission moves costs it a state that grows with the branching. Read together w
 representation more tightly than the corpus does. Once Silicon is allowed to join,
 Helium's advantage on branch-heavy code is a constant factor per obligation rather
 than a better asymptote, and it is confined to the branches across which no
-permission travels. @sec:future-work develops the design that would lift the
-second restriction, branching the execution at a conditional, in which an
-arm's guard is assumed outright and the reborrow's identity with its original
-becomes the same ordinary fact it is for Silicon.
+permission travels. Lifting the second restriction means branching the execution
+at a conditional, so that an arm's guard is assumed outright and the reborrow's
+identity with its original becomes the same ordinary fact it is for Silicon.
 

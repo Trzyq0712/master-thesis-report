@@ -68,8 +68,7 @@ that the result is #vi[42]. Because the asserted equality is never explicitly st
 prior, the verifier cannot discharge it merely by finding a pre-existing node,
 as it did in the previous example.
 
-#lowering(
-)[```viper
+#lowering()[```viper
 var a: Int := 10
 a := a + 32
 assert a == 42
@@ -307,7 +306,7 @@ Neither limit is inherent to the design.
 An obligation Helium reports unproven is an ordinary first-order goal over the
 facts the e-graph holds, so it can be handed to a heavyweight prover such as Z3,
 leaving the ladder as a cheap filter that answers the bulk of the stream ahead of
-it. @sec:future-work develops that hybrid.
+it.
 
 #para[Performance considerations] The tiers above only help if each one stays cheap, and each stays cheap only
 while the e-graph stays small. Keeping it small drove two design choices, both
@@ -326,31 +325,23 @@ so applying it merely unions existing e-classes. This ruled out distributivity,
 associativity, and commutativity: a rule such as
 $(ternary(x, y, z)) > w -> (ternary(x, y > w, z > w))$ would be useful, but its
 right-hand side names a term the left-hand side does not already contain, and
-applying it repeatedly blows up the e-graph exponentially in the
-depth of the ternary tower. The cost is completeness: Helium is often unable
-to prove obligations that look trivial to the human eye.
-@sec:appendix-rewrites lists every rewrite rule Helium includes.
+applying it repeatedly enlarges the e-graph exponentially in the depth of the
+ternary tower. The cost is completeness: Helium is often unable to prove
+obligations that look trivial to the human eye.
 
-#para[Comparison with Silicon] Silicon also verifies by symbolic execution, but it hands almost every
-obligation to Z3, one round trip to an external process each. The tiers above
-exist to avoid that trip: Helium answers from its own e-graph and, for now,
-never calls a solver at all.
+#para[Comparison with Silicon] Silicon also verifies by symbolic execution, but
+it hands almost every obligation to Z3, one round trip to an external process
+each. The tiers above exist to avoid that trip: Helium answers from its own
+e-graph and, for now, never calls a solver at all. The two also divide the state
+differently. Silicon explores one path at a time, so an obligation is discharged
+against the state of the path that raised it. Helium does not branch, and every
+obligation is discharged in one state space that carries all of them.
 
 The two differ more deeply in how they assume something. Z3 has push and pop, so
 Silicon assumes a branch condition by pushing it, verifies the obligations under
 it, and pops it on the way out, and a nested guard is one more push on the
-stack. That trail is a feature of Z3's role as a backtracking SMT solver, not
-something every e-graph library provides: egglog's own push and pop clone the
-database underneath, and _egg_, the library Helium builds on, offers no undo at
-all, only #ru[`Clone`]. Helium therefore assumes a condition by cloning the whole
-graph, merging in the clone and discarding it afterwards, and a nested guard
-means a second clone from the same base rather than a clone built on the first.
-
-A clone copies the whole e-graph where a push records a scope marker, which is why Helium reserves it for the
-#vm[`implication_decompose`] tier instead of handling every path condition that
-way. A push also enables reuse that a clone does not: what Silicon derives under
-one stays there for the obligations that follow, while each of Helium's clones
-starts from the same state and nothing it derives outlives it. A method body
-recovers part of that, since one clone per block serves every obligation of the
-block (@sec:impl-cfg), and what is left costs only where obligations nest
-deeply, which is rare.
+stack. That trail is a feature of Z3's role as a backtracking SMT solver, and not
+something an e-graph library provides: _egg_, the library Helium builds on,
+offers no undo at all. Helium therefore assumes a condition by cloning the whole
+graph, saturating the clone and discarding it afterwards, and a nested guard
+means a second clone from the same base rather than one built on the first.

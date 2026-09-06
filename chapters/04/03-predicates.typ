@@ -36,7 +36,7 @@ predicate LinkedList(this: Ref) {
     group of instructions comes from, and the two field declarations become the
     location functions #vm[`val`] and #vm[`next`].],
   label: "lst:list-resource",
-  placement: auto,
+  placement: top,
 )[```vmir
 resource LinkedList(e0: Ref) {
   // acc(this.val, write)
@@ -113,8 +113,8 @@ level of types.
 The location function names the place a folded instance occupies. It maps the
 resource's arguments to a location, exactly as a field declaration does at arity
 one. Its group is the resource's name, so each resource owns a partition of the
-heap; its stored type is the snapshot type, so a chunk in that partition holds a
-whole instance; and its bound is #vm[`*`], because Viper lets a program hold any
+heap. Its stored type is the snapshot type, so a chunk in that partition holds a
+whole instance. Its bound is #vm[`*`], because Viper lets a program hold any
 amount of a folded predicate at once and we match that.
 
 An unbounded partition receives no location axioms (@sec:impl-heap), so two
@@ -282,14 +282,15 @@ and unfolding impossible by construction, since it generates no resource for an
 inhale or an exhale to name.
 
 #para[Comparison with Silicon] Silicon keeps a predicate as the body expression
-the programmer wrote, and re-runs its produce and consume rules over that
-expression at every use. Each #vi[`acc`] in it has its receiver and its
-permission expression evaluated afresh in the state at hand, which may branch,
-may query the solver, and may raise obligations of its own
-@silicon[Section 3.3]. Helium performs that walk once, at the declaration, where
-the body's obligations are discharged against its own state. A use then rebuilds
-terms instead of re-executing an expression, and the branching stays at the
-declaration.
+the programmer wrote and re-runs its produce and consume rules over that
+expression at every use, so each of the body's side conditions is raised again
+at each of them. Helium walks the body once, at the declaration, and discharges
+those side conditions there. A use evaluates recipes instead, which are pure
+terms over the resource's arguments and snapshot members and carry no side
+conditions of their own. The saving is confined to that. A use still visits
+every slot, still evaluates a recipe for each address and amount, still checks
+that the state holds enough permission, and still asserts or assumes the boolean
+claim.
 
 The difference is largest at the receivers. A receiver that reaches
 through the heap, as the third slot's #vi[`this.next`] does, costs Silicon a heap

@@ -21,7 +21,7 @@ field back out, and telling which constructor built one.
 #lowering(
   caption: [The declaration stays a declaration. Construction, field access and the variant test become instructions of their own.],
   label: "lst:adt-lowering",
-  placement: auto,
+  placement: top,
 )[```viper
 adt Shape {
   Circle(r: Int)
@@ -59,7 +59,6 @@ Helium answers a projection or a variant test from the constructor that built
 the value: a projection applied to a matching construction gives the field back,
 and a variant test on a known construction folds to a comparison between two
 integer literals, which the constant folding of @sec:impl-execution decides.
-@sec:appendix-rewrites states the rules that do this.
 
 A datatype may take type parameters, and VMIR declares one for itself:
 #vm[`adt Option[T] { Some(T) | None() }`].
@@ -103,7 +102,7 @@ top-level function declarations, and a top-level axiom.
 #lowering(
   caption: [A domain flattens into a type, two ordinary function declarations and a top-level axiom.],
   label: "lst:domain-lowering",
-  placement: auto,
+  placement: top,
 )[```viper
 domain Box {
   function box(v: Int): Box
@@ -290,6 +289,11 @@ Helium stops short of proving a quantifier. There is no skolemisation, so an
 Existential quantifiers are rejected by the verifier, and their implementation
 remains future work.
 
-#para[Comparison with Silicon] The two verifiers differ mainly in their handling of quantifiers. Silicon relies on the underlying SMT solver to handle instantiation, whereas Helium manages this process internally using the rewrite engine. This design grants Helium more granular control over when and how quantifiers are instantiated, but consequently places a greater burden on the verifier to perform these instantiations correctly and efficiently.
+#para[Comparison with Silicon] The two verifiers instantiate quantifiers in
+different places. Silicon emits a quantified assertion with its triggers and
+leaves the instantiation to the solver's e-matching, while Helium instantiates in
+the e-graph with the rule above. Helium therefore decides when an instance
+appears, and owes the correctness and the cost of every instantiation it
+performs.
 
 The ultimate goal is for Helium to handle quantifiers robustly enough that, should an SMT solver be integrated in the future, the encoding could rely on a fully instantiated, quantifier-free state, eliminating the need for solver-side instantiation entirely.

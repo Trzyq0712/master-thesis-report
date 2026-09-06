@@ -3,7 +3,7 @@
 #import "macros.typ": *
 
 #show: setup.with(
-  "My Thesis Title", // title
+  text(hyphenate: false)[VMIR and Helium: #linebreak()Fast Core-Proof Verification #linebreak()via Equality Reasoning], // title
   "Jakub Adam Trzykowski", // author
   ("Jonáš Fiala", "Prof. Dr. Peter Müller"), // advisors
   thesis-type: "Master Thesis",
@@ -40,8 +40,6 @@
 
 #include "chapters/02-background.typ"
 
-#include "chapters/03-approach.typ"
-
 #include "chapters/04-implementation.typ"
 
 #include "chapters/05-results.typ"
@@ -53,6 +51,4 @@
 
 #frontchapter[Appendix]
 
-// #include "chapters/A-lowering-reference.typ"
-#include "chapters/B-rewrite-rules.typ"
 #include "chapters/C-benchmarks.typ"

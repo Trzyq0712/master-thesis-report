@@ -112,7 +112,7 @@ values from different branches, and a chunk that is only conditionally instantia
     applications are inlined into the heap instructions rather than bound to
     temporaries of their own.],
   label: "lst:cfg-mix",
-  placement: auto,
+  placement: top,
   stacked: true,
   target-lang: "lvmir",
 )[```viper
@@ -187,7 +187,7 @@ method example {
 #figure(
   caption: [The amount and value each location carries out of #vm[`bb1`] and
     #vm[`bb2`], and what #vm[`bb3`]'s merge produces from them. #vm[`x.f`]
-    passes through unchanged; #vm[`x.k`]'s amount collapses to #vm[`0/1`] on
+    passes through unchanged, and #vm[`x.k`]'s amount collapses to #vm[`0/1`] on
     the arm that never added it, and its value is left as #vm[`bb1`]'s
     regardless, since nothing can read it where the amount is zero.],
   cfg-mix-table,
@@ -210,7 +210,7 @@ This dynamic resolution strategy naturally extends to unreachable paths. @lst:cf
     #vm[`h1 := merge e1 ? h0 : empty`], unconditionally framing the untouched
     heap from #vm[`bb2`].],
   label: "lst:cfg-dead",
-  placement: auto,
+  placement: top,
   target-lang: "lvmir",
 )[```viper
 method dead(x: Ref, b: Bool)
@@ -233,7 +233,7 @@ method dead {
     assume e1
   bb1 <e1> from bb0:
     body:
-    h0 := empty + f(e0) @ 1/1 with fresh   // x.f
+    h0 := empty + f(e0) @ 1/1 with fresh
   bb2 <!e1> from bb0:
     body:
     assert false
@@ -268,7 +268,7 @@ verify that the unreachable fallthrough cannot affect the merged result, allowin
     invariant did not ask for, and #vm[`h5`] is the sum of the frame and what the
     body ended with.],
   label: "lst:cfg-loop",
-  placement: auto,
+  placement: top,
 )[```viper
 field val: Int
 field other: Int
@@ -301,18 +301,16 @@ method spin {
     body:
   bb1 <> from bb0:
     join:
-    e3: &[val] Int @ 1/1
-       := val(e0)
-    h1, _ := h0 - e3 @ 1/1
-    e4: Bool := fresh         // g
-    h2 := empty + e3 @ 1/1
+    h1, _ := h0 - val(e0) @ 1/1
+    e3: Bool := fresh         // g
+    h2 := empty + val(e0) @ 1/1
           with fresh
     body:
-  bb2 <e4> from bb1:
+  bb2 <e3> from bb1:
     body:
-    h3 := h2 assign e3 with 1
-    h4, _ := h3 - e3 @ 1/1
-  bb3 <!e4> from bb1:
+    h3 := h2 assign val(e0) with 1
+    h4, _ := h3 - val(e0) @ 1/1
+  bb3 <!e3> from bb1:
     join:
     h5 := union h2 h1
     body:
@@ -324,7 +322,13 @@ method spin {
 
 The verification of a loop proceeds by cutting its back edges. Before entering the loop header, the invariant is exhaled from the incoming heap. This leaves behind a frame (#vm[`h1`]) containing any state the invariant did not claim. At the loop head, the invariant is inhaled fresh, and any modified locals are havoced (replaced with fresh variables). At the loop's back edge, the invariant is exhaled again.
 
-Currently, support for invariants is minimal: the invariant is simply inlined at these three sites. In the future, we intend to introduce a contextual VMIR resource for invariants, similar to how #vi[`forall`] quantifiers are handled. This would allow the well-formedness (WF) of the invariant to be checked only once, and the same contextual resource recipe could be cleanly reused at the pre-header, the loop body inhale, and any loop-back edges.
+An invariant is inlined at all three sites rather than lowered to a resource of
+its own, so its side conditions are discharged again at each of them. A predicate
+body and a method contract are walked once at their declaration and replayed as
+recipes afterwards, and the invariant is the one assertion in the chapter that
+does not get that treatment. Lowering it to a resource, as a #vi[`forall`] body
+already is, would confirm its well-definedness once and let the pre-header, the
+body inhale and every back edge replay the same record.
 
 On any loop exit, the framed state is restored using the #vm[`union`] operation:
 
@@ -332,10 +336,16 @@ On any loop exit, the framed state is restored using the #vm[`union`] operation:
 
 This operation takes whatever heap was produced inside the loop (#vm[`h2`]) and unions it with whatever remained in the frame from before the loop head (#vm[`h1`]).
 
-#para[Comparison with Silicon] A fundamental distinction between Helium and Silicon lies in their approach to control-flow verification. Silicon employs symbolic execution, exploring each execution path separately. A conditional branches the execution: one path assumes the condition is true, while the other assumes it is false, and each proceeds independently. While this path-enumeration strategy inherently risks exponential explosion, aggressive pruning of dead execution paths often renders it tractable in practice.
+#para[Comparison with Silicon] Silicon explores each execution path separately,
+which is where its path count comes from. Helium never branches. It merges
+divergent paths structurally at the join, which trades the exponential path count
+for a single state that carries every outcome at once, and an obligation is then
+discharged against all of them together rather than against the one path that
+raised it.
 
-In contrast, Helium never branches its execution, instead structurally merging divergent paths at join points. This approach avoids the exponential blowup associated with sequential branching. However, it requires Helium to maintain a larger, more complex unified state that encodes all possible path outcomes simultaneously. Consequently, the solver must often consider all states at once, making some obligations more difficult to discharge.
-
-Furthermore, Helium's unified state is currently susceptible to *branch pollution*, where facts derived within one execution arm can unintentionally leak and influence the reasoning in parallel arms. While this leakage does not compromise soundness, it introduces verification unpredictability: benign code reorderings can sometimes alter verification outcomes. Silicon's isolated path exploration inherently prevents this phenomenon.
-
-Importantly, branch pollution is an artifact of the current implementation rather than a fundamental limitation of join-based verification. @sec:future-work discusses potential mitigations, such as strictly isolating fact derivation within individual branches and explicitly reconciling them only at join points.
+That unified state is currently susceptible to branch pollution, where a fact
+derived in one arm reaches the reasoning in a parallel arm. The leakage does not
+compromise soundness, but it makes verification unpredictable, since a benign
+reordering of the code can change the outcome. Silicon's separate paths cannot
+exhibit it. Branch pollution is an artifact of the current implementation rather
+than a limitation of join-based verification.
